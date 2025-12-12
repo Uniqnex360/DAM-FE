@@ -33,7 +33,29 @@ export const api = {
       });
     }
   },
+  // Alternative Safe Version using standard fetch
+  async proxyUrlToFile(url: string, filename: string): Promise<File> {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    
+    // Your project URL
+    const PROJECT_REF = import.meta.env.VITE_SUPABASE_URL; 
+    const functionUrl = `${PROJECT_REF}/functions/v1/fetch-url`;
 
+    const res = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url })
+    });
+
+    if (!res.ok) throw new Error("Proxy fetch failed");
+    
+    const blob = await res.blob();
+    return new File([blob], filename, { type: blob.type });
+  },
   async uploadImages(files: File[], productId?: string): Promise<UploadResponse> {
     const user = (await supabase.auth.getUser()).data.user;
     if (!user) throw new Error('Not authenticated');
@@ -104,11 +126,11 @@ export const api = {
       status: 'uploaded'
     };
   },
-  async processImageAI(imageId:string,imageUrl:string,operation:'bg-remove'|"resize",originalName?:string)
+  async processImageAI(imageId:string,imageUrl:string,operation: 'bg-remove' | 'resize' | 'compress' | '3d-model',originalName?:string,options?: any)
   {
     const {data,error}=await supabase.functions.invoke('process-image',{
       body:{
-        imageId,imageUrl,operation,originalName
+        imageId,imageUrl,operation,originalName,options
       }
     })
     if(error)

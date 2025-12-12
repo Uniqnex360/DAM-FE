@@ -13,17 +13,14 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { ImageCropModal } from "./ImageCropModal";
-
 interface ImageItem {
   id: string;
   url: string;
   name: string;
-  file?:File;
+  file?: File;
   preview?: string;
 }
-
 type UploadSource = "files" | "urls" | "csv" | "product-page" | "cloud";
-
 const PROCESSING_OPTIONS = [
   {
     id: "resize",
@@ -97,7 +94,6 @@ const PROCESSING_OPTIONS = [
     description: "Extract from PDFs",
   },
 ];
-
 export function AdvancedUpload() {
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -107,15 +103,16 @@ export function AdvancedUpload() {
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [error, setError] = useState<string>("");
   const [autoDetect, setAutoDetect] = useState(false);
+  const [compressionQuality, setCompressionQuality] = useState(80);
   const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
+  const [resizeDims, setResizeDims] = useState({ width: 1920, height: 1080 });
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [productPageUrl, setProductPageUrl] = useState("");
   const [cloudProvider, setCloudProvider] = useState<
     "dropbox" | "google-drive"
   >("dropbox");
   const [cloudPath, setCloudPath] = useState("");
-
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -125,19 +122,16 @@ export function AdvancedUpload() {
       setDragActive(false);
     }
   }, []);
-
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
       (file) =>
         file.type.startsWith("image/") ||
         file.type === "text/csv" ||
         file.name.endsWith(".xlsx")
     );
-
     if (
       droppedFiles.some(
         (f) => f.type === "text/csv" || f.name.endsWith(".xlsx")
@@ -150,7 +144,6 @@ export function AdvancedUpload() {
       handleFileSelect(droppedFiles);
     }
   }, []);
-
   const handleFileSelect = (files: File[]) => {
     const newImages = files.map((file, idx) => ({
       id: `${Date.now()}-${idx}`,
@@ -161,40 +154,64 @@ export function AdvancedUpload() {
     }));
     setImages((prev) => [...prev, ...newImages]);
   };
-   const handleCropSave = (newFile: File) => {
+  const urlToFile = async (url: string, filename: string): Promise<File> => {
+  try {
+    const response = await fetch(url, { mode: 'cors' }); 
+    const blob = await response.blob();
+    return new File([blob], filename, { type: blob.type });
+  } catch (e) {
+    console.warn("Could not convert URL to File (CORS restriction):", url);
+    throw e;
+  }
+};
+  const handleCropSave = (newFile: File) => {
     if (!editingImage) return;
-
     const newUrl = URL.createObjectURL(newFile);
-
-    setImages((prev) => 
+    setImages((prev) =>
       prev.map((img) => {
         if (img.id === editingImage.id) {
           return {
             ...img,
-            url: newUrl, 
+            url: newUrl,
             preview: newUrl,
-            file: newFile, 
-            name: newFile.name 
+            file: newFile,
+            name: newFile.name,
           };
         }
         return img;
       })
     );
-    
-    setEditingImage(null); 
+    setEditingImage(null);
   };
-
-  const handleUrlsAdd = () => {
+  const handleUrlsAdd = async () => {
     const urls = urlInput.split("\n").filter((u) => u.trim());
-    const newImages = urls.map((url, idx) => ({
-      id: `url-${Date.now()}-${idx}`,
+    const tempIds = urls.map((_, i) => `url-${Date.now()}-${i}`);
+    const placeholders = urls.map((url, idx) => ({
+      id: tempIds[idx],
       url: url.trim(),
       name: `Image ${idx + 1}`,
+      preview: url.trim(), 
+      file: undefined
     }));
-    setImages((prev) => [...prev, ...newImages]);
+    setImages((prev) => [...prev, ...placeholders]);
     setUrlInput("");
+    placeholders.forEach(async (item) => {
+        try {
+            console.log("Proxying:", item.url);
+            const file = await api.proxyUrlToFile(item.url, item.name + ".jpg");
+            const localPreview = URL.createObjectURL(file);
+            setImages(currentImages => 
+                currentImages.map(img => 
+                    img.id === item.id 
+                    ? { ...img, file: file, preview: localPreview, url: localPreview } 
+                    : img
+                )
+            );
+        } catch (e) {
+            console.error("Could not fetch URL for cropping:", e);
+        }
+    });
   };
-
   const parseCsvFile = async (file: File) => {
     const text = await file.text();
     const lines = text.split("\n").slice(1);
@@ -204,7 +221,6 @@ export function AdvancedUpload() {
         return cols[0]?.trim();
       })
       .filter(Boolean);
-
     const newImages = urls.map((url, idx) => ({
       id: `csv-${Date.now()}-${idx}`,
       url,
@@ -212,7 +228,6 @@ export function AdvancedUpload() {
     }));
     setImages((prev) => [...prev, ...newImages]);
   };
-
   const toggleProcessing = (processingId: string) => {
     setSelectedProcessing((prev) =>
       prev.includes(processingId)
@@ -220,22 +235,18 @@ export function AdvancedUpload() {
         : [...prev, processingId]
     );
   };
-
   const handleUpload = async () => {
     if (images.length === 0 && uploadSource === "files") return;
-
     setUploading(true);
     setError("");
     setUploadResult(null);
-
     try {
       let result;
-
       switch (uploadSource) {
         case "files": {
           const files = await Promise.all(
             images.map(async (img) => {
-              if (img.file) return img.file; 
+              if (img.file) return img.file;
               if (img.preview) {
                 const response = await fetch(img.url);
                 const blob = await response.blob();
@@ -248,35 +259,37 @@ export function AdvancedUpload() {
           result = await api.uploadImages(validFiles);
           break;
         }
-
         case "urls": {
           const urls = images.map((img) => img.url);
           result = await api.uploadFromUrls(urls);
           break;
         }
-
         case "product-page": {
           result = await api.uploadFromProductPage(productPageUrl);
           break;
         }
-
         case "cloud": {
           result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
           break;
         }
-
         default:
           throw new Error("Invalid upload source");
       }
-      const shouldRemoveBG =
-        !autoDetect && selectedProcessing.includes("bg-remove");
-      if (shouldRemoveBG && result?.images) {
+      const activeOperations: ("bg-remove" | "resize"|'compress'|"3d-model")[] = [];
+      if (!autoDetect) {
+        if (selectedProcessing.includes("bg-remove")) activeOperations.push("bg-remove");
+        if (selectedProcessing.includes("resize")) activeOperations.push("resize");
+        if (selectedProcessing.includes("compress")) activeOperations.push("compress");
+        if (selectedProcessing.includes("3d-model")) activeOperations.push("3d-model");
+      }
+      if (activeOperations.length > 0 && result?.images) {
         try {
-          console.log("Initiating AI process");
+          console.log(`Initiating processes: ${activeOperations.join(", ")}`);
           await Promise.all(
             result.images.map(async (uploadedImage: any, index: number) => {
               const sourceUrl =
                 uploadedImage.cloudinaryUrl || uploadedImage.url;
+            let currentSourceUrl = uploadedImage.cloudinaryUrl || uploadedImage.url;
               let originalName = uploadedImage.id;
               if (uploadSource === "files") {
                 if (images[index]) originalName = images[index].name;
@@ -285,22 +298,30 @@ export function AdvancedUpload() {
                 const lastPart = parts[parts.length - 1];
                 if (lastPart) originalName = lastPart;
               }
-              await api.processImageAI(
-                uploadedImage.id,
-                sourceUrl,
-                "bg-remove",
-                originalName
-              );
-              console.log(`Processed: ${originalName}`);
+              for (const op of activeOperations) {
+                console.log(`Running ${op} on ${originalName}...`);
+                let options = {};
+                if (op === 'resize') options = resizeDims;
+                if (op === 'compress') options = { quality: compressionQuality }; 
+                const response=await api.processImageAI(
+                  uploadedImage.id,
+                  currentSourceUrl,
+                  op,
+                  originalName,
+                  options
+                );
+                if (response && response.url) {
+                  currentSourceUrl = response.url;
+                }
+              }
             })
           );
+          console.log("All AI tasks finished.");
         } catch (processError: any) {
           console.error("AI Processing failed", processError);
         }
       }
-      const otherProcessing = selectedProcessing.filter(
-        (p) => p !== "bg-remove"
-      );
+       const otherProcessing = selectedProcessing.filter((p) => p !== "bg-remove" && p !== "resize" && p !== "compress");
       if (!autoDetect && otherProcessing.length > 0) {
         const imageProcessing: Record<string, string[]> = {};
         images.forEach((img) => {
@@ -308,12 +329,10 @@ export function AdvancedUpload() {
         });
         await api.createBatchProcessingJob(result.uploadId, imageProcessing);
       }
-
       setUploadResult(result);
       setImages([]);
       setProductPageUrl("");
       setCloudPath("");
-
       window.dispatchEvent(new CustomEvent("upload-complete"));
     } catch (err: any) {
       setError(err.message || "Upload failed");
@@ -321,11 +340,9 @@ export function AdvancedUpload() {
       setUploading(false);
     }
   };
-
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
-
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
@@ -333,7 +350,6 @@ export function AdvancedUpload() {
           <h2 className="text-2xl font-bold text-slate-900 mb-4">
             Advanced Upload
           </h2>
-
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-3">
               Upload Source
@@ -350,7 +366,6 @@ export function AdvancedUpload() {
                 <Upload className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                 <span className="text-sm font-medium">Files</span>
               </button>
-
               <button
                 onClick={() => setUploadSource("urls")}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -362,7 +377,6 @@ export function AdvancedUpload() {
                 <Link className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                 <span className="text-sm font-medium">URLs</span>
               </button>
-
               <button
                 onClick={() => setUploadSource("csv")}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -374,7 +388,6 @@ export function AdvancedUpload() {
                 <FileText className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                 <span className="text-sm font-medium">CSV</span>
               </button>
-
               <button
                 onClick={() => setUploadSource("product-page")}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -386,7 +399,6 @@ export function AdvancedUpload() {
                 <Globe className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                 <span className="text-sm font-medium">Page</span>
               </button>
-
               <button
                 onClick={() => setUploadSource("cloud")}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -400,7 +412,6 @@ export function AdvancedUpload() {
               </button>
             </div>
           </div>
-
           {uploadSource === "files" && (
             <div
               onDragEnter={handleDrag}
@@ -438,10 +449,8 @@ export function AdvancedUpload() {
                 </span>
               </label>
             </div>
-            
           )}
-
-                    {uploadSource === "urls" && (
+          {uploadSource === "urls" && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">
                 Image URLs (one per line)
@@ -449,7 +458,7 @@ export function AdvancedUpload() {
               <textarea
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                placeholder="https://www.example.com/"
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={6}
               />
@@ -461,7 +470,6 @@ export function AdvancedUpload() {
               </button>
             </div>
           )}
-
           {uploadSource === "csv" && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">
@@ -484,7 +492,6 @@ export function AdvancedUpload() {
               />
             </div>
           )}
-
           {uploadSource === "product-page" && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">
@@ -494,14 +501,14 @@ export function AdvancedUpload() {
                 type="url"
                 value={productPageUrl}
                 onChange={(e) => setProductPageUrl(e.target.value)}
-                 placeholder="https://example.com/product/chair" 
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+                placeholder="https://www.example.com/"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
               <p className="text-sm text-slate-600">
                 Auto-extract all product images from this page
               </p>
             </div>
           )}
-
           {uploadSource === "cloud" && (
             <div className="space-y-4">
               <div>
@@ -543,26 +550,21 @@ export function AdvancedUpload() {
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-                      
-
             </div>
-            
           )}
           {editingImage && (
-          <ImageCropModal 
-            imageSrc={editingImage.url} 
-            fileName={editingImage.name}
-            onClose={() => setEditingImage(null)}
-            onSave={handleCropSave}
-          />
-        )}
-
+            <ImageCropModal
+              imageSrc={editingImage.url}
+              fileName={editingImage.name}
+              onClose={() => setEditingImage(null)}
+              onSave={handleCropSave}
+            />
+          )}
           {images.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
                 Images ({images.length})
               </h3>
-
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {images.map((image) => (
                   <div key={image.id} className="relative group">
@@ -573,22 +575,22 @@ export function AdvancedUpload() {
                           alt={image.name}
                           className="w-full h-full object-cover"
                         />
-                        
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Globe className="w-12 h-12 text-slate-400" />
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-                         {/* Edit/Crop Button */}
-                        <button
+                        {/* Edit/Crop Button */}
+                        {selectedProcessing.includes("crop") && (
+                          <button
                             onClick={() => setEditingImage(image)}
                             className="p-2 bg-white rounded-full hover:bg-blue-50 transition-colors"
                             title="Crop Image"
-                        >
+                          >
                             <Crop className="w-4 h-4 text-blue-600" />
-                        </button>
-                        
+                          </button>
+                        )}
                         {/* Remove Button */}
                         {/* <button
                             onClick={() => removeImage(image.id)}
@@ -597,7 +599,7 @@ export function AdvancedUpload() {
                         >
                             <XCircle className="w-4 h-4 text-red-500" />
                         </button> */}
-                    </div>
+                      </div>
                     </div>
                     <button
                       onClick={() => removeImage(image.id)}
@@ -611,7 +613,6 @@ export function AdvancedUpload() {
                   </div>
                 ))}
               </div>
-
               <button
                 onClick={handleUpload}
                 disabled={uploading}
@@ -636,14 +637,12 @@ export function AdvancedUpload() {
               </button>
             </div>
           )}
-
           {error && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
               <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <span className="text-red-700">{error}</span>
             </div>
           )}
-
           {uploadResult && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-start space-x-2">
@@ -672,7 +671,6 @@ export function AdvancedUpload() {
           )}
         </div>
       </div>
-
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6 sticky top-4">
           <div className="flex items-center justify-between mb-4">
@@ -692,7 +690,6 @@ export function AdvancedUpload() {
               </div>
             </label>
           </div>
-
           {autoDetect ? (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
@@ -707,32 +704,75 @@ export function AdvancedUpload() {
               </p>
               <div className="space-y-1 max-h-[600px] overflow-y-auto">
                 {PROCESSING_OPTIONS.map((option) => (
-                  <label
-                    key={option.id}
-                    className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedProcessing.includes(option.id)
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedProcessing.includes(option.id)}
-                      onChange={() => toggleProcessing(option.id)}
-                      className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">
-                        {option.label}
-                      </p>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        {option.description}
-                      </p>
-                    </div>
-                  </label>
+                  <div key={option.id}>
+                    {/* The Checkbox Row */}
+                    <label
+                      className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedProcessing.includes(option.id)
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedProcessing.includes(option.id)}
+                        onChange={() => toggleProcessing(option.id)}
+                        className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900">
+                          {option.label}
+                        </p>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          {option.description}
+                        </p>
+                      </div>
+                    </label>
+                    {option.id === "resize" && selectedProcessing.includes("resize") && (
+                      <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500">Width (px)</label>
+                          <input 
+                            type="number" 
+                            value={resizeDims.width}
+                            onChange={(e) => setResizeDims(prev => ({...prev, width: Number(e.target.value)}))}
+                            className="w-full mt-1 px-2 py-1 text-sm border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500">Height (px)</label>
+                          <input 
+                            type="number" 
+                            value={resizeDims.height}
+                            onChange={(e) => setResizeDims(prev => ({...prev, height: Number(e.target.value)}))}
+                            className="w-full mt-1 px-2 py-1 text-sm border rounded"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {option.id === "compress" && selectedProcessing.includes("compress") && (
+                      <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <div className="flex justify-between mb-1">
+                          <label className="text-xs font-semibold text-slate-500">Quality</label>
+                          <span className="text-xs font-bold text-blue-600">{compressionQuality}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          step="5"
+                          value={compressionQuality}
+                          onChange={(e) => setCompressionQuality(Number(e.target.value))}
+                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Lower % = Smaller file size, lower quality.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
-
               {selectedProcessing.length > 0 && (
                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm font-medium text-green-700">
