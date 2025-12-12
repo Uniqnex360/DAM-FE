@@ -9,13 +9,16 @@ import {
   CheckCircle,
   XCircle,
   Wand2,
+  Crop,
 } from "lucide-react";
 import { api } from "../services/api";
+import { ImageCropModal } from "./ImageCropModal";
 
 interface ImageItem {
   id: string;
   url: string;
   name: string;
+  file?:File;
   preview?: string;
 }
 
@@ -100,9 +103,10 @@ export function AdvancedUpload() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [error, setError] = useState<string>("");
-  const [autoDetect, setAutoDetect] = useState(true);
+  const [autoDetect, setAutoDetect] = useState(false);
   const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -153,8 +157,31 @@ export function AdvancedUpload() {
       url: URL.createObjectURL(file),
       name: file.name,
       preview: URL.createObjectURL(file),
+      file: file,
     }));
     setImages((prev) => [...prev, ...newImages]);
+  };
+   const handleCropSave = (newFile: File) => {
+    if (!editingImage) return;
+
+    const newUrl = URL.createObjectURL(newFile);
+
+    setImages((prev) => 
+      prev.map((img) => {
+        if (img.id === editingImage.id) {
+          return {
+            ...img,
+            url: newUrl, 
+            preview: newUrl,
+            file: newFile, 
+            name: newFile.name 
+          };
+        }
+        return img;
+      })
+    );
+    
+    setEditingImage(null); 
   };
 
   const handleUrlsAdd = () => {
@@ -208,6 +235,7 @@ export function AdvancedUpload() {
         case "files": {
           const files = await Promise.all(
             images.map(async (img) => {
+              if (img.file) return img.file; 
               if (img.preview) {
                 const response = await fetch(img.url);
                 const blob = await response.blob();
@@ -410,9 +438,10 @@ export function AdvancedUpload() {
                 </span>
               </label>
             </div>
+            
           )}
 
-          {uploadSource === "urls" && (
+                    {uploadSource === "urls" && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">
                 Image URLs (one per line)
@@ -465,9 +494,8 @@ export function AdvancedUpload() {
                 type="url"
                 value={productPageUrl}
                 onChange={(e) => setProductPageUrl(e.target.value)}
-                placeholder="https://example.com/product/chair"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+                 placeholder="https://example.com/product/chair" 
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
               <p className="text-sm text-slate-600">
                 Auto-extract all product images from this page
               </p>
@@ -515,8 +543,19 @@ export function AdvancedUpload() {
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+                      
+
             </div>
+            
           )}
+          {editingImage && (
+          <ImageCropModal 
+            imageSrc={editingImage.url} 
+            fileName={editingImage.name}
+            onClose={() => setEditingImage(null)}
+            onSave={handleCropSave}
+          />
+        )}
 
           {images.length > 0 && (
             <div className="mt-6">
@@ -534,11 +573,31 @@ export function AdvancedUpload() {
                           alt={image.name}
                           className="w-full h-full object-cover"
                         />
+                        
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Globe className="w-12 h-12 text-slate-400" />
                         </div>
                       )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                         {/* Edit/Crop Button */}
+                        <button
+                            onClick={() => setEditingImage(image)}
+                            className="p-2 bg-white rounded-full hover:bg-blue-50 transition-colors"
+                            title="Crop Image"
+                        >
+                            <Crop className="w-4 h-4 text-blue-600" />
+                        </button>
+                        
+                        {/* Remove Button */}
+                        {/* <button
+                            onClick={() => removeImage(image.id)}
+                            className="p-2 bg-white rounded-full hover:bg-red-50 transition-colors"
+                            title="Remove"
+                        >
+                            <XCircle className="w-4 h-4 text-red-500" />
+                        </button> */}
+                    </div>
                     </div>
                     <button
                       onClick={() => removeImage(image.id)}

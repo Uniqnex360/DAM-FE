@@ -104,7 +104,7 @@ export const api = {
       status: 'uploaded'
     };
   },
-  async processImageAI(imageId:string,imageUrl:string,operation:'bg-remove',originalName?:string)
+  async processImageAI(imageId:string,imageUrl:string,operation:'bg-remove'|"resize",originalName?:string)
   {
     const {data,error}=await supabase.functions.invoke('process-image',{
       body:{
