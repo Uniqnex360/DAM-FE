@@ -112,6 +112,9 @@ export function AdvancedUpload() {
   const [urlInput, setUrlInput] = useState("");
   const [resizeDims, setResizeDims] = useState({ width: 1920, height: 1080 });
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isAutoFixing, setIsAutoFixing] = useState(false);
+  const [autoFixResults, setAutoFixResults] = useState<any[]>([]);
+  const [autoFixError, setAutoFixError] = useState<string | null>(null);
   const [productPageUrl, setProductPageUrl] = useState("");
   const [cloudProvider, setCloudProvider] = useState<
     "dropbox" | "google-drive"
@@ -303,120 +306,206 @@ export function AdvancedUpload() {
         : [...prev, processingId]
     );
   };
-  const handleUpload = async () => {
-    if (images.length === 0 && uploadSource === "files") return;
-    setUploading(true);
-    setError("");
-    setUploadResult(null);
-    try {
-      let result;
-      switch (uploadSource) {
-        case "files": {
-          const files = await Promise.all(
-            images.map(async (img) => {
-              if (img.file) return img.file;
-              if (img.preview) {
-                const response = await fetch(img.url);
-                const blob = await response.blob();
-                return new File([blob], img.name, { type: blob.type });
-              }
-              return null;
-            })
-          );
-          const validFiles = files.filter((f): f is File => f !== null);
-          result = await api.uploadImages(validFiles);
-          break;
-        }
-        case "urls": {
-          // 1. Separate items into Files (proxied/cropped) and Raw URLs
-          const filesToUpload: File[] = [];
-          const urlsToUpload: string[] = [];
-
-          // Helper to process items
-          await Promise.all(
-            images.map(async (img) => {
-              // A. If we already have a File object (from Proxy or Crop), use it
-              if (img.file) {
-                filesToUpload.push(img.file);
-                return;
-              }
-              // B. If it is a local blob URL but missing the File object, fetch it
-              if (img.url.startsWith("blob:")) {
-                try {
-                  const res = await fetch(img.url);
-                  const blob = await res.blob();
-                  const file = new File([blob], img.name, { type: blob.type });
-                  filesToUpload.push(file);
-                } catch (e) {
-                  console.error("Failed to convert blob to file", e);
-                }
-                return;
-              }
-              // C. Otherwise, it is a normal remote URL
-              urlsToUpload.push(img.url);
-            })
-          );
-
-          // 2. Upload them separately
-          let fileResults = { images: [], uploadId: null };
-          let urlResults = { images: [], uploadId: null };
-
-          if (filesToUpload.length > 0) {
-            fileResults = await api.uploadImages(filesToUpload);
-          }
-
-          if (urlsToUpload.length > 0) {
-            urlResults = await api.uploadFromUrls(urlsToUpload);
-          }
-
-          // 3. Combine results so the rest of the function works normally
-          result = {
-            uploadId: fileResults.uploadId || urlResults.uploadId, // Use either ID
-            images: [
-              ...(fileResults.images || []),
-              ...(urlResults.images || []),
-            ],
-          };
-          break;
-        }
-        case "product-page": {
-          result = await api.uploadFromProductPage(productPageUrl);
-          break;
-        }
-        case "cloud": {
-          result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
-          break;
-        }
-        default:
-          throw new Error("Invalid upload source");
+const handleUpload = async () => {
+  if (images.length === 0 && uploadSource === "files") return;
+  setUploading(true);
+  setError("");
+  setUploadResult(null);
+  try {
+    let result;
+    switch (uploadSource) {
+      case "files": {
+        const files = await Promise.all(
+          images.map(async (img) => {
+            if (img.file) return img.file;
+            if (img.preview) {
+              const response = await fetch(img.url);
+              const blob = await response.blob();
+              return new File([blob], img.name, { type: blob.type });
+            }
+            return null;
+          })
+        );
+        const validFiles = files.filter((f): f is File => f !== null);
+        result = await api.uploadImages(validFiles);
+        break;
       }
-      const activeOperations: (
-        | "bg-remove"
-        | "resize"
-        | "compress"
-        | "3d-model"
-        | "retouch"
-      )[] = [];
-      if (!autoDetect) {
-        if (selectedProcessing.includes("retouch"))
-          activeOperations.push("retouch");
-        if (selectedProcessing.includes("bg-remove"))
-          activeOperations.push("bg-remove");
-        if (selectedProcessing.includes("resize"))
-          activeOperations.push("resize");
-        if (selectedProcessing.includes("compress"))
-          activeOperations.push("compress");
-        if (selectedProcessing.includes("3d-model"))
-          activeOperations.push("3d-model");
+      case "urls": {
+        const filesToUpload: File[] = [];
+        const urlsToUpload: string[] = [];
+
+        await Promise.all(
+          images.map(async (img) => {
+            if (img.file) {
+              filesToUpload.push(img.file);
+              return;
+            }
+            if (img.url.startsWith("blob:")) {
+              try {
+                const res = await fetch(img.url);
+                const blob = await res.blob();
+                const file = new File([blob], img.name, { type: blob.type });
+                filesToUpload.push(file);
+              } catch (e) {
+                console.error("Failed to convert blob to file", e);
+              }
+              return;
+            }
+            urlsToUpload.push(img.url);
+          })
+        );
+
+        let fileResults = { images: [], uploadId: null };
+        let urlResults = { images: [], uploadId: null };
+
+        if (filesToUpload.length > 0) {
+          fileResults = await api.uploadImages(filesToUpload);
+        }
+
+        if (urlsToUpload.length > 0) {
+          urlResults = await api.uploadFromUrls(urlsToUpload);
+        }
+
+        result = {
+          uploadId: fileResults.uploadId || urlResults.uploadId,
+          images: [
+            ...(fileResults.images || []),
+            ...(urlResults.images || []),
+          ],
+        };
+        break;
       }
-      if (activeOperations.length > 0 && result?.images) {
-        try {
-          console.log(`Initiating processes: ${activeOperations.join(", ")}`);
-          await Promise.all(
+      case "product-page": {
+        result = await api.uploadFromProductPage(productPageUrl);
+        break;
+      }
+      case "cloud": {
+        result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
+        break;
+      }
+      default:
+        throw new Error("Invalid upload source");
+    }
+    
+    const activeOperations: (
+      | "bg-remove"
+      | "resize"
+      | "compress"
+      | "3d-model"
+      | "retouch"
+    )[] = [];
+    
+    if (!autoDetect) {
+      if (selectedProcessing.includes("retouch"))
+        activeOperations.push("retouch");
+      if (selectedProcessing.includes("bg-remove"))
+        activeOperations.push("bg-remove");
+      if (selectedProcessing.includes("resize"))
+        activeOperations.push("resize");
+      if (selectedProcessing.includes("compress"))
+        activeOperations.push("compress");
+      if (selectedProcessing.includes("3d-model"))
+        activeOperations.push("3d-model");
+    }
+    
+    // Process images with selected operations
+    if (activeOperations.length > 0 && result?.images) {
+      try {
+        console.log(`Initiating processes: ${activeOperations.join(", ")}`);
+        await Promise.all(
+          result.images.map(async (uploadedImage: any, index: number) => {
+            let currentSourceUrl = uploadedImage.cloudinaryUrl || uploadedImage.url;
+            let originalName = uploadedImage.id;
+            
+            if (uploadSource === "files") {
+              if (images[index]) originalName = images[index].name;
+            } else if (uploadSource === "urls") {
+              const parts = images[index]?.url.split("/");
+              const lastPart = parts[parts.length - 1];
+              if (lastPart) originalName = lastPart;
+            }
+            
+            // Track processed operations
+            const processedOps = [];
+            
+            for (const op of activeOperations) {
+              console.log(`Running ${op} on ${originalName}...`);
+              let options = {};
+              if (op === "resize") options = resizeDims;
+              if (op === "compress")
+                options = { quality: compressionQuality };
+              
+              const response = await api.processImageAI(
+                uploadedImage.id,
+                currentSourceUrl, // Use current source (previous operation's result)
+                op,
+                originalName,
+                options
+              );
+              
+              if (response && response.url) {
+                currentSourceUrl = response.url; // Update for next operation
+                processedOps.push(op);
+              }
+            }
+            
+            // Update the image URL with the final processed result
+            if (processedOps.length > 0) {
+              uploadedImage.cloudinaryUrl = currentSourceUrl;
+              uploadedImage.url = currentSourceUrl;
+              uploadedImage.isProcessed = true;
+              uploadedImage.processedOperations = processedOps;
+            }
+          })
+        );
+        console.log("All AI tasks finished.");
+      } catch (processError: any) {
+        console.error("AI Processing failed", processError);
+      }
+    }
+    
+    const otherProcessing = selectedProcessing.filter(
+      (p) => p !== "bg-remove" && p !== "resize" && p !== "compress"
+    );
+    
+    if (!autoDetect && otherProcessing.length > 0) {
+      const imageProcessing: Record<string, string[]> = {};
+      images.forEach((img) => {
+        imageProcessing[img.id] = otherProcessing;
+      });
+      await api.createBatchProcessingJob(result.uploadId, imageProcessing);
+    }
+    
+    // AUTO-DETECTION AND AUTO-FIX LOGIC
+    if (autoDetect && currentAnalysis && result?.images && result.images.length > 0) {
+      setIsAutoFixing(true);
+      setAutoFixResults([]);
+      setAutoFixError(null);
+      
+      try {
+        console.log("Applying auto-detected fixes...");
+        
+        // Determine which operations to apply based on analysis
+        const autoFixOperations = [];
+        if (currentAnalysis.suggestions.backgroundRemoval)
+          autoFixOperations.push("bg-remove");
+        if (currentAnalysis.suggestions.upscaling || currentAnalysis.qualityScore < 80)
+          autoFixOperations.push("retouch");
+        if (currentAnalysis.suggestions.compression)
+          autoFixOperations.push("compress");
+        if (currentAnalysis.suggestions.cropping)
+          autoFixOperations.push("crop");
+        
+        if (autoFixOperations.length > 0) {
+          console.log(`Auto-fix operations: ${autoFixOperations.join(", ")}`);
+          
+          // Process each image with auto-fix operations
+          const processedImages = await Promise.all(
             result.images.map(async (uploadedImage: any, index: number) => {
-              let currentSourceUrl =
-                uploadedImage.cloudinaryUrl || uploadedImage.url;
+              // Start with the original uploaded image URL
+              let currentSourceUrl = uploadedImage.cloudinaryUrl || uploadedImage.url;
               let originalName = uploadedImage.id;
+              
               if (uploadSource === "files") {
                 if (images[index]) originalName = images[index].name;
               } else if (uploadSource === "urls") {
@@ -424,51 +513,101 @@ export function AdvancedUpload() {
                 const lastPart = parts[parts.length - 1];
                 if (lastPart) originalName = lastPart;
               }
-              for (const op of activeOperations) {
-                console.log(`Running ${op} on ${originalName}...`);
-                let options = {};
-                if (op === "resize") options = resizeDims;
-                if (op === "compress")
-                  options = { quality: compressionQuality };
-                const response = await api.processImageAI(
-                  uploadedImage.id,
-                  currentSourceUrl,
-                  op,
-                  originalName,
-                  options
-                );
-                if (response && response.url) {
-                  currentSourceUrl = response.url;
+              
+              const operations = [];
+              
+              // Apply each auto-fix operation sequentially
+              for (const op of autoFixOperations) {
+                try {
+                  console.log(`Auto-applying ${op} to ${originalName}...`);
+                  let options = {};
+                  if (op === "resize") options = resizeDims;
+                  if (op === "compress") options = { quality: compressionQuality };
+                  
+                  const response = await api.processImageAI(
+                    uploadedImage.id,
+                    currentSourceUrl, // Use current source URL (previous operation's result)
+                    op,
+                    originalName,
+                    options
+                  );
+                  
+                  if (response && response.url) {
+                    // Store the operation result
+                    operations.push({
+                      operation: op,
+                      status: "success",
+                      url: response.url,
+                    });
+                    
+                    // Update the source URL for the next operation
+                    currentSourceUrl = response.url;
+                  }
+                } catch (opError: any) {
+                  console.error(`Auto-fix failed for ${op} on ${originalName}:`, opError);
+                  operations.push({
+                    operation: op,
+                    status: "failed",
+                    error: opError.message,
+                  });
                 }
               }
+              
+              // Update the uploaded image with the final processed URL
+              if (operations.some(op => op.status === "success")) {
+                uploadedImage.cloudinaryUrl = currentSourceUrl;
+                uploadedImage.url = currentSourceUrl;
+                uploadedImage.isAutoFixed = true;
+                uploadedImage.autoFixOperations = operations
+                  .filter(op => op.status === "success")
+                  .map(op => op.operation);
+              }
+              
+              return {
+                imageId: uploadedImage.id,
+                originalName,
+                operations,
+                finalUrl: currentSourceUrl,
+                isFixed: operations.some(op => op.status === "success")
+              };
             })
           );
-          console.log("All AI tasks finished.");
-        } catch (processError: any) {
-          console.error("AI Processing failed", processError);
+          
+          setAutoFixResults(processedImages);
+          
+          // Update result summary
+          result.isAutoFixed = processedImages.some(img => img.isFixed);
+          result.autoFixSummary = {
+            totalImages: processedImages.length,
+            successfullyFixed: processedImages.filter(img => img.isFixed).length,
+            totalOperations: autoFixOperations.length,
+            appliedOperations: autoFixOperations
+          };
         }
+      } catch (autoFixError: any) {
+        setAutoFixError(autoFixError.message || "Auto-fix failed");
+        console.error("Auto-fix error:", autoFixError);
+      } finally {
+        setIsAutoFixing(false);
       }
-      const otherProcessing = selectedProcessing.filter(
-        (p) => p !== "bg-remove" && p !== "resize" && p !== "compress"
-      );
-      if (!autoDetect && otherProcessing.length > 0) {
-        const imageProcessing: Record<string, string[]> = {};
-        images.forEach((img) => {
-          imageProcessing[img.id] = otherProcessing;
-        });
-        await api.createBatchProcessingJob(result.uploadId, imageProcessing);
-      }
-      setUploadResult(result);
-      setImages([]);
-      setProductPageUrl("");
-      setCloudPath("");
-      window.dispatchEvent(new CustomEvent("upload-complete"));
-    } catch (err: any) {
-      setError(err.message || "Upload failed");
-    } finally {
-      setUploading(false);
     }
-  };
+    
+    setUploadResult(result);
+    setImages([]);
+    setProductPageUrl("");
+    setCloudPath("");
+    
+    // Dispatch event with the processed result
+    window.dispatchEvent(new CustomEvent("upload-complete", { 
+      detail: result 
+    }));
+    
+  } catch (err: any) {
+    setError(err.message || "Upload failed");
+  } finally {
+    setUploading(false);
+  }
+};
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
@@ -697,42 +836,42 @@ export function AdvancedUpload() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {images.map((image) => (
                   <div key={image.id} className="relative group">
-                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden relative"> {/* Added 'relative' */}
-  {image.preview ? (
-    <img
-      src={image.preview}
-      alt={image.name}
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center">
-      <Globe className="w-12 h-12 text-slate-400" />
-    </div>
-  )}
-  
-  {/* ⬇️ ADD QUALITY SCORE BADGE HERE ⬇️ */}
-  {currentAnalysis && (
-    <div className="absolute top-2 left-2">
-      <div className="px-2 py-1 bg-black/70 text-white text-xs font-medium rounded">
-        Score: {currentAnalysis.qualityScore}
-      </div>
-    </div>
-  )}
-  
-  {/* HOVER BUTTONS - Keep this after the badge */}
-  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-    {/* Edit/Crop Button */}
-    {selectedProcessing.includes("crop") && (
-      <button
-        onClick={() => setEditingImage(image)}
-        className="p-2 bg-white rounded-full hover:bg-blue-50 transition-colors"
-        title="Crop Image"
-      >
-        <Crop className="w-4 h-4 text-blue-600" />
-      </button>
-    )}
-  </div>
-</div>
+                    <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden relative">
+                      {" "}
+                      {/* Added 'relative' */}
+                      {image.preview ? (
+                        <img
+                          src={image.preview}
+                          alt={image.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Globe className="w-12 h-12 text-slate-400" />
+                        </div>
+                      )}
+                      {/* ⬇️ ADD QUALITY SCORE BADGE HERE ⬇️ */}
+                      {currentAnalysis && (
+                        <div className="absolute top-2 left-2">
+                          <div className="px-2 py-1 bg-black/70 text-white text-xs font-medium rounded">
+                            Score: {currentAnalysis.qualityScore}
+                          </div>
+                        </div>
+                      )}
+                      {/* HOVER BUTTONS - Keep this after the badge */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                        {/* Edit/Crop Button */}
+                        {selectedProcessing.includes("crop") && (
+                          <button
+                            onClick={() => setEditingImage(image)}
+                            className="p-2 bg-white rounded-full hover:bg-blue-50 transition-colors"
+                            title="Crop Image"
+                          >
+                            <Crop className="w-4 h-4 text-blue-600" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <button
                       onClick={() => removeImage(image.id)}
                       className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -747,13 +886,15 @@ export function AdvancedUpload() {
               </div>
               <button
                 onClick={handleUpload}
-                disabled={uploading}
+                disabled={uploading || isAutoFixing}
                 className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
-                {uploading ? (
+                {uploading || isAutoFixing ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Uploading...</span>
+                    <span>
+                      {uploading ? "Uploading..." : "Auto-fixing Images..."}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -787,17 +928,88 @@ export function AdvancedUpload() {
                     {uploadResult.images?.length || 0} image(s) uploaded and
                     stored
                   </p>
-                  {autoDetect && (
-                    <p className="text-green-600 text-sm mt-1">
-                      Auto-detection enabled - processing will be determined
-                      automatically
+
+                  {isAutoFixing && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center">
+                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin mr-2" />
+                        <span className="text-blue-700 font-medium">
+                          Applying auto-detected fixes...
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {autoFixResults.length > 0 && (
+                    <p className="text-green-600 text-sm mt-2">
+                      Auto-fix complete:{" "}
+                      {
+                        autoFixResults.filter((r) =>
+                          r.operations.some((op) => op.status === "success")
+                        ).length
+                      }{" "}
+                      image(s) processed successfully
                     </p>
                   )}
+
+                  {autoFixError && (
+                    <p className="text-red-600 text-sm mt-2">
+                      Some auto-fix operations failed: {autoFixError}
+                    </p>
+                  )}
+
+                  {autoDetect &&
+                    !isAutoFixing &&
+                    autoFixResults.length === 0 && (
+                      <p className="text-blue-600 text-sm mt-2">
+                        Auto-detection enabled - no fixes needed for these
+                        images
+                      </p>
+                    )}
+
                   <p className="text-green-700 text-sm mt-3 font-medium">
                     Scroll down to view your uploaded images in the gallery
                     below
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+          {autoFixResults.length > 0 && !isAutoFixing && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">
+                Auto-Fix Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-white rounded-lg border">
+                  <div className="text-sm font-medium text-slate-900">
+                    Total Images
+                  </div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {autoFixResults.length}
+                  </div>
+                </div>
+                <div className="p-3 bg-white rounded-lg border">
+                  <div className="text-sm font-medium text-slate-900">
+                    Successful Fixes
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {
+                      autoFixResults.filter((r) =>
+                        r.operations.some((op) => op.status === "success")
+                      ).length
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {autoFixError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+              <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-700 font-semibold">Auto-Fix Error</p>
+                <p className="text-red-600 text-sm mt-1">{autoFixError}</p>
               </div>
             </div>
           )}
@@ -827,6 +1039,48 @@ export function AdvancedUpload() {
                     <div className="text-xs font-medium text-slate-500">
                       Quality Score
                     </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {isAutoFixing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                        <span className="text-blue-700 font-medium">
+                          Applying Auto-Fixes
+                        </span>
+                      </>
+                    ) : autoFixResults.length > 0 ? (
+                      <>
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                        <span className="text-green-700 font-medium">
+                          Auto-Fixes Applied
+                        </span>
+                      </>
+                    ) : autoFixError ? (
+                      <>
+                        <XCircle className="w-5 h-5 text-red-500" />
+                        <span className="text-red-700 font-medium">
+                          Auto-Fix Error
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-5 h-5 text-blue-600" />
+                        <span className="text-blue-700 font-medium">
+                          Auto-Fixes Ready
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    {isAutoFixing
+                      ? "Processing..."
+                      : autoFixResults.length > 0
+                      ? `${autoFixResults.length} image(s) processed`
+                      : "Ready to apply"}
                   </div>
                 </div>
               </div>
