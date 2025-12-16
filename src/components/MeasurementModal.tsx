@@ -184,31 +184,192 @@ const handleSave = () => {
   }
 };
 
-  const handleExport = () => {
-    const exportData = {
-      imageName,
-      imageUrl,
-      measurements: measurements.map((m) => ({
-        label: m.label,
-        value: m.actual_value,
-        pixel_length: m.pixel_length,
-        start: { x: m.start_x, y: m.start_y },
-        end: { x: m.end_x, y: m.end_y },
-      })),
-    };
+const handleExport = () => {
+  // Create a canvas at original image dimensions
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = imageSize.width;
+  exportCanvas.height = imageSize.height;
+  const ctx = exportCanvas.getContext('2d');
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
+  if (!ctx) {
+    console.error('Could not get canvas context');
+    return;
+  }
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  
+  img.onload = () => {
+    // Draw the original image
+    ctx.drawImage(img, 0, 0, imageSize.width, imageSize.height);
+
+    // Draw all measurements
+    measurements.forEach((m) => {
+      // Draw line
+      ctx.strokeStyle = m.color || '#000000';
+      ctx.lineWidth = m.line_width || 2;
+      ctx.beginPath();
+      ctx.moveTo(m.start_x, m.start_y);
+      ctx.lineTo(m.end_x, m.end_y);
+      ctx.stroke();
+
+      // Draw endpoints
+      const pointerSize = m.pointer_width || 5;
+      drawExportPoint(ctx, m.start_x, m.start_y, m.point_style, m.color || '#000000', pointerSize);
+      drawExportPoint(ctx, m.end_x, m.end_y, m.point_style, m.color || '#000000', pointerSize);
+
+      // Draw label
+      const midX = (m.start_x + m.end_x) / 2;
+      const midY = (m.start_y + m.end_y) / 2;
+
+      const valueText = m.actual_value || `${m.pixel_length.toFixed(1)}px`;
+      const labelSuffix = m.label ? ` - ${m.label}` : '';
+      const fullText = `${valueText}${labelSuffix}`;
+      const lines = fullText.split('\n');
+
+      const fontSize = m.font_size || 14;
+      const lineHeight = fontSize + 4;
+
+      let baseX = midX;
+      let baseY = midY;
+
+      // Use custom offset if exists
+      if (m.text_offset_x !== undefined && m.text_offset_y !== undefined) {
+        baseX = midX + m.text_offset_x;
+        baseY = midY + m.text_offset_y;
+      } else {
+        const offsetDistance = 20;
+        switch (m.text_position) {
+          case 'top':
+            baseY = midY - offsetDistance;
+            break;
+          case 'bottom':
+            baseY = midY + offsetDistance;
+            break;
+          case 'left':
+            baseX = midX - offsetDistance;
+            break;
+          case 'right':
+            baseX = midX + offsetDistance;
+            break;
+        }
+      }
+
+      // Adjust for multi-line centering
+      baseY = baseY - ((lines.length - 1) * lineHeight) / 2;
+
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Draw each line
+      lines.forEach((line, index) => {
+        const textY = baseY + index * lineHeight;
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.strokeText(line, baseX, textY);
+
+        ctx.fillStyle = '#000';
+        ctx.fillText(line, baseX, textY);
+      });
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${imageName.replace(/\.[^/.]+$/, "")}_measurements.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // Get the file extension from original image name
+    const originalExtension = imageName.split('.').pop()?.toLowerCase() || 'png';
+    
+    // Determine MIME type and extension
+    let mimeType = 'image/png';
+    let extension = 'png';
+    
+    if (originalExtension === 'jpg' || originalExtension === 'jpeg') {
+      mimeType = 'image/jpeg';
+      extension = 'jpg';
+    } else if (originalExtension === 'webp') {
+      mimeType = 'image/webp';
+      extension = 'webp';
+    }
+
+    // Convert canvas to blob and download
+    exportCanvas.toBlob((blob) => {
+      if (!blob) {
+        console.error('Could not create blob');
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${imageName.replace(/\.[^/.]+$/, '')}_annotated.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, mimeType, 0.95); // 0.95 quality for JPEG
   };
+
+  img.onerror = () => {
+    console.error('Failed to load image for export');
+  };
+
+  img.src = imageUrl;
+};
+
+// Helper function to draw points in export
+const drawExportPoint = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  style: string,
+  color: string,
+  size: number = 5
+) => {
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+
+  switch (style) {
+    case 'round':
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case 'square':
+      ctx.fillRect(x - size, y - size, size * 2, size * 2);
+      ctx.strokeRect(x - size, y - size, size * 2, size * 2);
+      break;
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case 'arrow':
+      const angle = 0; 
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size, size);
+      ctx.lineTo(-size, size);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      break;
+    default:
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+  }
+};
 
   if (imageSize.width === 0) {
     return (
