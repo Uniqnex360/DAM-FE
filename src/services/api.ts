@@ -469,7 +469,55 @@ export const api = {
       status: job.status
     };
   },
+  // Inside your `export const api = { ... }`
+async generateInfographicFromImage(file: File): Promise<{
+  imageUrl: string;
+  analysis: any;
+}> {
+  // Convert file to base64
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+  });
 
+  // Get Supabase session for auth
+  const session = await supabase.auth.getSession();
+  const token = session.data.session?.access_token;
+
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const PROJECT_URL = import.meta.env.VITE_SUPABASE_URL;
+  const functionUrl = `${PROJECT_URL}/functions/v1/analyze-and-generate-poster`;
+
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ imageBase64: base64 }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Infographic generation failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.imageUrl) {
+    throw new Error('No image URL returned from infographic generator');
+  }
+
+  return {
+    imageUrl: result.imageUrl,
+    analysis: result.analysis || {},
+  };
+},
   async processImageWithCloudinary(
     imageId: string,
     operationType: string,
@@ -556,3 +604,4 @@ export const api = {
     }
   }
 };
+

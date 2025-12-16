@@ -31,3 +31,25 @@ entrypoint = "./functions/analyze-image/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/analyze-image/*.html" ]
+
+[functions.infographic-generator]
+enabled = true
+verify_jwt = true
+import_map = "./functions/infographic-generator/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/infographic-generator/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/infographic-generator/*.html" ]
+
+[functions.analyze-and-generate-poster]
+enabled = true
+verify_jwt = true
+import_map = "./functions/analyze-and-generate-poster/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/analyze-and-generate-poster/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/analyze-and-generate-poster/*.html" ]

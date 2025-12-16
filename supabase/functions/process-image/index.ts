@@ -353,11 +353,9 @@ serve(async (req) => {
       const uploadData = await uploadRes.json();
       if (uploadData.error) throw new Error(uploadData.error.message);
 
-      // C. Manually Construct URL to fetch the processed version
       const processedUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transformStr}/v${uploadData.version}/${uploadData.public_id}`;
       console.log(`Fetching processed result: ${processedUrl}`);
 
-      // D. Download the Processed Blob
       const resultRes = await fetch(processedUrl);
       if (!resultRes.ok) throw new Error("Failed to download processed image");
       resultBlob = await resultRes.blob();
@@ -368,7 +366,6 @@ serve(async (req) => {
       const MESHY_API_KEY = Deno.env.get("MESHY_API_KEY");
       if (!MESHY_API_KEY) throw new Error("Meshy API Key missing");
 
-      // 1. Start Task
       const startRes = await fetch("https://api.meshy.ai/v2/image-to-3d", {
         method: "POST",
         headers: { 
@@ -382,7 +379,6 @@ serve(async (req) => {
       const startData = await startRes.json();
       const taskId = startData.result;
 
-      // 2. Poll for Completion (Max 60s)
       let attempts = 0;
       let modelUrl = null;
       while (attempts < 30) { 
@@ -401,7 +397,6 @@ serve(async (req) => {
       }
       if (!modelUrl) throw new Error("3D Generation Timed Out");
 
-      // 3. Download Result
       const modelRes = await fetch(modelUrl);
       resultBlob = await modelRes.blob();
       
@@ -411,11 +406,9 @@ serve(async (req) => {
       throw new Error(`Operation ${operation} not supported!`);
     }
 
-    // --- 4. UPLOAD TO SUPABASE (Backup) ---
     const filePath = `processed/${finalFileName}`;
     const arrayBuffer = await resultBlob.arrayBuffer();
     
-    // Dynamic Content Type
     const contentType = fileExt === 'jpg' ? "image/jpeg" : "image/png";
 
     const { error: uploadError } = await supabaseAdmin.storage
@@ -432,7 +425,6 @@ serve(async (req) => {
       .getPublicUrl(filePath);
 
 
-    // --- 5. UPLOAD TO CLOUDINARY (Final Storage) ---
     const CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME");
     const API_KEY = Deno.env.get("CLOUDINARY_API_KEY");
     const API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET");
@@ -468,7 +460,6 @@ serve(async (req) => {
       }
     }
 
-    // --- 6. UPDATE DB ---
     const finalUrl = finalCloudinaryUrl || sbPublicUrl;
     
     await supabaseAdmin
