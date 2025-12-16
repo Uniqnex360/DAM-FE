@@ -94,32 +94,46 @@ const handleSave = () => {
     img.onload = () => {
       ctx.drawImage(img, 0, 0, imageSize.width, imageSize.height);
       
+      // Calculate scale factor - this tells us how much bigger the export is vs display
+      const displayCanvasWidth = canvasContainerRef.current?.clientWidth || 800;
+      const displayScale = Math.min(
+        (displayCanvasWidth - 40) / imageSize.width,
+        ((canvasContainerRef.current?.clientHeight || 600) - 40) / imageSize.height,
+        1
+      );
+      
       measurements.forEach((m) => {
-        // Draw line
+        // Scale UP visual properties for export (they were designed for display size)
+        const scaledLineWidth = (m.line_width || 2) / displayScale;
+        const scaledPointerSize = (m.pointer_width || 5) / displayScale;
+        const scaledFontSize = (m.font_size || 14) / displayScale;
+        const scaledLineHeight = scaledFontSize + (4 / displayScale);
+        const scaledOffsetDistance = 20 / displayScale;
+        
+        // Draw line using original image coordinates
         ctx.strokeStyle = m.color || '#000000';
-        ctx.lineWidth = m.line_width || 2;
+        ctx.lineWidth = scaledLineWidth;
         ctx.beginPath();
         ctx.moveTo(m.start_x, m.start_y);
         ctx.lineTo(m.end_x, m.end_y);
         ctx.stroke();
         
         // Draw endpoints
-        const pointerSize = m.pointer_width || 5;
         ctx.fillStyle = m.color || '#000000';
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 / displayScale;
         
         ctx.beginPath();
-        ctx.arc(m.start_x, m.start_y, pointerSize, 0, Math.PI * 2);
+        ctx.arc(m.start_x, m.start_y, scaledPointerSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
         ctx.beginPath();
-        ctx.arc(m.end_x, m.end_y, pointerSize, 0, Math.PI * 2);
+        ctx.arc(m.end_x, m.end_y, scaledPointerSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Draw label at correct position
+        // Draw label
         const midX = (m.start_x + m.end_x) / 2;
         const midY = (m.start_y + m.end_y) / 2;
         
@@ -128,46 +142,40 @@ const handleSave = () => {
         const fullText = `${valueText}${labelSuffix}`;
         const lines = fullText.split('\n');
         
-        const fontSize = m.font_size || 14;
-        const lineHeight = fontSize + 4;
-        
         let baseX = midX;
         let baseY = midY;
         
-        // USE CUSTOM OFFSET IF EXISTS
         if (m.text_offset_x !== undefined && m.text_offset_y !== undefined) {
           baseX = midX + m.text_offset_x;
           baseY = midY + m.text_offset_y;
         } else {
-          const offsetDistance = 20;
           switch (m.text_position) {
             case 'top':
-              baseY = midY - offsetDistance;
+              baseY = midY - scaledOffsetDistance;
               break;
             case 'bottom':
-              baseY = midY + offsetDistance;
+              baseY = midY + scaledOffsetDistance;
               break;
             case 'left':
-              baseX = midX - offsetDistance;
+              baseX = midX - scaledOffsetDistance;
               break;
             case 'right':
-              baseX = midX + offsetDistance;
+              baseX = midX + scaledOffsetDistance;
               break;
           }
         }
         
-        // Adjust for multi-line centering
-        baseY = baseY - ((lines.length - 1) * lineHeight) / 2;
+        baseY = baseY - ((lines.length - 1) * scaledLineHeight) / 2;
         
-        ctx.font = `${fontSize}px sans-serif`;
+        ctx.font = `bold ${scaledFontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
         lines.forEach((line, index) => {
-          const textY = baseY + (index * lineHeight);
+          const textY = baseY + (index * scaledLineHeight);
           
           ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 3 / displayScale;
           ctx.strokeText(line, baseX, textY);
           
           ctx.fillStyle = '#000';
@@ -183,9 +191,7 @@ const handleSave = () => {
     onSave(measurements, imageUrl);
   }
 };
-
 const handleExport = () => {
-  // Create a canvas at original image dimensions
   const exportCanvas = document.createElement('canvas');
   exportCanvas.width = imageSize.width;
   exportCanvas.height = imageSize.height;
@@ -200,23 +206,36 @@ const handleExport = () => {
   img.crossOrigin = 'anonymous';
   
   img.onload = () => {
-    // Draw the original image
     ctx.drawImage(img, 0, 0, imageSize.width, imageSize.height);
+    
+    // Calculate display scale - how much the image is scaled down in the display
+    const displayCanvasWidth = canvasContainerRef.current?.clientWidth || 800;
+    const displayCanvasHeight = canvasContainerRef.current?.clientHeight || 600;
+    const displayScale = Math.min(
+      (displayCanvasWidth - 40) / imageSize.width,
+      (displayCanvasHeight - 40) / imageSize.height,
+      1
+    );
 
-    // Draw all measurements
     measurements.forEach((m) => {
-      // Draw line
+      // Scale UP visual properties for export (they were designed for display size)
+      const scaledLineWidth = (m.line_width || 2) / displayScale;
+      const scaledPointerSize = (m.pointer_width || 5) / displayScale;
+      const scaledFontSize = (m.font_size || 14) / displayScale;
+      const scaledLineHeight = scaledFontSize + (4 / displayScale);
+      const scaledOffsetDistance = 20 / displayScale;
+
+      // Draw line using original image coordinates
       ctx.strokeStyle = m.color || '#000000';
-      ctx.lineWidth = m.line_width || 2;
+      ctx.lineWidth = scaledLineWidth;
       ctx.beginPath();
       ctx.moveTo(m.start_x, m.start_y);
       ctx.lineTo(m.end_x, m.end_y);
       ctx.stroke();
 
-      // Draw endpoints
-      const pointerSize = m.pointer_width || 5;
-      drawExportPoint(ctx, m.start_x, m.start_y, m.point_style, m.color || '#000000', pointerSize);
-      drawExportPoint(ctx, m.end_x, m.end_y, m.point_style, m.color || '#000000', pointerSize);
+      // Draw endpoints with scaling
+      drawExportPoint(ctx, m.start_x, m.start_y, m.point_style, m.color || '#000000', 1 / displayScale, scaledPointerSize);
+      drawExportPoint(ctx, m.end_x, m.end_y, m.point_style, m.color || '#000000', 1 / displayScale, scaledPointerSize);
 
       // Draw label
       const midX = (m.start_x + m.end_x) / 2;
@@ -227,47 +246,40 @@ const handleExport = () => {
       const fullText = `${valueText}${labelSuffix}`;
       const lines = fullText.split('\n');
 
-      const fontSize = m.font_size || 14;
-      const lineHeight = fontSize + 4;
-
       let baseX = midX;
       let baseY = midY;
 
-      // Use custom offset if exists
       if (m.text_offset_x !== undefined && m.text_offset_y !== undefined) {
         baseX = midX + m.text_offset_x;
         baseY = midY + m.text_offset_y;
       } else {
-        const offsetDistance = 20;
         switch (m.text_position) {
           case 'top':
-            baseY = midY - offsetDistance;
+            baseY = midY - scaledOffsetDistance;
             break;
           case 'bottom':
-            baseY = midY + offsetDistance;
+            baseY = midY + scaledOffsetDistance;
             break;
           case 'left':
-            baseX = midX - offsetDistance;
+            baseX = midX - scaledOffsetDistance;
             break;
           case 'right':
-            baseX = midX + offsetDistance;
+            baseX = midX + scaledOffsetDistance;
             break;
         }
       }
 
-      // Adjust for multi-line centering
-      baseY = baseY - ((lines.length - 1) * lineHeight) / 2;
+      baseY = baseY - ((lines.length - 1) * scaledLineHeight) / 2;
 
-      ctx.font = `${fontSize}px sans-serif`;
+      ctx.font = `bold ${scaledFontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Draw each line
       lines.forEach((line, index) => {
-        const textY = baseY + index * lineHeight;
+        const textY = baseY + index * scaledLineHeight;
 
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3 / displayScale;
         ctx.strokeText(line, baseX, textY);
 
         ctx.fillStyle = '#000';
@@ -275,10 +287,8 @@ const handleExport = () => {
       });
     });
 
-    // Get the file extension from original image name
     const originalExtension = imageName.split('.').pop()?.toLowerCase() || 'png';
     
-    // Determine MIME type and extension
     let mimeType = 'image/png';
     let extension = 'png';
     
@@ -290,7 +300,6 @@ const handleExport = () => {
       extension = 'webp';
     }
 
-    // Convert canvas to blob and download
     exportCanvas.toBlob((blob) => {
       if (!blob) {
         console.error('Could not create blob');
@@ -305,7 +314,7 @@ const handleExport = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }, mimeType, 0.95); // 0.95 quality for JPEG
+    }, mimeType, 0.95);
   };
 
   img.onerror = () => {
@@ -314,7 +323,6 @@ const handleExport = () => {
 
   img.src = imageUrl;
 };
-
 // Helper function to draw points in export
 const drawExportPoint = (
   ctx: CanvasRenderingContext2D,
@@ -322,12 +330,12 @@ const drawExportPoint = (
   y: number,
   style: string,
   color: string,
+  scaleFactor:number,
   size: number = 5
 ) => {
   ctx.fillStyle = color;
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-
+  ctx.lineWidth = 2 * scaleFactor;
   switch (style) {
     case 'round':
       ctx.beginPath();
@@ -370,7 +378,8 @@ const drawExportPoint = (
       ctx.stroke();
   }
 };
-
+const displayCanvasWidth = canvasContainerRef.current?.clientWidth || 800;
+const scaleFactor=imageSize.width/displayCanvasWidth
   if (imageSize.width === 0) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
