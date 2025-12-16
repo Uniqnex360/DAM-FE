@@ -232,10 +232,33 @@ const handleExport = () => {
       ctx.moveTo(m.start_x, m.start_y);
       ctx.lineTo(m.end_x, m.end_y);
       ctx.stroke();
-
+    const dx = m.end_x - m.start_x;
+const dy = m.end_y - m.start_y;
+const lineAngle = Math.atan2(dy, dx);
       // Draw endpoints with scaling
-      drawExportPoint(ctx, m.start_x, m.start_y, m.point_style, m.color || '#000000', 1 / displayScale, scaledPointerSize);
-      drawExportPoint(ctx, m.end_x, m.end_y, m.point_style, m.color || '#000000', 1 / displayScale, scaledPointerSize);
+      drawExportPoint(
+  ctx, 
+  m.start_x, 
+  m.start_y, 
+  m.point_style, 
+  m.color || '#000000', 
+  1 / displayScale, 
+  scaledPointerSize,
+  true,      // ← ADD: This is the start point
+  lineAngle  // ← ADD: Line angle for rotation
+);
+      
+drawExportPoint(
+  ctx, 
+  m.end_x, 
+  m.end_y, 
+  m.point_style, 
+  m.color || '#000000', 
+  1 / displayScale, 
+  scaledPointerSize,
+  false,     // ← ADD: This is the end point  
+  lineAngle  // ← ADD: Same line angle
+);
 
       // Draw label
       const midX = (m.start_x + m.end_x) / 2;
@@ -330,12 +353,15 @@ const drawExportPoint = (
   y: number,
   style: string,
   color: string,
-  scaleFactor:number,
-  size: number = 5
+  scaleFactor: number,
+  size: number = 5,
+  isStart: boolean = false,
+  lineAngle: number = 0,
 ) => {
   ctx.fillStyle = color;
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 2 * scaleFactor;
+  
   switch (style) {
     case 'round':
       ctx.beginPath();
@@ -357,20 +383,23 @@ const drawExportPoint = (
       ctx.fill();
       ctx.stroke();
       break;
-    case 'arrow':
-      const angle = 0; 
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(0, -size);
-      ctx.lineTo(size, size);
-      ctx.lineTo(-size, size);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-      break;
+case 'arrow':
+  const arrowAngle = isStart ? lineAngle + Math.PI : lineAngle;
+  
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(arrowAngle);
+  ctx.beginPath();
+  // Simple triangle pointing RIGHT
+  ctx.moveTo(size, 0);        // Tip at right
+  ctx.lineTo(-size, -size);   // Top-left
+  ctx.lineTo(-size, size);    // Bottom-left
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  break;
+      
     default:
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
