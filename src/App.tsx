@@ -49,7 +49,7 @@ function AppContent() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="dark"
+        theme="light"
         transition={Bounce}
       />
       <div className="space-y-6">

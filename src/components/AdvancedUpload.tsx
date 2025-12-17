@@ -16,6 +16,7 @@ import { api } from "../services/api";
 import { ImageCropModal } from "./ImageCropModal";
 import { supabase } from "../lib/supabase";
 import { MeasurementModal } from "./MeasurementModal";
+import { toast } from "react-toastify";
 interface ImageItem {
   id: string;
   url: string;
@@ -169,6 +170,15 @@ export function AdvancedUpload() {
     }
   }, []);
   const handleFileSelect = (files: File[]) => {
+    const validFiles=files.filter(file=>file.type.startsWith('image/')||file.type==='application/pdf')
+    const invalidFiles=files.filter(file=>!validFiles.includes(file))
+    if(invalidFiles.length>0)
+    {
+      const invalidFileNames=invalidFiles.map(f=>f.name).join(', ')
+      toast.error(`Unsupported file types were ignored: ${invalidFileNames}. Please select only images or PDF files.`)
+      return
+    }
+
     const newImages = files.map((file, idx) => ({
       id: `${Date.now()}-${idx}`,
       url: URL.createObjectURL(file),
