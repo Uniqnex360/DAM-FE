@@ -360,7 +360,22 @@ export function AdvancedUpload() {
     (file.url && file.url.toLowerCase().includes('.pdf'))
   );
 };
+const isImgFile=(file)=>{
+  return (
+    (file.type && file.type.startsWith('image/'))||(file.file_type && file.file_type.startsWith('image/'))||(!isPdfFile(file)&& file.preview && file.preview !=='/pdf-icon.svg')
+  )
+}
   const toggleProcessing = (processingId: string) => {
+    if(processingId==='pdf-extract' && !images.some(img=>isPdfFile(img)))
+    {
+      toast.error("PDF extraction can only be performed on PDF files")
+      return 
+    }
+    if(processingId!=='pdf-extract' && !images.some(img=>isImgFile(img)))
+    {
+      toast.error(`${PROCESSING_OPTIONS.find(op => op.id === processingId)?.label} can only be performed on image files`);
+      return
+    }
     setSelectedProcessing((prev) =>
       prev.includes(processingId)
         ? prev.filter((p) => p !== processingId)
@@ -539,31 +554,54 @@ export function AdvancedUpload() {
       if (activeOperations.length > 0 && result?.images) {
         try {
           console.log(`Initiating processes: ${activeOperations.join(", ")}`);
+          const pdfOperations=activeOperations.filter(op=>op==='pdf-extract')
+           const imgOperations = activeOperations.filter(op=>op!=='pdf-extract')
           await Promise.all(
             result.images.map(async (uploadedImage: any, index: number) => {
-              let currentSourceUrl =
-                uploadedImage.cloudinaryUrl || uploadedImage.url;
-              let originalName = uploadedImage.id;
+              const originalImage = images[index];
+              if(!originalImage)return
+              let currentSourceUrl =uploadedImage.cloudinaryUrl || uploadedImage.url;
+              const originalName = originalImage.name || uploadedImage.id;
 
-              if (uploadSource === "files") {
-                if (images[index]) originalName = images[index].name;
-              } else if (uploadSource === "urls") {
-                const parts = images[index]?.url.split("/");
-                const lastPart = parts[parts.length - 1];
-                if (lastPart) originalName = lastPart;
-              }
+              // if (uploadSource === "files") {
+              //   if (images[index]) originalName = images[index].name;
+              // } else if (uploadSource === "urls") {
+              //   const parts = images[index]?.url.split("/");
+              //   const lastPart = parts[parts.length - 1];
+              //   if (lastPart) originalName = lastPart;
+              // }
 
-              // Track processed operations
               const processedOps: string[] = [];
               const failedOps: string[] = [];
-
-              for (const op of activeOperations) {
-                console.log(`Running ${op} on ${originalName}...`);
-                if(op==='pdf-extract' && !isPdfFile(images[index]))
-                {
-                  console.log(`Skpping PDF extraction for non-PDF files :${originalName}`)
-                  continue
+              if(isPdfFile(originalImage) && pdfOperations.length>0)
+              {
+                 console.log(`Processing PDF operations for ${originalName}`);
+                 for (const op of pdfOperations) {
+              try {
+                const response = await api.processImageAI(
+                  uploadedImage.id,
+                  currentSourceUrl,
+                  op,
+                  originalName,
+                  {}
+                );
+                
+                if (response && response.url) {
+                  currentSourceUrl = response.url;
+                  processedOps.push(op);
+                } else {
+                  throw new Error(`No output URL from ${op}`);
                 }
+              } catch (error: any) {
+                console.error(`Operation "${op}" FAILED on ${originalName}:`, error.message);
+                failedOps.push(op);
+              }
+            }
+          }
+          if (isImgFile(originalImage) && imgOperations.length > 0) {
+            console.log(`Processing image operations for ${originalName}`);
+              for (const op of imgOperations) {
+  
                 let options = {};
                 if (op === "resize") options = resizeDims;
                 if (op === "compress")
@@ -613,6 +651,7 @@ export function AdvancedUpload() {
                     : `${originalName}: ${failedOps.join(", ")}`
                 );
               }
+            }
             })
           );
           console.log("All AI tasks finished.");
@@ -935,6 +974,7 @@ export function AdvancedUpload() {
       setUploading(false);
     }
   };
+  
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
@@ -1179,6 +1219,15 @@ export function AdvancedUpload() {
                             {/* <Globe className="w-12 h-12 text-slate-400" /> */}
                           </div>
                         )}
+                          <div className="absolute top-2 left-2 z-10">
+        <div className={`px-2 py-1 text-xs font-medium rounded ${
+          isPdfFile(image) 
+            ? "bg-red-100 text-red-800" 
+            : "bg-blue-100 text-blue-800"
+        }`}>
+          {isPdfFile(image) ? "PDF" : "Image"}
+        </div>
+      </div>
                         {(image.processingStatus || image.autoFixStatus) && (
                           <div className="absolute top-2 left-2 z-10">
                             {image.processingStatus === "success" && (
@@ -1887,28 +1936,41 @@ export function AdvancedUpload() {
                   Select operations to apply:
                 </p>
                 <div className="space-y-1 max-h-[600px] overflow-y-auto">
-                  {PROCESSING_OPTIONS.map((option) => (
+                  {PROCESSING_OPTIONS.map((option) => {
+                    const isPdfOperation=option.id==='pdf-extract'
+                    const isImageOperation=!isPdfOperation
+                    const hasPdfs = images.some(img => isPdfFile(img))
+                    const hasImages=images.some(img=>isImgFile(img))
+                    const isDisabled=(isPdfOperation && !hasPdfs)||(isImageOperation && !hasImages)
+                    return (
                     <div key={option.id}>
                       <label
                         className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                           selectedProcessing.includes(option.id)
                             ? "border-blue-500 bg-blue-50"
                             : "border-slate-200 hover:bg-slate-50"
-                        } ${option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img))?'opacity-50 cursor-not-allowed':""}`}
+                        } ${isDisabled?'opacity-50 cursor-not-allowed':""}`}
                       >
                         <input
                           type="checkbox"
                           checked={selectedProcessing.includes(option.id)}
-                          onChange={() => {if(option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img)))
-                          {
-                            toast.error("PDF extraction can be performed only on PDF files!")
-                            return
-                          }
+                          onChange={() => {
+                            if(isDisabled)
+                            {
+                              if(isPdfOperation)
+                              {
+                                toast.error("PDF extraction can be performed only on PDF files!")
+
+                              }
+                              else
+                              {
+                                toast.error(`${option.label} can only be performed on image files`);
+                              }
+                              return
+                            }
                             toggleProcessing(option.id)}}
                           className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
-                          disabled={
-                            option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img))
-                          }
+                          disabled={isDisabled}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900">
@@ -1916,6 +1978,7 @@ export function AdvancedUpload() {
                           </p>
                           <p className="text-xs text-slate-600 mt-0.5">
                             {option.description}
+                             {isPdfOperation ? " (PDF files only)" : " (Image files only)"}
                           </p>
                         </div>
                       </label>
@@ -1984,7 +2047,7 @@ export function AdvancedUpload() {
                           </div>
                         )}
                     </div>
-                  ))}
+)})}
                 </div>
                 {selectedProcessing.length > 0 && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
