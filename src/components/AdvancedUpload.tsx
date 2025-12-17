@@ -147,6 +147,7 @@ export function AdvancedUpload() {
       setDragActive(false);
     }
   }, []);
+  
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -170,20 +171,24 @@ export function AdvancedUpload() {
     }
   }, []);
   const handleFileSelect = (files: File[]) => {
-    const validFiles=files.filter(file=>file.type.startsWith('image/')||file.type==='application/pdf')
-    const invalidFiles=files.filter(file=>!validFiles.includes(file))
-    if(invalidFiles.length>0)
-    {
-      const invalidFileNames=invalidFiles.map(f=>f.name).join(', ')
-      toast.error(`Unsupported file types were ignored: ${invalidFileNames}. Please select only images or PDF files.`)
-      return
+    const validFiles = files.filter(
+      (file) =>
+        file.type.startsWith("image/") || file.type === "application/pdf"
+    );
+    const invalidFiles = files.filter((file) => !validFiles.includes(file));
+    if (invalidFiles.length > 0) {
+      const invalidFileNames = invalidFiles.map((f) => f.name).join(", ");
+      toast.error(
+        `Unsupported file types were ignored: ${invalidFileNames}. Please select only images or PDF files.`
+      );
+      return;
     }
 
     const newImages = files.map((file, idx) => ({
       id: `${Date.now()}-${idx}`,
       url: URL.createObjectURL(file),
       name: file.name,
-      preview: URL.createObjectURL(file),
+      preview:file.type.startsWith('image/')? URL.createObjectURL(file):'/pdf-icon.svg',
       file: file,
     }));
     setImages((prev) => [...prev, ...newImages]);
@@ -346,6 +351,15 @@ export function AdvancedUpload() {
     }));
     setImages((prev) => [...prev, ...newImages]);
   };
+  const isPdfFile = (file) => {
+  return (
+    file.type === 'application/pdf' ||
+    file.file_type === 'application/pdf' ||
+    (file.name && file.name.toLowerCase().endsWith('.pdf')) ||
+    file.resource_type === 'raw' ||
+    (file.url && file.url.toLowerCase().includes('.pdf'))
+  );
+};
   const toggleProcessing = (processingId: string) => {
     setSelectedProcessing((prev) =>
       prev.includes(processingId)
@@ -361,139 +375,150 @@ export function AdvancedUpload() {
 
     try {
       let result;
-      const isOnlyLineDiagram = 
-      selectedProcessing.length === 1 && 
-      selectedProcessing.includes("line-diagram") &&
-      lineDiagramResults.length > 0;
+      const isOnlyLineDiagram =
+        selectedProcessing.length === 1 &&
+        selectedProcessing.includes("line-diagram") &&
+        lineDiagramResults.length > 0;
 
-    if (isOnlyLineDiagram) {
-      // Upload only the annotated images
-      console.log("Uploading annotated images only...");
-      
-      const annotatedFiles = await Promise.all(
-        lineDiagramResults.map(async (diagramResult) => {
-          if (diagramResult.annotatedImageUrl) {
-            const response = await fetch(diagramResult.annotatedImageUrl);
-            const blob = await response.blob();
-            return new File(
-              [blob],
-              `${diagramResult.imageName.replace(/\.[^/.]+$/, "")}_annotated.png`,
-              { type: "image/png" }
-            );
+      if (isOnlyLineDiagram) {
+        console.log("Uploading annotated images only...");
+
+        const annotatedFiles = await Promise.all(
+          lineDiagramResults.map(async (diagramResult) => {
+            if (diagramResult.annotatedImageUrl) {
+              const response = await fetch(diagramResult.annotatedImageUrl);
+              const blob = await response.blob();
+              return new File(
+                [blob],
+                `${diagramResult.imageName.replace(
+                  /\.[^/.]+$/,
+                  ""
+                )}_annotated.png`,
+                { type: "image/png" }
+              );
+            }
+            return null;
+          })
+        );
+        if(selectedProcessing.includes('pdf-extract'))
+        {
+          const hasPdfs=images.some(img=>isPdfFile(img))
+          if(!hasPdfs)
+          {
+            toast.error("PDF extraction can only be performed on PDF files")
+            return
           }
-          return null;
-        })
-      );
-
-      const validFiles = annotatedFiles.filter((f): f is File => f !== null);
-      
-      if (validFiles.length > 0) {
-        result = await api.uploadImages(validFiles);
-        
-        // Add measurement data to each uploaded image
-        if (result?.images) {
-          result.images = result.images.map((img: any, index: number) => ({
-            ...img,
-            hasLineDiagram: true,
-            measurements: lineDiagramResults[index]?.measurements || [],
-            measurementCount: lineDiagramResults[index]?.measurements?.length || 0,
-          }));
-          
-          result.lineDiagramSummary = {
-            totalProcessed: result.images.length,
-            images: result.images.map((img: any) => ({
-              id: img.id,
-              originalUrl: img.url,
-              annotatedUrl: img.cloudinaryUrl || img.url,
-              measurementCount: img.measurementCount,
-              measurements: img.measurements,
-            })),
-          };
         }
-      }
-    }
-    else
-      { 
-      switch (uploadSource) {
-        case "files": {
-          const files = await Promise.all(
-            images.map(async (img) => {
-              if (img.file) return img.file;
-              if (img.preview) {
-                const response = await fetch(img.url);
-                const blob = await response.blob();
-                return new File([blob], img.name, { type: blob.type });
-              }
-              return null;
-            })
-          );
-          const validFiles = files.filter((f): f is File => f !== null);
+        const validFiles = annotatedFiles.filter((f): f is File => f !== null);
+
+        if (validFiles.length > 0) {
           result = await api.uploadImages(validFiles);
-          break;
-        }
-        case "urls": {
-          const filesToUpload: File[] = [];
-          const urlsToUpload: string[] = [];
 
-          await Promise.all(
-            images.map(async (img) => {
-              if (img.file) {
-                filesToUpload.push(img.file);
-                return;
-              }
-              if (img.url.startsWith("blob:")) {
-                try {
-                  const res = await fetch(img.url);
-                  const blob = await res.blob();
-                  const file = new File([blob], img.name, { type: blob.type });
-                  filesToUpload.push(file);
-                } catch (e) {
-                  console.error("Failed to convert blob to file", e);
+          if (result?.images) {
+            result.images = result.images.map((img: any, index: number) => ({
+              ...img,
+              hasLineDiagram: true,
+              measurements: lineDiagramResults[index]?.measurements || [],
+              measurementCount:
+                lineDiagramResults[index]?.measurements?.length || 0,
+            }));
+
+            result.lineDiagramSummary = {
+              totalProcessed: result.images.length,
+              images: result.images.map((img: any) => ({
+                id: img.id,
+                originalUrl: img.url,
+                annotatedUrl: img.cloudinaryUrl || img.url,
+                measurementCount: img.measurementCount,
+                measurements: img.measurements,
+              })),
+            };
+          }
+        }
+      } else {
+        switch (uploadSource) {
+          case "files": {
+            const files = await Promise.all(
+              images.map(async (img) => {
+                if (img.file) return img.file;
+                if (img.preview) {
+                  const response = await fetch(img.url);
+                  const blob = await response.blob();
+                  return new File([blob], img.name, { type: blob.type });
                 }
-                return;
-              }
-              urlsToUpload.push(img.url);
-            })
-          );
-
-          let fileResults = { images: [], uploadId: null };
-          let urlResults = { images: [], uploadId: null };
-
-          if (filesToUpload.length > 0) {
-            fileResults = await api.uploadImages(filesToUpload);
+                return null;
+              })
+            );
+            const validFiles = files.filter((f): f is File => f !== null);
+            result = await api.uploadImages(validFiles);
+            break;
           }
+          case "urls": {
+            const filesToUpload: File[] = [];
+            const urlsToUpload: string[] = [];
 
-          if (urlsToUpload.length > 0) {
-            urlResults = await api.uploadFromUrls(urlsToUpload);
+            await Promise.all(
+              images.map(async (img) => {
+                if (img.file) {
+                  filesToUpload.push(img.file);
+                  return;
+                }
+                if (img.url.startsWith("blob:")) {
+                  try {
+                    const res = await fetch(img.url);
+                    const blob = await res.blob();
+                    const file = new File([blob], img.name, {
+                      type: blob.type,
+                    });
+                    filesToUpload.push(file);
+                  } catch (e) {
+                    console.error("Failed to convert blob to file", e);
+                  }
+                  return;
+                }
+                urlsToUpload.push(img.url);
+              })
+            );
+
+            let fileResults = { images: [], uploadId: null };
+            let urlResults = { images: [], uploadId: null };
+
+            if (filesToUpload.length > 0) {
+              fileResults = await api.uploadImages(filesToUpload);
+            }
+
+            if (urlsToUpload.length > 0) {
+              urlResults = await api.uploadFromUrls(urlsToUpload);
+            }
+
+            result = {
+              uploadId: fileResults.uploadId || urlResults.uploadId,
+              images: [
+                ...(fileResults.images || []),
+                ...(urlResults.images || []),
+              ],
+            };
+            break;
           }
-
-          result = {
-            uploadId: fileResults.uploadId || urlResults.uploadId,
-            images: [
-              ...(fileResults.images || []),
-              ...(urlResults.images || []),
-            ],
-          };
-          break;
+          case "product-page": {
+            result = await api.uploadFromProductPage(productPageUrl);
+            break;
+          }
+          case "cloud": {
+            result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
+            break;
+          }
+          default:
+            throw new Error("Invalid upload source");
         }
-        case "product-page": {
-          result = await api.uploadFromProductPage(productPageUrl);
-          break;
-        }
-        case "cloud": {
-          result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
-          break;
-        }
-        default:
-          throw new Error("Invalid upload source");
       }
-    }
       const activeOperations: (
         | "bg-remove"
         | "resize"
         | "compress"
         | "3d-model"
         | "retouch"
+        | "pdf-extract"
       )[] = [];
 
       if (!autoDetect) {
@@ -507,6 +532,8 @@ export function AdvancedUpload() {
           activeOperations.push("compress");
         if (selectedProcessing.includes("3d-model"))
           activeOperations.push("3d-model");
+        if (selectedProcessing.includes("pdf-extract"))
+          activeOperations.push("pdf-extract");
       }
 
       if (activeOperations.length > 0 && result?.images) {
@@ -532,6 +559,11 @@ export function AdvancedUpload() {
 
               for (const op of activeOperations) {
                 console.log(`Running ${op} on ${originalName}...`);
+                if(op==='pdf-extract' && !isPdfFile(images[index]))
+                {
+                  console.log(`Skpping PDF extraction for non-PDF files :${originalName}`)
+                  continue
+                }
                 let options = {};
                 if (op === "resize") options = resizeDims;
                 if (op === "compress")
@@ -739,7 +771,8 @@ export function AdvancedUpload() {
           p !== "bg-remove" &&
           p !== "resize" &&
           p !== "compress" &&
-          p !== "line-diagram"
+          p !== "line-diagram" &&
+          p !== "pdf-extract"
       );
 
       if (!autoDetect && otherProcessing.length > 0) {
@@ -764,7 +797,6 @@ export function AdvancedUpload() {
         try {
           console.log("Applying auto-detected fixes...");
 
-          // Determine which operations to apply based on analysis
           const autoFixOperations: string[] = [];
           if (currentAnalysis.suggestions.backgroundRemoval)
             autoFixOperations.push("bg-remove");
@@ -781,10 +813,8 @@ export function AdvancedUpload() {
           if (autoFixOperations.length > 0) {
             console.log(`Auto-fix operations: ${autoFixOperations.join(", ")}`);
 
-            // Process each image with auto-fix operations
             const processedImages = await Promise.all(
               result.images.map(async (uploadedImage: any, index: number) => {
-                // Start with the original uploaded image URL
                 let currentSourceUrl =
                   uploadedImage.cloudinaryUrl || uploadedImage.url;
                 let originalName = uploadedImage.id;
@@ -1003,7 +1033,7 @@ export function AdvancedUpload() {
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                     accept="image/*,.pdf"
                     onChange={(e) =>
                       e.target.files &&
                       handleFileSelect(Array.from(e.target.files))
@@ -1136,7 +1166,7 @@ export function AdvancedUpload() {
                     <div key={image.id} className="relative group">
                       <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden relative">
                         {" "}
-                        {image.preview ? (
+                        {image.preview && image.preview !=='/pdf-icon.svg' ? (
                           <img
                             src={image.preview}
                             alt={image.name}
@@ -1144,7 +1174,9 @@ export function AdvancedUpload() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Globe className="w-12 h-12 text-slate-400" />
+                            <FileText className="w-12 h-12 text-red-500"/>
+                             <span className="mt-2 text-xs text-slate-600">PDF Document</span>
+                            {/* <Globe className="w-12 h-12 text-slate-400" /> */}
                           </div>
                         )}
                         {(image.processingStatus || image.autoFixStatus) && (
@@ -1224,7 +1256,9 @@ export function AdvancedUpload() {
                 </div>
                 <button
                   onClick={handleUpload}
-                  disabled={uploading || isAutoFixing}
+                  disabled={
+                    uploading || isAutoFixing || selectedProcessing.length === 0
+                  }
                   className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   {uploading ||
@@ -1855,19 +1889,26 @@ export function AdvancedUpload() {
                 <div className="space-y-1 max-h-[600px] overflow-y-auto">
                   {PROCESSING_OPTIONS.map((option) => (
                     <div key={option.id}>
-                      {/* The Checkbox Row */}
                       <label
                         className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                           selectedProcessing.includes(option.id)
                             ? "border-blue-500 bg-blue-50"
                             : "border-slate-200 hover:bg-slate-50"
-                        }`}
+                        } ${option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img))?'opacity-50 cursor-not-allowed':""}`}
                       >
                         <input
                           type="checkbox"
                           checked={selectedProcessing.includes(option.id)}
-                          onChange={() => toggleProcessing(option.id)}
+                          onChange={() => {if(option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img)))
+                          {
+                            toast.error("PDF extraction can be performed only on PDF files!")
+                            return
+                          }
+                            toggleProcessing(option.id)}}
                           className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
+                          disabled={
+                            option.id==='pdf-extract' && images.length>0 && !images.some(img=>isPdfFile(img))
+                          }
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900">

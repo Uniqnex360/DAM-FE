@@ -56,81 +56,93 @@ export const api = {
     const blob = await res.blob();
     return new File([blob], filename, { type: blob.type });
   },
-  async uploadImages(files: File[], productId?: string): Promise<UploadResponse> {
-    const user = (await supabase.auth.getUser()).data.user;
-    if (!user) throw new Error('Not authenticated');
+async uploadImages(files: File[], productId?: string): Promise<UploadResponse> {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('Not authenticated');
 
-    await this.ensureProfile();
+  await this.ensureProfile();
 
-    const { data: upload, error: uploadError } = await supabase
-      .from('uploads')
-      .insert({ user_id: user.id, product_id: productId, status: 'uploaded' })
-      .select()
-      .single();
+  const { data: upload, error: uploadError } = await supabase
+    .from('uploads')
+    .insert({ user_id: user.id, product_id: productId, status: 'uploaded' })
+    .select()
+    .single();
 
-    if (uploadError) throw uploadError;
+  if (uploadError) throw uploadError;
 
-    const uploadedImages = [];
+  const uploadedImages = [];
 
-    for (const file of files) {
-      const filePath = `${user.id}/${upload.id}/${file.name}`;
-      const { error: storageError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
+  for (const file of files) {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const resourceType = isPdf ? 'raw' : 'image';
+    
+    // Upload to Supabase Storage
+    const filePath = `${user.id}/${upload.id}/${file.name}`;
+    const { error: storageError } = await supabase.storage
+      .from('images')
+      .upload(filePath, file, {
+        contentType: file.type,
+      });
 
-      if (storageError) {
-        console.error('Storage error:', storageError);
-        continue;
-      }
+    if (storageError) {
+      console.error('Storage error:', storageError);
+      continue;
+    }
 
-      const { data: urlData } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(filePath);
 
-      let cloudinaryData = null;
-      if (cloudinary.isConfigured()) {
-        try {
-          cloudinaryData = await cloudinary.uploadImage(file, {
-            folder: `furniture-visualizer/${user.id}`,
-            tags: ['upload', upload.id]
-          });
-        } catch (error) {
-          console.error('Cloudinary upload error:', error);
-        }
-      }
-
-      const { data: image, error: imageError } = await supabase
-        .from('images')
-        .insert({
-          upload_id: upload.id,
-          user_id: user.id,
-          url: urlData.publicUrl,
-          cloudinary_public_id: cloudinaryData?.public_id,
-          processed_url: cloudinaryData?.secure_url
-        })
-        .select()
-        .single();
-
-      if (!imageError && image) {
-        uploadedImages.push({
-          id: image.id,
-          url: image.url,
-          cloudinaryUrl: cloudinaryData?.secure_url
+    let cloudinaryData = null;
+    if (cloudinary.isConfigured()) {
+      try {
+        cloudinaryData = await cloudinary.uploadImage(file, {
+          folder: `furniture-visualizer/${user.id}`,
+          tags: ['upload', upload.id],
+          resourceType: resourceType
         });
+      } catch (error) {
+        console.error('Cloudinary upload error:', error);
       }
     }
 
-    return {
-      uploadId: upload.id,
-      images: uploadedImages,
-      status: 'uploaded'
-    };
-  },
-  async processImageAI(imageId:string,imageUrl:string,operation: 'bg-remove' | 'resize' | 'compress' | '3d-model',originalName?:string,options?: any)
+    const { data: image, error: imageError } = await supabase
+      .from('images')
+      .insert({
+        upload_id: upload.id,
+        user_id: user.id,
+        url: urlData.publicUrl,
+        cloudinary_public_id: cloudinaryData?.public_id,
+        processed_url: cloudinaryData?.secure_url,
+        resource_type: resourceType,
+        file_path: filePath,  // Store the file path for direct access
+        name: file.name,
+        file_type: file.type
+      })
+      .select()
+      .single();
+
+    if (!imageError && image) {
+      uploadedImages.push({
+        id: image.id,
+        url: image.url,
+        cloudinaryUrl: cloudinaryData?.secure_url
+      });
+    }
+  }
+
+  return {
+    uploadId: upload.id,
+    images: uploadedImages,
+    status: 'uploaded'
+  };
+},
+  async processImageAI(imageId:string,imageUrl:string,operation: 'bg-remove' | 'resize' | 'compress' | '3d-model'|'pdf-extract',originalName?:string,options?: any)
   {
+    const {data:imageRecord}=await supabase.from('images').select('resource_type,name').eq('id',imageId).single()
     const {data,error}=await supabase.functions.invoke('process-image',{
       body:{
-        imageId,imageUrl,operation,originalName,options
+        imageId,imageUrl,operation,originalName,options,resourceType:imageRecord?.resource_type||'image'
       }
     })
     if(error)

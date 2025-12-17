@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase";
+
 interface CloudinaryUploadResponse {
   public_id: string;
   secure_url: string;
@@ -28,7 +30,24 @@ class CloudinaryService {
       uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "",
     };
   }
-
+  getResourceType(file:File|Blob|string):'image'|'raw'{
+    let mimeType=''
+    let fileName=''
+    if(file instanceof File)
+    {
+      mimeType=file.type
+      fileName=file.name
+    }
+    else if(typeof file==='string')
+    {
+      fileName=file.split('/').pop()||""
+    }
+    if(mimeType==='application/pdf'||fileName.toLowerCase().endsWith('.pdf'))
+    {
+      return 'raw'
+    }
+    return 'image'
+  }
   isConfigured(): boolean {
     return !!(this.config.cloudName && this.config.uploadPreset);
   }
@@ -48,64 +67,105 @@ class CloudinaryService {
     return `clients/${clientCode}`;
   }
 
-  async uploadImage(
-    file: File | Blob,
-    options: {
-      folder?: string;
-      publicId?: string;
-      tags?: string[];
-      transformation?: string;
-    } = {}
-  ): Promise<CloudinaryUploadResponse> {
-    if (!this.isConfigured()) {
-      throw new Error(
-        "Cloudinary is not configured. Please check your environment variables."
-      );
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", this.config.uploadPreset);
-
-    if (options.folder) {
-      formData.append("folder", options.folder);
-    }
-
-    if (options.publicId) {
-      formData.append("public_id", options.publicId);
-    }
-
-    if (options.tags && options.tags.length > 0) {
-      formData.append("tags", options.tags.join(","));
-    }
-
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${this.config.cloudName}/image/upload`;
-
-    try {
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        body: formData,
+async uploadImage(
+  file: File | Blob,
+  options: {
+    folder?: string;
+    publicId?: string;
+    tags?: string[];
+    transformation?: string;
+    resourceType?: 'image' | 'raw'; 
+  } = {}
+): Promise<CloudinaryUploadResponse> {
+  if (!this.isConfigured()) {
+    throw new Error(
+      "Cloudinary is not configured. Please check your environment variables."
+    );
+  }
+  
+  const resourceType = options.resourceType || this.getResourceType(file);
+  
+  // For PDFs, use Supabase storage directly
+  if (resourceType === 'raw') {
+    // Get user ID for path
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    
+    // Upload to Supabase storage
+    const fileName = file instanceof File ? file.name : `document_${Date.now()}.pdf`;
+    const filePath = `pdfs/${user.id}/${Date.now()}_${fileName}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('images')
+      .upload(filePath, file, {
+        contentType: 'application/pdf',
+        upsert: true
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Upload failed");
-      }
-
-      const data: CloudinaryUploadResponse = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Cloudinary upload error:", error);
-      throw error;
-    }
+      
+    if (uploadError) throw uploadError;
+    
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(filePath);
+      
+    // Return in Cloudinary-compatible format
+    return {
+      public_id: filePath,
+      secure_url: urlData.publicUrl,
+      url: urlData.publicUrl,
+      resource_type: 'raw',
+      width: 0,
+      height: 0,
+      format: 'pdf',
+      created_at: new Date().toISOString(),
+      bytes: file instanceof File ? file.size : 0
+    };
+  }
+  
+  // For images, use regular unsigned upload to Cloudinary
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", this.config.uploadPreset);
+  
+  if (options.folder) {
+    formData.append("folder", options.folder);
   }
 
+  if (options.publicId) {
+    formData.append("public_id", options.publicId);
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    formData.append("tags", options.tags.join(","));
+  }
+
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${this.config.cloudName}/image/upload`;
+
+  try {
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || "Upload failed");
+    }
+
+    const data: CloudinaryUploadResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw error;
+  }
+}
   async uploadFromUrl(
     url: string,
     options: {
       folder?: string;
       publicId?: string;
       tags?: string[];
+       resourceType?: 'image' | 'raw'; 
     } = {}
   ): Promise<CloudinaryUploadResponse> {
     if (!this.isConfigured()) {
@@ -129,8 +189,8 @@ class CloudinaryService {
     if (options.tags && options.tags.length > 0) {
       formData.append("tags", options.tags.join(","));
     }
-
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${this.config.cloudName}/image/upload`;
+    const resourceType=options.resourceType||this.getResourceType(url)
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${this.config.cloudName}/${resourceType}/upload`;
 
     try {
       const response = await fetch(uploadUrl, {
@@ -161,10 +221,14 @@ class CloudinaryService {
       format?: string;
       gravity?: string;
       effect?: string;
-    } = {}
+    } = {},
+      resourceType: 'image' | 'raw' = 'image' 
   ): string {
     if (!this.isConfigured()) {
       throw new Error("Cloudinary is not configured");
+    }
+    if (resourceType === 'raw') {
+      return `https://res.cloudinary.com/${this.config.cloudName}/raw/upload/${publicId}`;
     }
 
     const transformParts: string[] = [];

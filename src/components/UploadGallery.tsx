@@ -27,6 +27,7 @@ interface Image {
   width: number | null;
   height: number | null;
   created_at: string;
+  resourceType: 'image' | 'raw'
 }
 
 interface UploadWithImages extends Upload {

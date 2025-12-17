@@ -245,7 +245,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageId, imageUrl, operation, originalName, options } =
+    const { imageId, imageUrl, operation, originalName, options,resourceType} =
       await req.json();
 
     if (!imageId || !imageUrl || !operation) {
@@ -402,7 +402,339 @@ serve(async (req) => {
       
       fileExt = "glb";
       opSuffix = "3d";
-     } else {
+     }else if (operation === "pdf-extract") {
+  const CONVERTAPI_API_KEY = Deno.env.get("CONVERTAPI_API_KEY");
+  if (!CONVERTAPI_API_KEY)
+    throw new Error("CONVERTAPI_API_KEY is missing!");
+
+  console.log(`Processing PDF extraction for ${imageId}`);
+  console.log(`Original URL: ${imageUrl}`);
+  console.log(`Resource Type: ${resourceType || "unknown"}`);
+
+  // For Supabase URLs, extract the path and download directly
+  let pdfResponse = null;
+
+  if (imageUrl.includes("supabase")) {
+    console.log(`Detected Supabase URL, extracting path...`);
+
+    const pathMatch = imageUrl.match(
+      /\/storage\/v1\/object\/public\/images\/(.+)$/
+    );
+    if (pathMatch) {
+      const filePath = pathMatch[1];
+      console.log(`Extracted path: ${filePath}`);
+
+      const { data, error } = await supabaseAdmin.storage
+        .from("images")
+        .download(filePath);
+
+      if (!error && data) {
+        pdfResponse = new Response(data);
+        console.log(`Successfully downloaded from Supabase storage`);
+      } else {
+        console.error(`Supabase storage error: ${error?.message}`);
+      }
+    }
+  } else {
+    // Try direct fetch for non-Supabase URLs
+    try {
+      pdfResponse = await fetch(imageUrl, {
+        headers: {
+          Accept: "application/pdf,application/octet-stream,*/*",
+        },
+      });
+
+      if (!pdfResponse.ok) {
+        console.log(`Direct fetch failed: ${pdfResponse.status}`);
+        pdfResponse = null;
+      }
+    } catch (e) {
+      console.error(`Fetch error: ${e.message}`);
+    }
+  }
+
+  // If we still don't have the PDF, try to get it from the database
+  if (!pdfResponse) {
+    console.log(`Trying to find storage path in database...`);
+
+    const { data: imageRecord } = await supabaseAdmin
+      .from("images")
+      .select("file_path, storage_path")
+      .eq("id", imageId)
+      .single();
+
+    if (imageRecord?.file_path || imageRecord?.storage_path) {
+      const storagePath = imageRecord.file_path || imageRecord.storage_path;
+      console.log(`Found storage path: ${storagePath}`);
+
+      const { data, error } = await supabaseAdmin.storage
+        .from("images")
+        .download(storagePath);
+
+      if (!error && data) {
+        pdfResponse = new Response(data);
+        console.log(
+          `Successfully downloaded from Supabase storage using path from DB`
+        );
+      }
+    }
+  }
+
+  if (!pdfResponse || !pdfResponse.ok) {
+    throw new Error(
+      `Failed to fetch PDF. Please ensure the PDF is accessible in Supabase storage.`
+    );
+  }
+
+  if (!pdfResponse || !pdfResponse.body) {
+    throw new Error("PDF response or response body is undefined");
+  }
+
+  const contentType = pdfResponse.headers.get("content-type") || "";
+  console.log(`Content-Type received: ${contentType}`);
+
+  let pdfArrayBuffer;
+  try {
+    pdfArrayBuffer = await pdfResponse.arrayBuffer();
+
+    if (!pdfArrayBuffer || pdfArrayBuffer.byteLength === 0) {
+      throw new Error("PDF file is empty (0 bytes)");
+    }
+
+    console.log(`PDF size: ${pdfArrayBuffer.byteLength} bytes`);
+  } catch (error) {
+    console.error("Error reading PDF data:", error);
+    throw new Error(`Failed to read PDF data: ${error.message}`);
+  }
+
+  // Convert to base64 for ConvertAPI
+  let pdfBase64 = '';
+  const bytes = new Uint8Array(pdfArrayBuffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i += 1024) {
+    const chunk = bytes.slice(i, Math.min(i + 1024, len));
+    pdfBase64 += String.fromCharCode.apply(null, chunk);
+  }
+  pdfBase64 = btoa(pdfBase64);
+
+  // Call ConvertAPI to extract images
+  console.log("Calling ConvertAPI to extract images from PDF...");
+  const apiRes = await fetch(
+    `https://v2.convertapi.com/convert/pdf/to/extract-images?Secret=${CONVERTAPI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        Parameters: [
+          {
+            Name: "File",
+            FileValue: { Name: "document.pdf", Data: pdfBase64 },
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!apiRes.ok) {
+    const errText = await apiRes.text();
+    throw new Error(`ConvertAPI failed: ${errText}`);
+  }
+
+  const result = await apiRes.json();
+  if (!result.Files || result.Files.length === 0) {
+    throw new Error("No images were extracted from the PDF");
+  }
+
+  const imageCount = result.Files.length;
+  console.log(`ConvertAPI extracted ${imageCount} images from PDF`);
+
+  // Process all extracted images
+  const extractedImages = [];
+  const CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME");
+  const API_KEY = Deno.env.get("CLOUDINARY_API_KEY");
+  const API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET");
+
+  // Get user ID for database operations
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader ? authHeader.split(' ')[1] : null;
+  const { data: { user } } = await supabaseAdmin.auth.getUser(token || '');
+  
+  // Get upload_id from the original image
+  const { data: originalImage } = await supabaseAdmin
+    .from('images')
+    .select('upload_id, user_id')
+    .eq('id', imageId)
+    .single();
+  
+  const uploadId = originalImage?.upload_id;
+  const userId = originalImage?.user_id || user?.id;
+
+  for (let i = 0; i < result.Files.length; i++) {
+    const imageFile = result.Files[i];
+    let imageBlob;
+    
+    // Get image data
+    if (imageFile.Url) {
+      console.log(`Downloading image ${i+1}/${imageCount} from URL: ${imageFile.Url}`);
+      const imageResponse = await fetch(imageFile.Url);
+      if (!imageResponse.ok) {
+        console.error(`Failed to fetch image ${i+1}: ${imageResponse.status}`);
+        continue;
+      }
+      imageBlob = await imageResponse.blob();
+    } else if (imageFile.FileData) {
+      console.log(`Processing image ${i+1}/${imageCount} from FileData`);
+      const base64Data = imageFile.FileData;
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let j = 0; j < byteCharacters.length; j++) {
+        byteNumbers[j] = byteCharacters.charCodeAt(j);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      imageBlob = new Blob([byteArray], {
+        type: imageFile.ContentType || "image/png",
+      });
+    } else {
+      console.error(`Image ${i+1} has no URL or FileData`);
+      continue;
+    }
+
+    // Create unique filename for each extracted image
+    const pageNum = i + 1;
+    const pageFileName = `${safeName}_extracted_page${pageNum}.png`;
+    const pagePath = `processed/${pageFileName}`;
+    
+    // Upload to Supabase
+    console.log(`Uploading image ${i+1} to Supabase: ${pagePath}`);
+    const imageArrayBuffer = await imageBlob.arrayBuffer();
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("images")
+      .upload(pagePath, imageArrayBuffer, {
+        contentType: "image/png",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error(`Error uploading image ${i+1} to Supabase:`, uploadError);
+      continue;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from("images")
+      .getPublicUrl(pagePath);
+    
+    // Upload to Cloudinary if configured
+    let cloudinaryUrl = null;
+    let cloudinaryPublicId = null;
+    
+    if (CLOUD_NAME && API_KEY && API_SECRET) {
+      console.log(`Uploading image ${i+1} to Cloudinary`);
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const pagePublicId = `${safeName}_extracted_page${pageNum}`;
+      const folder = "dam/processed";
+      const strToSign = `folder=${folder}&public_id=${pagePublicId}&timestamp=${timestamp}${API_SECRET}`;
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest(
+        "SHA-1",
+        encoder.encode(strToSign)
+      );
+      const signature = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      const cloudinaryForm = new FormData();
+      cloudinaryForm.append("file", imageBlob);
+      cloudinaryForm.append("api_key", API_KEY);
+      cloudinaryForm.append("timestamp", timestamp.toString());
+      cloudinaryForm.append("signature", signature);
+      cloudinaryForm.append("folder", folder);
+      cloudinaryForm.append("public_id", pagePublicId);
+
+      try {
+        const cloudRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+          { method: "POST", body: cloudinaryForm }
+        );
+        const cloudData = await cloudRes.json();
+        if (!cloudData.error) {
+          cloudinaryUrl = cloudData.secure_url;
+          cloudinaryPublicId = cloudData.public_id;
+        } else {
+          console.error(`Cloudinary error for image ${i+1}:`, cloudData.error);
+        }
+      } catch (error) {
+        console.error(`Error uploading image ${i+1} to Cloudinary:`, error);
+      }
+    }
+
+    // Create a new image record in the database
+    if (i === 0) {
+      // Update the original image record for the first extracted image
+      await supabaseAdmin
+        .from("images")
+        .update({
+          processed_url: cloudinaryUrl || publicUrl,
+          cloudinary_public_id: cloudinaryPublicId,
+          processing_status: "completed",
+          operations_applied: [operation],
+          resource_type: "image",
+        })
+        .eq("id", imageId);
+        
+      extractedImages.push({
+        id: imageId,
+        url: cloudinaryUrl || publicUrl,
+        page: pageNum
+      });
+    } else {
+      // Create new image records for additional pages
+      try {
+        const { data: newImage, error: insertError } = await supabaseAdmin
+          .from("images")
+          .insert({
+            user_id: userId,
+            upload_id: uploadId,
+            url: publicUrl,
+            processed_url: cloudinaryUrl || publicUrl,
+            cloudinary_public_id: cloudinaryPublicId,
+            processing_status: "completed",
+            operations_applied: [operation],
+            resource_type: "image",
+            name: `${originalName || 'document'} - Page ${pageNum}`,
+            parent_id: imageId  // Reference to the original PDF image
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error(`Error creating record for image ${i+1}:`, insertError);
+        } else if (newImage) {
+          extractedImages.push({
+            id: newImage.id,
+            url: cloudinaryUrl || publicUrl,
+            page: pageNum
+          });
+        }
+      } catch (dbError) {
+        console.error(`Database error for image ${i+1}:`, dbError);
+      }
+    }
+  }
+
+  // Return all extracted images
+  return new Response(
+    JSON.stringify({ 
+      success: true, 
+      images: extractedImages,
+      totalImages: extractedImages.length,
+      originalId: imageId
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+} else {
       throw new Error(`Operation ${operation} not supported!`);
     }
 
