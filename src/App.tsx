@@ -17,6 +17,7 @@ import { AIPromptOptimization } from './components/AIPromptOptimization';
 import { ClientManagement } from './components/ClientManagement';
 import { ToastContainer, Bounce } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'sonner';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -39,7 +40,7 @@ function AppContent() {
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
-      <ToastContainer
+      {/* <ToastContainer
         position="top-center"
         autoClose={5000}
         hideProgressBar={false}
@@ -51,7 +52,8 @@ function AppContent() {
         pauseOnHover
         theme="light"
         transition={Bounce}
-      />
+      /> */}
+      <Toaster position="bottom-right" richColors />
       <div className="space-y-6">
         {currentView === 'dashboard' && <Dashboard />}
 

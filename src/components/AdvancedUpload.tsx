@@ -16,7 +16,7 @@ import { api } from "../services/api";
 import { ImageCropModal } from "./ImageCropModal";
 import { supabase } from "../lib/supabase";
 import { MeasurementModal } from "./MeasurementModal";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 interface ImageItem {
   id: string;
   url: string;
