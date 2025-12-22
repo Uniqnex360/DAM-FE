@@ -294,27 +294,88 @@ serve(async (req) => {
     let finalCloudinaryUrl = null;
     let finalCloudinaryPublicId = null;
 
-    if (operation === "bg-remove" || operation === "remove-bg") {
-      const REMOVE_BG_API_KEY = Deno.env.get("REMOVE_BG_API_KEY");
-      if (!REMOVE_BG_API_KEY) throw new Error("Remove BG API KEY missing!");
+        if (operation === "bg-remove" || operation === "remove-bg") {
+      try {
+        let methodUsed=''
+        let processingTime=0
+        const REMBG_SERVICE_URL = Deno.env.get("REMBG_SERVICE_URL");
+        if (!REMBG_SERVICE_URL) {
+          throw new Error("Remove background operation failed!");
+        }
+        if (REMBG_SERVICE_URL) {
+          const startTime = Date.now();
+          try {
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok)
+              throw new Error(`Failed to download ${imageResponse.status}`);
+            const imageBlob = await imageResponse.blob();
+            const formData = new FormData();
+            formData.append("file", imageBlob, originalName || "image.jpg");
+            const response = await fetch(
+              `${REMBG_SERVICE_URL}/remove-background`,
+              {
+                method: "POST",
+                body: formData,
+                signal: AbortSignal.timeout(30000),
+              }
+            );
+            if (response.ok) {
+              resultBlob = await response.blob();
+              methodUsed = "python-rembg";
+              processingTime = Date.now() - startTime;
+            } else {
+              throw new Error("Failed to remove background");
+            }
+          } catch (error) {
+            const response = await fetch(
+              `${REMBG_SERVICE_URL}/remove-background-from-url`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image_url: imageUrl }),
+                signal: AbortSignal.timeout(30000),
+              }
+            );
+            if (response.ok) {
+              resultBlob = await response.blob();
+              methodUsed = "python-rembg-url";
+              processingTime = Date.now() - startTime;
+            } else {
+              const errorText = await response.text();
+              throw new Error(
+                `Python URL service failed ${response.status}-${errorText}`
+              );
+            }
+          }
+          
+        }
+      } catch (error) {
+        // const REMOVE_BG_API_KEY = Deno.env.get("REMOVE_BG_API_KEY");
+        // if (!REMOVE_BG_API_KEY) throw new Error("Remove BG API KEY missing!");
 
-      console.log(`Processing ${imageId}: Removing background...`);
+        // console.log(`Processing ${imageId}: Removing background...`);
 
-      const formData = new FormData();
-      formData.append("image_url", imageUrl);
-      formData.append("size", "auto");
+        // const formData = new FormData();
+        // formData.append("image_url", imageUrl);
+        // formData.append("size", "auto");
 
-      const apiRes = await fetch("https://api.remove.bg/v1.0/removebg", {
-        method: "POST",
-        headers: { "X-Api-Key": REMOVE_BG_API_KEY },
-        body: formData,
-      });
+        // const apiRes = await fetch("https://api.remove.bg/v1.0/removebg", {
+        //   method: "POST",
+        //   headers: { "X-Api-Key": REMOVE_BG_API_KEY },
+        //   body: formData,
+        // });
 
-      if (!apiRes.ok) {
-        const errText = await apiRes.text();
-        throw new Error(`Remove BG API failed: ${errText}`);
+        // if (!apiRes.ok) {
+        //   const errText = await apiRes.text();
+        //   throw new Error(`Remove BG API failed: ${errText}`);
+        // }
+        // resultBlob = await apiRes.blob();
       }
-      resultBlob = await apiRes.blob();
+      
+      // PUT THIS CHECK HERE (after the entire try-catch structure):
+      if (!resultBlob) {
+        throw new Error("Background removal failed: All attempts unsuccessful");
+      }
     } else if (
       operation === "resize" ||
       operation === "compress" ||
@@ -588,7 +649,8 @@ serve(async (req) => {
         // Get image data
         if (imageFile.Url) {
           console.log(
-            `Downloading image ${i + 1}/${imageCount} from URL: ${imageFile.Url
+            `Downloading image ${i + 1}/${imageCount} from URL: ${
+              imageFile.Url
             }`
           );
           const imageResponse = await fetch(imageFile.Url);
@@ -721,7 +783,7 @@ serve(async (req) => {
                 operations_applied: [operation],
                 resource_type: "image",
                 name: `${originalName || "document"} - Page ${pageNum}`,
-                parent_id: imageId, 
+                parent_id: imageId,
               })
               .select()
               .single();
@@ -753,67 +815,82 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    } else if (operation === 'recolor') {
-      const CLOUD_NAME = Deno.env.get('CLOUDINARY_CLOUD_NAME')
-      const API_KEY = Deno.env.get('CLOUDINARY_API_KEY')
-      const API_SECRET = Deno.env.get('CLOUDINARY_API_SECRET')
+    } else if (operation === "recolor") {
+      const CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME");
+      const API_KEY = Deno.env.get("CLOUDINARY_API_KEY");
+      const API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET");
       if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
-        throw new Error("Cloudinary keys are missing for recoloring!")
+        throw new Error("Cloudinary keys are missing for recoloring!");
       }
-      const fromColor = options?.fromColor || "#000000"
-      const toColor = options?.toColor || "#ff0000"
-      const tolerance = options?.tolerance || 20
-      const fromColorHex = fromColor.replace('#', "").toLowerCase()
-      const toColorHex = toColor.replace("#", "").toLowerCase()
+      const fromColor = options?.fromColor || "#000000";
+      const toColor = options?.toColor || "#ff0000";
+      const tolerance = options?.tolerance || 20;
+      const fromColorHex = fromColor.replace("#", "").toLowerCase();
+      const toColorHex = toColor.replace("#", "").toLowerCase();
       const transformStr = `e_replace_color:${toColorHex}:${tolerance}:${fromColorHex}`;
-      const timestamp = Math.round(new Date().getTime() / 1000)
+      const timestamp = Math.round(new Date().getTime() / 1000);
       const strToSign = `timestamp=${timestamp}&transformation=${transformStr}${API_SECRET}`;
-      const encoder = new TextEncoder()
-      const hashBuffer = await crypto.subtle.digest("SHA-1", encoder.encode(strToSign))
-      const signature = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join("")
-      let fileToUpload
-      if(imageUrl.startsWith('blob:'))
-      {
-        const imageResponse=await fetch(imageUrl)
-        if(!imageResponse.ok)
-        {
-          throw new Error(`Failed to fetch blob image :${imageResponse.status}`)
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest(
+        "SHA-1",
+        encoder.encode(strToSign)
+      );
+      const signature = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      let fileToUpload;
+      if (imageUrl.startsWith("blob:")) {
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(
+            `Failed to fetch blob image :${imageResponse.status}`
+          );
         }
-        const imageBlob=await imageResponse.blob()
-        const ext=originalName?.split('.').pop()?.toLowerCase()||'png'
-        const mimeType=ext==='jpg'||ext==='jpeg'?'image/jpeg':'image/png'
-        fileToUpload = new File([imageBlob], `image.${ext}`, { type: mimeType });
+        const imageBlob = await imageResponse.blob();
+        const ext = originalName?.split(".").pop()?.toLowerCase() || "png";
+        const mimeType =
+          ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+        fileToUpload = new File([imageBlob], `image.${ext}`, {
+          type: mimeType,
+        });
+      } else {
+        fileToUpload = imageUrl;
       }
-      else
-      {
-        fileToUpload=imageUrl
-      }
-      const formData = new FormData()
-      formData.append('file', fileToUpload)
-      formData.append('api_key', API_KEY)
-      formData.append('timestamp', timestamp.toString())
-      formData.append('signature', signature)
-      formData.append('transformation', transformStr);
-      
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
-      if (!uploadRes.ok) {
-      const errorText = await uploadRes.text();
-      throw new Error(`Cloudinary upload failed: ${uploadRes.status} - ${errorText}`);}
-      const uploadData = await uploadRes.json()
-      if (uploadData.error) {
-      throw new Error(uploadData.error.message || "Cloudinary processing failed");}
-      const processedUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transformStr}/v${uploadData.version}/${uploadData.public_id}`;
-      const resultRes = await fetch(processedUrl)
-      if (!resultRes.ok) {
-        console.error(`Recoloring failed for ${resultRes.status} ${resultRes.statusText}`)
-        throw new Error("Failed to apply color")
-      }
-      resultBlob = await resultRes.blob()
-      opSuffix = 'recolored'
-      fileExt = 'png'
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+      formData.append("api_key", API_KEY);
+      formData.append("timestamp", timestamp.toString());
+      formData.append("signature", signature);
+      formData.append("transformation", transformStr);
 
-    }
-    else {
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        throw new Error(
+          `Cloudinary upload failed: ${uploadRes.status} - ${errorText}`
+        );
+      }
+      const uploadData = await uploadRes.json();
+      if (uploadData.error) {
+        throw new Error(
+          uploadData.error.message || "Cloudinary processing failed"
+        );
+      }
+      const processedUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${transformStr}/v${uploadData.version}/${uploadData.public_id}`;
+      const resultRes = await fetch(processedUrl);
+      if (!resultRes.ok) {
+        console.error(
+          `Recoloring failed for ${resultRes.status} ${resultRes.statusText}`
+        );
+        throw new Error("Failed to apply color");
+      }
+      resultBlob = await resultRes.blob();
+      opSuffix = "recolored";
+      fileExt = "png";
+    } else {
       throw new Error(`Operation ${operation} not supported!`);
     }
 

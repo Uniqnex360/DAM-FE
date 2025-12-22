@@ -255,7 +255,6 @@ const applyRecoloring = async () => {
       toast.success('Image uploaded to Cloudinary successfully!');
     }
     
-    // STEP 2: Now process the image with recolor
     const imageUrlToProcess = imageRecord.cloudinaryUrl || imageRecord.url;
     
     const response = await api.processImageAI(
@@ -273,7 +272,6 @@ const applyRecoloring = async () => {
     if (response && response.url) {
       toast.success('Image recolored successfully!');
       
-      // Update the image in the local state
       setImages(prev => prev.map(img => 
         img.id === recoloringImage?.id 
           ? { 
@@ -370,7 +368,6 @@ const applyRecoloring = async () => {
         );
 
         if (existingIndex >= 0) {
-          // Update existing entry
           const updated = [...prev];
           updated[existingIndex] = {
             imageId: measurementImage.id,
@@ -484,7 +481,6 @@ const applyRecoloring = async () => {
   
   setPickedColor(hex.toUpperCase());
   
-  // Show feedback
   toast.success(`Picked color: ${hex.toUpperCase()}`);
 };
   const handleUrlsAdd = async () => {
@@ -855,7 +851,6 @@ const applyRecoloring = async () => {
         }
       }
 
-      // ========== LINE DIAGRAM PROCESSING ==========
       if (selectedProcessing.includes("line-diagram") && result?.images) {
         try {
           console.log("Processing line diagrams...");
@@ -865,7 +860,6 @@ const applyRecoloring = async () => {
               const originalImage = images[index];
               if (!originalImage) return;
 
-              // Check if this image has measurements saved
               const diagramResult = lineDiagramResults.find(
                 (r) => r.imageId === originalImage.id
               );
@@ -876,7 +870,6 @@ const applyRecoloring = async () => {
                 );
 
                 try {
-                  // Convert the annotated image data URL to a File
                   const response = await fetch(diagramResult.annotatedImageUrl);
                   const blob = await response.blob();
                   const annotatedFile = new File(
@@ -888,13 +881,11 @@ const applyRecoloring = async () => {
                     { type: "image/png" }
                   );
 
-                  // Upload the annotated image
                   const annotatedUploadResult = await api.uploadImages([
                     annotatedFile,
                   ]);
 
                   if (annotatedUploadResult?.images?.[0]) {
-                    // Store the annotated image URL in the result
                     uploadedImage.annotatedImageUrl =
                       annotatedUploadResult.images[0].cloudinaryUrl ||
                       annotatedUploadResult.images[0].url;
@@ -910,7 +901,6 @@ const applyRecoloring = async () => {
                     `Failed to upload annotated image for ${originalImage.name}:`,
                     annotatedError
                   );
-                  // Still include the local annotated image URL as fallback
                   uploadedImage.annotatedImageUrl =
                     diagramResult.annotatedImageUrl;
                   uploadedImage.hasLineDiagram = true;
@@ -920,7 +910,6 @@ const applyRecoloring = async () => {
             })
           );
 
-          // Add line diagram summary to result
           const imagesWithDiagrams = result.images.filter(
             (img: any) => img.hasLineDiagram
           );
@@ -947,9 +936,7 @@ const applyRecoloring = async () => {
           );
         }
       }
-      // ========== END LINE DIAGRAM PROCESSING ==========
 
-      // Infographic processing
       if (selectedProcessing.includes("infographic") && images.length > 0) {
         try {
           setIsGeneratingInfographic(true);
@@ -962,7 +949,6 @@ const applyRecoloring = async () => {
             imageToAnalyze.file
           );
 
-          // Initialize uploadResult if it doesn't exist yet
           const updatedResult = {
             ...result,
             infographics: result?.infographics
@@ -983,7 +969,6 @@ const applyRecoloring = async () => {
                 ],
           };
 
-          // Update result with infographics
           result = updatedResult;
 
           window.dispatchEvent(
@@ -1017,7 +1002,6 @@ const applyRecoloring = async () => {
         await api.createBatchProcessingJob(result.uploadId, imageProcessing);
       }
 
-      // AUTO-DETECTION AND AUTO-FIX LOGIC
       if (
         autoDetect &&
         currentAnalysis &&
@@ -1081,14 +1065,12 @@ const applyRecoloring = async () => {
                     );
 
                     if (response && response.url) {
-                      // Store the operation result
                       operations.push({
                         operation: op,
                         status: "success",
                         url: response.url,
                       });
 
-                      // Update the source URL for the next operation
                       currentSourceUrl = response.url;
                     }
                   } catch (opError: any) {
@@ -1105,7 +1087,6 @@ const applyRecoloring = async () => {
                   }
                 }
 
-                // Update the uploaded image with the final processed URL
                 if (
                   failedOps.length === 0 &&
                   operations.some((op) => op.status === "success")
@@ -1133,7 +1114,6 @@ const applyRecoloring = async () => {
 
             setAutoFixResults(processedImages);
 
-            // Update result summary
             result.isAutoFixed = processedImages.some((img) => img.isFixed);
             result.autoFixSummary = {
               totalImages: processedImages.length,
@@ -1152,7 +1132,7 @@ const applyRecoloring = async () => {
       }
 
       setUploadResult(result);
-      setLineDiagramResults([]); // Clear line diagram results after upload
+      setLineDiagramResults([]); 
       setImages([]);
       setProductPageUrl("");
       setCloudPath("");
