@@ -1,106 +1,69 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../lib/api';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any | null;
+  signIn: (email: string, pass: string) => Promise<void>;
+  signUp: (email: string, pass: string) => Promise<void>;
+  signOut: () => void;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check if user is already logged in on page load
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (!profile) {
-            await supabase.from('profiles').insert({
-              id: session.user.id,
-              email: session.user.email!,
-              role: 'client'
-            });
-          }
-        }
-      })();
-    });
-
-    return () => subscription.unsubscribe();
+    const token = localStorage.getItem('token');
+    if (token) {
+      // You could create a /me endpoint in FastAPI to validate the token here
+      // For now, we just assume presence of token means logged in
+      setUser({ token }); 
+    }
+    setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+  const signIn = async (email: string, pass: string) => {
+    // FastAPI OAuth2 expects form-data, not JSON
+    const formData = new URLSearchParams();
+    formData.append('username', email); // FastAPI maps 'username' to email
+    formData.append('password', pass);
 
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
+    const response = await api.post('/auth/login', formData, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
 
-      if (!profile) {
-        await supabase.from('profiles').insert({
-          id: data.user.id,
-          email: data.user.email!,
-          role: 'client'
-        });
-      }
-    }
+    const { access_token } = response.data;
+    localStorage.setItem('token', access_token);
+    setUser({ email, token: access_token });
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-
-    if (data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: data.user.email!,
-        role: 'client'
-      });
-    }
+  const signUp = async (email: string, pass: string) => {
+    // Register endpoint expects JSON
+    await api.post('/auth/register', {
+      email: email,
+      password: pass,
+      full_name: email.split('@')[0], // Optional: Default name from email
+    });
+    
+    // Auto login after sign up
+    await signIn(email, pass);
   };
 
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+  const signOut = () => {
+    localStorage.removeItem('token');
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
-      {children}
+    <AuthContext.Provider value={{ user, signIn, signUp, signOut, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+export const useAuth = () => useContext(AuthContext);
