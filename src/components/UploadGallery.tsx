@@ -12,88 +12,103 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
-interface Upload {
-  id: string;
-  status: string;
-  created_at: string;
-  metadata: any;
-}
-interface Image {
-  id: string;
-  url: string;
-  processed_url?: string | null;
-  processing_status?: string;
-  thumbnail_url: string | null;
-  width: number | null;
-  height: number | null;
-  created_at: string;
-  resourceType: "image" | "raw";
-}
-interface UploadWithImages extends Upload {
-  images: Image[];
-}
+import { assetApi } from "../lib/api";
+
 export function UploadGallery() {
-  const [uploads, setUploads] = useState<UploadWithImages[]>([]);
+  // Use the GalleryUpload type from your API service
+  const [uploads, setUploads] = useState<GalleryUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
+
   useEffect(() => {
     loadUploads();
     const interval = setInterval(loadUploads, 10000);
+    
     const handleUploadComplete = () => {
       setTimeout(() => loadUploads(), 1000);
     };
+    
     window.addEventListener("upload-complete", handleUploadComplete);
     return () => {
       clearInterval(interval);
       window.removeEventListener("upload-complete", handleUploadComplete);
     };
   }, []);
+
+  const loadUploads = async () => {
+    try {
+      // --- CHANGE START ---
+      // We fetch from Python API now. It returns uploads WITH images nested.
+      const data = await assetApi.getGallery();
+      setUploads(data);
+
+      // Auto-expand the first item if nothing is open
+      if (data.length > 0 && !expandedUpload) {
+        setExpandedUpload(data[0].id);
+      }
+      // --- CHANGE END ---
+    } catch (error) {
+      console.error("Failed to load uploads:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteImage = async (imageId: string, uploadId: string) => {
-  toast.warning("Delete this image permanently?", {
-    action: { label: "Delete", onClick: async () => {
-      try {
-        const { error } = await supabase.from("images").delete().eq("id", imageId);
-        if (error) throw error;
+    toast.warning("Delete this image permanently?", {
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            // You can keep using Supabase for delete for now
+            const { error } = await supabase.from("images").delete().eq("id", imageId);
+            if (error) throw error;
 
-                  setUploads(prev => {
-            const updated = prev
-              .map(upload => ({
-                ...upload,
-                images: upload.images.filter(img => img.id !== imageId)
-              }))
-              .filter(upload => upload.images.length > 0);
+            setUploads((prev) => {
+              const updated = prev
+                .map((upload) => ({
+                  ...upload,
+                  images: upload.images.filter((img) => img.id !== imageId),
+                }))
+                .filter((upload) => upload.images.length > 0);
 
-            if (!updated.some(u => u.id === uploadId) && expandedUpload === uploadId) {
-              setExpandedUpload(null);
-            }
+              if (!updated.some((u) => u.id === uploadId) && expandedUpload === uploadId) {
+                setExpandedUpload(null);
+              }
 
-            return updated;
-          })
-        toast.success("Image deleted");
-      } catch (err) {
-        toast.error("Failed to delete image");
-      }
-    }},
-    cancel: { label: "Cancel", onClick: () => toast.dismiss() },
-    duration: Infinity,
-  });
-};
-const deleteSession=async(uploadId:string)=>{
-  toast.warning("Delete entire upload session?",{
-    action:{label:"Delete",onClick:async()=>{
-      try {
-        await supabase.from('images').delete().eq('upload_id',uploadId)
-        await supabase.from('uploads').delete().eq("id",uploadId)
-        setUploads(prev=>prev.filter(u=>u.id!==uploadId))
-        if(expandedUpload===uploadId)setExpandedUpload(null)
-        toast.success('Session deleted')
-      } catch (error) {
-        toast.error("Failed to delete session")
-      }
-    }},
-    cancel: { label: "Cancel", onClick: () => toast.dismiss() },
-  })
-}
+              return updated;
+            });
+            toast.success("Image deleted");
+          } catch (err) {
+            toast.error("Failed to delete image");
+          }
+        },
+      },
+      cancel: { label: "Cancel", onClick: () => toast.dismiss() },
+      duration: Infinity,
+    });
+  };
+
+  const deleteSession = async (uploadId: string) => {
+    toast.warning("Delete entire upload session?", {
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            await supabase.from("images").delete().eq("upload_id", uploadId);
+            await supabase.from("uploads").delete().eq("id", uploadId);
+            setUploads((prev) => prev.filter((u) => u.id !== uploadId));
+            if (expandedUpload === uploadId) setExpandedUpload(null);
+            toast.success("Session deleted");
+          } catch (error) {
+            toast.error("Failed to delete session");
+          }
+        },
+      },
+      cancel: { label: "Cancel", onClick: () => toast.dismiss() },
+    });
+  };
+
   const handleDownload = async (url: string, fallbackName: string) => {
     try {
       let filename = fallbackName;
@@ -103,6 +118,7 @@ const deleteSession=async(uploadId:string)=>{
         const lastPart = parts[parts.length - 1];
         if (lastPart.length > 3) filename = decodeURIComponent(lastPart);
       } catch (e) {}
+      
       const response = await fetch(url);
       const blob = await response.blob();
       const link = document.createElement("a");
@@ -114,43 +130,10 @@ const deleteSession=async(uploadId:string)=>{
       URL.revokeObjectURL(link.href);
     } catch (error) {
       console.error("Download error:", error);
-      window.open(url, "_blank"); 
+      window.open(url, "_blank");
     }
   };
-  const loadUploads = async () => {
-    try {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) return;
-      const { data: uploadsData, error: uploadsError } = await supabase
-        .from("uploads")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (uploadsError) throw uploadsError;
-      const uploadsWithImages = await Promise.all(
-        uploadsData.map(async (upload) => {
-          const { data: imagesData } = await supabase
-            .from("images")
-            .select("*")
-            .eq("upload_id", upload.id)
-            .order("created_at", { ascending: true });
-          return {
-            ...upload,
-            images: imagesData || [],
-          };
-        })
-      );
-      setUploads(uploadsWithImages);
-      if (uploadsWithImages.length > 0 && !expandedUpload) {
-        setExpandedUpload(uploadsWithImages[0].id);
-      }
-    } catch (error) {
-      console.error("Failed to load uploads:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -163,6 +146,7 @@ const deleteSession=async(uploadId:string)=>{
         return "bg-slate-100 text-slate-700";
     }
   };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6 flex items-center justify-center min-h-64">
@@ -170,6 +154,7 @@ const deleteSession=async(uploadId:string)=>{
       </div>
     );
   }
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
@@ -242,12 +227,15 @@ const deleteSession=async(uploadId:string)=>{
                   <span className="text-xs text-slate-500 font-mono">
                     {upload.id.slice(0, 8)}
                   </span>
-                  <button onClick={(e)=>{
-                    e.stopPropagation()
-                    deleteSession(upload.id)
-                  }} 
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover: bg-red-50 rounded  transition-colors" title="Delete session">
-                    <Trash2 className="w-4 h-4"/>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(upload.id);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover: bg-red-50 rounded  transition-colors"
+                    title="Delete session"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -255,8 +243,10 @@ const deleteSession=async(uploadId:string)=>{
                 <div className="p-4 border-t border-slate-200 bg-white">
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {upload.images.map((image) => {
+                      // LOGIC: Show processed image if available, otherwise original
                       const displayUrl = image.processed_url || image.url;
                       const isProcessed = !!image.processed_url;
+                      
                       return (
                         <div
                           key={image.id}
@@ -302,19 +292,21 @@ const deleteSession=async(uploadId:string)=>{
                               >
                                 <Download className="w-4 h-4" />
                               </button>
-                              <button onClick={(e)=>{
-                                e.stopPropagation()
-                                deleteImage(image.id,upload.id)
-
-                              }}
-                              className="p-2 bg-red-500 text-white rounded-full hover:bg-red-700 transition-colors" title="Delete Image">
-                                <Trash2 className="w-4 h-4"/>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteImage(image.id, upload.id);
+                                }}
+                                className="p-2 bg-red-500 text-white rounded-full hover:bg-red-700 transition-colors"
+                                title="Delete Image"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
                           {/* Info Footer */}
                           <div className="flex items-center justify-between px-1">
-                            <span className="text-xs text-slate-500 font-mono truncate max-w-[80px]">
+                            <span className={`text-xs font-mono truncate max-w-[80px] ${isProcessed ? 'text-green-600 font-bold' : 'text-slate-500'}`}>
                               {isProcessed ? "Processed" : "Original"}
                             </span>
                             {image.width && image.height && (

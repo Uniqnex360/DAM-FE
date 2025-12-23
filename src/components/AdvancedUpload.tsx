@@ -21,6 +21,7 @@ import { ImageCropModal } from "./ImageCropModal";
 import { supabase } from "../lib/supabase";
 import { MeasurementModal } from "./MeasurementModal";
 import { toast } from "sonner";
+import { assetApi } from "../lib/api";
 interface ImageItem {
   id: string;
   url: string;
@@ -1498,7 +1499,8 @@ const applyRecoloring = async () => {
                 onClose={() => setEditingImage(null)}
                 onSave={handleCropSave}
               />
-            )}
+            )}Advanced Upload
+
             {images.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">
@@ -1623,12 +1625,15 @@ const applyRecoloring = async () => {
                   ))}
                 </div>
                 <button
-                  onClick={handleUpload}
-                  disabled={
-                    uploading || isAutoFixing || selectedProcessing.length === 0
-                  }
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                >
+  onClick={handleUpload}
+  disabled={
+    uploading || 
+    isAutoFixing || 
+    images.length === 0 || 
+    (selectedProcessing.length === 0 && !autoDetect)   
+  }
+  className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+>
                   {uploading ||
                   isAutoFixing ||
                   isGeneratingInfographic ||
