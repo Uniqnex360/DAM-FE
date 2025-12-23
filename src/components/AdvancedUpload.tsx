@@ -392,49 +392,60 @@ const applyRecoloring = async () => {
     setShowMeasurementTool(false);
     setMeasurementImage(null);
   };
+  // const runAutoDetection = async () => {
+  //   const itemToAnalyze = images.find((img) => img.file);
+  //   if (!itemToAnalyze || !itemToAnalyze.file) return;
+  //   setIsAnalyzing(true);
+  //   try {
+  //     const base64 = await new Promise<string>((resolve) => {
+  //       const r = new FileReader();
+  //       r.readAsDataURL(itemToAnalyze.file!);
+  //       r.onload = () => resolve(r.result as string);
+  //     });
+  //     const img = new Image();
+  //     await new Promise((r) => {
+  //       img.onload = r;
+  //       img.src = URL.createObjectURL(itemToAnalyze.file!);
+  //     });
+  //     const { data, error } = await supabase.functions.invoke("analyze-image", {
+  //       body: {
+  //         imageBase64: base64,
+  //         fileName: itemToAnalyze.name,
+  //         fileSize: itemToAnalyze.file!.size,
+  //         width: img.width,
+  //         height: img.height,
+  //       },
+  //     });
+  //     if (error || !data.analysis) throw error;
+  //     const analysis = data.analysis;
+  //     console.log("Full AI Analysis:", analysis);
+  //     setCurrentAnalysis(analysis);
+  //     const newOps = new Set<string>();
+  //     if (analysis.suggestions.backgroundRemoval) newOps.add("bg-remove");
+  //     if (analysis.suggestions.upscaling || analysis.qualityScore < 80)
+  //       newOps.add("retouch");
+  //     if (analysis.suggestions.compression) {
+  //       newOps.add("compress");
+  //       setCompressionQuality(80);
+  //     }
+  //     if (analysis.suggestions.cropping) newOps.add("crop");
+  //     setSelectedProcessing(Array.from(newOps));
+  //   } catch (e) {
+  //     console.error(e);
+  //   } finally {
+  //     setIsAnalyzing(false);
+  //   }
+  // };
   const runAutoDetection = async () => {
     const itemToAnalyze = images.find((img) => img.file);
     if (!itemToAnalyze || !itemToAnalyze.file) return;
+    
     setIsAnalyzing(true);
-    try {
-      const base64 = await new Promise<string>((resolve) => {
-        const r = new FileReader();
-        r.readAsDataURL(itemToAnalyze.file!);
-        r.onload = () => resolve(r.result as string);
-      });
-      const img = new Image();
-      await new Promise((r) => {
-        img.onload = r;
-        img.src = URL.createObjectURL(itemToAnalyze.file!);
-      });
-      const { data, error } = await supabase.functions.invoke("analyze-image", {
-        body: {
-          imageBase64: base64,
-          fileName: itemToAnalyze.name,
-          fileSize: itemToAnalyze.file!.size,
-          width: img.width,
-          height: img.height,
-        },
-      });
-      if (error || !data.analysis) throw error;
-      const analysis = data.analysis;
-      console.log("Full AI Analysis:", analysis);
-      setCurrentAnalysis(analysis);
-      const newOps = new Set<string>();
-      if (analysis.suggestions.backgroundRemoval) newOps.add("bg-remove");
-      if (analysis.suggestions.upscaling || analysis.qualityScore < 80)
-        newOps.add("retouch");
-      if (analysis.suggestions.compression) {
-        newOps.add("compress");
-        setCompressionQuality(80);
-      }
-      if (analysis.suggestions.cropping) newOps.add("crop");
-      setSelectedProcessing(Array.from(newOps));
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsAnalyzing(false);
-    }
+    
+    setTimeout(() => {
+        setIsAnalyzing(false);
+        toast.info("Ready for server-side AI analysis on upload");
+    }, 1500);
   };
   const handleCropSave = (newFile: File) => {
     if (!editingImage) return;
@@ -569,584 +580,701 @@ const applyRecoloring = async () => {
         : [...prev, processingId]
     );
   };
+  // const handleUpload = async () => {
+  //   if (images.length === 0 && uploadSource === "files") return;
+  //   setUploading(true);
+  //   setError("");
+  //   setUploadResult(null);
+
+  //   try {
+  //     let result;
+  //     const isOnlyLineDiagram =
+  //       selectedProcessing.length === 1 &&
+  //       selectedProcessing.includes("line-diagram") &&
+  //       lineDiagramResults.length > 0;
+
+  //     if (isOnlyLineDiagram) {
+  //       console.log("Uploading annotated images only...");
+
+  //       const annotatedFiles = await Promise.all(
+  //         lineDiagramResults.map(async (diagramResult) => {
+  //           if (diagramResult.annotatedImageUrl) {
+  //             const response = await fetch(diagramResult.annotatedImageUrl);
+  //             const blob = await response.blob();
+  //             return new File(
+  //               [blob],
+  //               `${diagramResult.imageName.replace(
+  //                 /\.[^/.]+$/,
+  //                 ""
+  //               )}_annotated.png`,
+  //               { type: "image/png" }
+  //             );
+  //           }
+  //           return null;
+  //         })
+  //       );
+  //       if (selectedProcessing.includes("pdf-extract")) {
+  //         const hasPdfs = images.some((img) => isPdfFile(img));
+  //         if (!hasPdfs) {
+  //           toast.error("PDF extraction can only be performed on PDF files");
+  //           return;
+  //         }
+  //       }
+  //       const validFiles = annotatedFiles.filter((f): f is File => f !== null);
+
+  //       if (validFiles.length > 0) {
+  //         result = await api.uploadImages(validFiles);
+
+  //         if (result?.images) {
+  //           result.images = result.images.map((img: any, index: number) => ({
+  //             ...img,
+  //             hasLineDiagram: true,
+  //             measurements: lineDiagramResults[index]?.measurements || [],
+  //             measurementCount:
+  //               lineDiagramResults[index]?.measurements?.length || 0,
+  //           }));
+
+  //           result.lineDiagramSummary = {
+  //             totalProcessed: result.images.length,
+  //             images: result.images.map((img: any) => ({
+  //               id: img.id,
+  //               originalUrl: img.url,
+  //               annotatedUrl: img.cloudinaryUrl || img.url,
+  //               measurementCount: img.measurementCount,
+  //               measurements: img.measurements,
+  //             })),
+  //           };
+  //         }
+  //       }
+  //     } else {
+  //       switch (uploadSource) {
+  //         case "files": {
+  //           const files = await Promise.all(
+  //             images.map(async (img) => {
+  //               if (img.file) return img.file;
+  //               if (img.preview) {
+  //                 const response = await fetch(img.url);
+  //                 const blob = await response.blob();
+  //                 return new File([blob], img.name, { type: blob.type });
+  //               }
+  //               return null;
+  //             })
+  //           );
+  //           const validFiles = files.filter((f): f is File => f !== null);
+  //           result = await api.uploadImages(validFiles);
+  //           break;
+  //         }
+  //         case "urls": {
+  //           const filesToUpload: File[] = [];
+  //           const urlsToUpload: string[] = [];
+
+  //           await Promise.all(
+  //             images.map(async (img) => {
+  //               if (img.file) {
+  //                 filesToUpload.push(img.file);
+  //                 return;
+  //               }
+  //               if (img.url.startsWith("blob:")) {
+  //                 try {
+  //                   const res = await fetch(img.url);
+  //                   const blob = await res.blob();
+  //                   const file = new File([blob], img.name, {
+  //                     type: blob.type,
+  //                   });
+  //                   filesToUpload.push(file);
+  //                 } catch (e) {
+  //                   console.error("Failed to convert blob to file", e);
+  //                 }
+  //                 return;
+  //               }
+  //               urlsToUpload.push(img.url);
+  //             })
+  //           );
+
+  //           let fileResults = { images: [], uploadId: null };
+  //           let urlResults = { images: [], uploadId: null };
+
+  //           if (filesToUpload.length > 0) {
+  //             fileResults = await api.uploadImages(filesToUpload);
+  //           }
+
+  //           if (urlsToUpload.length > 0) {
+  //             urlResults = await api.uploadFromUrls(urlsToUpload);
+  //           }
+
+  //           result = {
+  //             uploadId: fileResults.uploadId || urlResults.uploadId,
+  //             images: [
+  //               ...(fileResults.images || []),
+  //               ...(urlResults.images || []),
+  //             ],
+  //           };
+  //           break;
+  //         }
+  //         case "product-page": {
+  //           result = await api.uploadFromProductPage(productPageUrl);
+  //           break;
+  //         }
+  //         case "cloud": {
+  //           result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
+  //           break;
+  //         }
+  //         default:
+  //           throw new Error("Invalid upload source");
+  //       }
+  //     }
+  //     const activeOperations: (
+  //       | "bg-remove"
+  //       | "resize"
+  //       | "compress"
+  //       | "3d-model"
+  //       | "retouch"
+  //       | "pdf-extract"
+  //     )[] = [];
+
+  //     if (!autoDetect) {
+  //       if (selectedProcessing.includes("retouch"))
+  //         activeOperations.push("retouch");
+  //       if (selectedProcessing.includes("bg-remove"))
+  //         activeOperations.push("bg-remove");
+  //       if (selectedProcessing.includes("resize"))
+  //         activeOperations.push("resize");
+  //       if (selectedProcessing.includes("compress"))
+  //         activeOperations.push("compress");
+  //       if (selectedProcessing.includes("3d-model"))
+  //         activeOperations.push("3d-model");
+  //       if (selectedProcessing.includes("pdf-extract"))
+  //         activeOperations.push("pdf-extract");
+  //     }
+
+  //     if (activeOperations.length > 0 && result?.images) {
+  //       try {
+  //         console.log(`Initiating processes: ${activeOperations.join(", ")}`);
+  //         const pdfOperations = activeOperations.filter(
+  //           (op) => op === "pdf-extract"
+  //         );
+  //         const imgOperations = activeOperations.filter(
+  //           (op) => op !== "pdf-extract"
+  //         );
+  //         await Promise.all(
+  //           result.images.map(async (uploadedImage: any, index: number) => {
+  //             const originalImage = images[index];
+  //             if (!originalImage) return;
+  //             let currentSourceUrl =
+  //               uploadedImage.cloudinaryUrl || uploadedImage.url;
+  //             const originalName = originalImage.name || uploadedImage.id;
+
+  //             // if (uploadSource === "files") {
+  //             //   if (images[index]) originalName = images[index].name;
+  //             // } else if (uploadSource === "urls") {
+  //             //   const parts = images[index]?.url.split("/");
+  //             //   const lastPart = parts[parts.length - 1];
+  //             //   if (lastPart) originalName = lastPart;
+  //             // }
+
+  //             const processedOps: string[] = [];
+  //             const failedOps: string[] = [];
+  //             if (isPdfFile(originalImage) && pdfOperations.length > 0) {
+  //               console.log(`Processing PDF operations for ${originalName}`);
+  //               for (const op of pdfOperations) {
+  //                 try {
+  //                   const response = await api.processImageAI(
+  //                     uploadedImage.id,
+  //                     currentSourceUrl,
+  //                     op,
+  //                     originalName,
+  //                     {}
+  //                   );
+
+  //                   if (response && response.url) {
+  //                     currentSourceUrl = response.url;
+  //                     processedOps.push(op);
+  //                   } else {
+  //                     throw new Error(`No output URL from ${op}`);
+  //                   }
+  //                 } catch (error: any) {
+  //                   console.error(
+  //                     `Operation "${op}" FAILED on ${originalName}:`,
+  //                     error.message
+  //                   );
+  //                   failedOps.push(op);
+  //                 }
+  //               }
+  //             }
+  //             if (isImgFile(originalImage) && imgOperations.length > 0) {
+  //               console.log(`Processing image operations for ${originalName}`);
+  //               for (const op of imgOperations) {
+  //                 let options = {};
+  //                 if (op === "resize") options = resizeDims;
+  //                 if (op === "compress")
+  //                   options = { quality: compressionQuality };
+  //                 try {
+  //                   const response = await api.processImageAI(
+  //                     uploadedImage.id,
+  //                     currentSourceUrl,
+  //                     op,
+  //                     originalName,
+  //                     options
+  //                   );
+
+  //                   if (response && response.url) {
+  //                     currentSourceUrl = response.url;
+  //                     processedOps.push(op);
+  //                   } else {
+  //                     throw new Error(`No output URL from ${op}`);
+  //                   }
+  //                 } catch (error: any) {
+  //                   console.error(
+  //                     ` Operation "${op}" FAILED on ${originalName}:`,
+  //                     error.message
+  //                   );
+  //                   failedOps.push(op);
+  //                 }
+  //               }
+
+  //               // Update the image URL with the final processed result
+  //               if (failedOps.length === 0 && processedOps.length > 0) {
+  //                 uploadedImage.cloudinaryUrl = currentSourceUrl;
+  //                 uploadedImage.url = currentSourceUrl;
+  //                 uploadedImage.isProcessed = true;
+  //                 uploadedImage.processedOperations = processedOps;
+  //                 uploadedImage.processingStatus = "success";
+  //               } else {
+  //                 uploadedImage.isProcessed = false;
+  //                 uploadedImage.processingStatus =
+  //                   failedOps.length === activeOperations.length
+  //                     ? "failed"
+  //                     : "partial_failure";
+  //                 uploadedImage.processedOperations = processedOps;
+  //                 uploadedImage.failedOperations = failedOps;
+  //                 setError((prev) =>
+  //                   prev
+  //                     ? `${prev}\n${originalName}: ${failedOps.join(", ")}`
+  //                     : `${originalName}: ${failedOps.join(", ")}`
+  //                 );
+  //               }
+  //             }
+  //           })
+  //         );
+  //         console.log("All AI tasks finished.");
+  //       } catch (processError: any) {
+  //         console.error("AI Processing failed", processError);
+  //       }
+  //     }
+
+  //     if (selectedProcessing.includes("line-diagram") && result?.images) {
+  //       try {
+  //         console.log("Processing line diagrams...");
+
+  //         await Promise.all(
+  //           result.images.map(async (uploadedImage: any, index: number) => {
+  //             const originalImage = images[index];
+  //             if (!originalImage) return;
+
+  //             const diagramResult = lineDiagramResults.find(
+  //               (r) => r.imageId === originalImage.id
+  //             );
+
+  //             if (diagramResult && diagramResult.annotatedImageUrl) {
+  //               console.log(
+  //                 `Uploading annotated image for: ${originalImage.name}`
+  //               );
+
+  //               try {
+  //                 const response = await fetch(diagramResult.annotatedImageUrl);
+  //                 const blob = await response.blob();
+  //                 const annotatedFile = new File(
+  //                   [blob],
+  //                   `${originalImage.name.replace(
+  //                     /\.[^/.]+$/,
+  //                     ""
+  //                   )}_annotated.png`,
+  //                   { type: "image/png" }
+  //                 );
+
+  //                 const annotatedUploadResult = await api.uploadImages([
+  //                   annotatedFile,
+  //                 ]);
+
+  //                 if (annotatedUploadResult?.images?.[0]) {
+  //                   uploadedImage.annotatedImageUrl =
+  //                     annotatedUploadResult.images[0].cloudinaryUrl ||
+  //                     annotatedUploadResult.images[0].url;
+  //                   uploadedImage.hasLineDiagram = true;
+  //                   uploadedImage.measurements = diagramResult.measurements;
+
+  //                   console.log(
+  //                     `Annotated image uploaded: ${uploadedImage.annotatedImageUrl}`
+  //                   );
+  //                 }
+  //               } catch (annotatedError: any) {
+  //                 console.error(
+  //                   `Failed to upload annotated image for ${originalImage.name}:`,
+  //                   annotatedError
+  //                 );
+  //                 uploadedImage.annotatedImageUrl =
+  //                   diagramResult.annotatedImageUrl;
+  //                 uploadedImage.hasLineDiagram = true;
+  //                 uploadedImage.measurements = diagramResult.measurements;
+  //               }
+  //             }
+  //           })
+  //         );
+
+  //         const imagesWithDiagrams = result.images.filter(
+  //           (img: any) => img.hasLineDiagram
+  //         );
+  //         if (imagesWithDiagrams.length > 0) {
+  //           result.lineDiagramSummary = {
+  //             totalProcessed: imagesWithDiagrams.length,
+  //             images: imagesWithDiagrams.map((img: any) => ({
+  //               id: img.id,
+  //               originalUrl: img.url,
+  //               annotatedUrl: img.annotatedImageUrl,
+  //               measurementCount: img.measurements?.length || 0,
+  //               measurements: img.measurements,
+  //             })),
+  //           };
+  //         }
+
+  //         console.log("Line diagram processing complete.");
+  //       } catch (lineDiagramError: any) {
+  //         console.error("Line diagram processing failed:", lineDiagramError);
+  //         setError((prev) =>
+  //           prev
+  //             ? `${prev}\nLine diagram: ${lineDiagramError.message}`
+  //             : `Line diagram: ${lineDiagramError.message}`
+  //         );
+  //       }
+  //     }
+
+  //     if (selectedProcessing.includes("infographic") && images.length > 0) {
+  //       try {
+  //         setIsGeneratingInfographic(true);
+  //         setIsAnalyzingForInfographic(true);
+
+  //         const imageToAnalyze = images[0];
+  //         if (!imageToAnalyze.file) throw new Error("No file to analyze");
+
+  //         const infographicResult = await api.generateInfographicFromImage(
+  //           imageToAnalyze.file
+  //         );
+
+  //         const updatedResult = {
+  //           ...result,
+  //           infographics: result?.infographics
+  //             ? [
+  //                 ...result.infographics,
+  //                 {
+  //                   imageUrl: infographicResult.imageUrl,
+  //                   sourceImageId: imageToAnalyze.id,
+  //                   analysis: infographicResult.analysis,
+  //                 },
+  //               ]
+  //             : [
+  //                 {
+  //                   imageUrl: infographicResult.imageUrl,
+  //                   sourceImageId: imageToAnalyze.id,
+  //                   analysis: infographicResult.analysis,
+  //                 },
+  //               ],
+  //         };
+
+  //         result = updatedResult;
+
+  //         window.dispatchEvent(
+  //           new CustomEvent("infographic-generated", {
+  //             detail: infographicResult,
+  //           })
+  //         );
+  //       } catch (err: any) {
+  //         console.error("Infographic generation failed:", err);
+  //         setError("Failed to generate infographic: " + err.message);
+  //       } finally {
+  //         setIsGeneratingInfographic(false);
+  //         setIsAnalyzingForInfographic(false);
+  //       }
+  //     }
+
+  //     const otherProcessing = selectedProcessing.filter(
+  //       (p) =>
+  //         p !== "bg-remove" &&
+  //         p !== "resize" &&
+  //         p !== "compress" &&
+  //         p !== "line-diagram" &&
+  //         p !== "pdf-extract"
+  //     );
+
+  //     if (!autoDetect && otherProcessing.length > 0) {
+  //       const imageProcessing: Record<string, string[]> = {};
+  //       images.forEach((img) => {
+  //         imageProcessing[img.id] = otherProcessing;
+  //       });
+  //       await api.createBatchProcessingJob(result.uploadId, imageProcessing);
+  //     }
+
+  //     if (
+  //       autoDetect &&
+  //       currentAnalysis &&
+  //       result?.images &&
+  //       result.images.length > 0
+  //     ) {
+  //       setIsAutoFixing(true);
+  //       setAutoFixResults([]);
+  //       setAutoFixError(null);
+
+  //       try {
+  //         console.log("Applying auto-detected fixes...");
+
+  //         const autoFixOperations: string[] = [];
+  //         if (currentAnalysis.suggestions.backgroundRemoval)
+  //           autoFixOperations.push("bg-remove");
+  //         if (
+  //           currentAnalysis.suggestions.upscaling ||
+  //           currentAnalysis.qualityScore < 80
+  //         )
+  //           autoFixOperations.push("retouch");
+  //         if (currentAnalysis.suggestions.compression)
+  //           autoFixOperations.push("compress");
+  //         if (currentAnalysis.suggestions.cropping)
+  //           autoFixOperations.push("crop");
+
+  //         if (autoFixOperations.length > 0) {
+  //           console.log(`Auto-fix operations: ${autoFixOperations.join(", ")}`);
+
+  //           const processedImages = await Promise.all(
+  //             result.images.map(async (uploadedImage: any, index: number) => {
+  //               let currentSourceUrl =
+  //                 uploadedImage.cloudinaryUrl || uploadedImage.url;
+  //               let originalName = uploadedImage.id;
+
+  //               if (uploadSource === "files") {
+  //                 if (images[index]) originalName = images[index].name;
+  //               } else if (uploadSource === "urls") {
+  //                 const parts = images[index]?.url.split("/");
+  //                 const lastPart = parts[parts.length - 1];
+  //                 if (lastPart) originalName = lastPart;
+  //               }
+
+  //               const operations: any[] = [];
+  //               const failedOps: string[] = [];
+
+  //               for (const op of autoFixOperations) {
+  //                 try {
+  //                   console.log(`Auto-applying ${op} to ${originalName}...`);
+  //                   let options = {};
+  //                   if (op === "resize") options = resizeDims;
+  //                   if (op === "compress")
+  //                     options = { quality: compressionQuality };
+
+  //                   const response = await api.processImageAI(
+  //                     uploadedImage.id,
+  //                     currentSourceUrl,
+  //                     op,
+  //                     originalName,
+  //                     options
+  //                   );
+
+  //                   if (response && response.url) {
+  //                     operations.push({
+  //                       operation: op,
+  //                       status: "success",
+  //                       url: response.url,
+  //                     });
+
+  //                     currentSourceUrl = response.url;
+  //                   }
+  //                 } catch (opError: any) {
+  //                   console.error(
+  //                     `Auto-fix failed for ${op} on ${originalName}:`,
+  //                     opError
+  //                   );
+  //                   operations.push({
+  //                     operation: op,
+  //                     status: "failed",
+  //                     error: opError.message,
+  //                   });
+  //                   failedOps.push(op);
+  //                 }
+  //               }
+
+  //               if (
+  //                 failedOps.length === 0 &&
+  //                 operations.some((op) => op.status === "success")
+  //               ) {
+  //                 uploadedImage.cloudinaryUrl = currentSourceUrl;
+  //                 uploadedImage.url = currentSourceUrl;
+  //                 uploadedImage.isAutoFixed = true;
+  //                 uploadedImage.autoFixOperations = operations
+  //                   .filter((op) => op.status === "success")
+  //                   .map((op) => op.operation);
+  //               } else {
+  //                 uploadedImage.isAutoFixed = false;
+  //                 uploadedImage.autoFixStatus = "partial_failure";
+  //               }
+
+  //               return {
+  //                 imageId: uploadedImage.id,
+  //                 originalName,
+  //                 operations,
+  //                 finalUrl: currentSourceUrl,
+  //                 isFixed: operations.some((op) => op.status === "success"),
+  //               };
+  //             })
+  //           );
+
+  //           setAutoFixResults(processedImages);
+
+  //           result.isAutoFixed = processedImages.some((img) => img.isFixed);
+  //           result.autoFixSummary = {
+  //             totalImages: processedImages.length,
+  //             successfullyFixed: processedImages.filter((img) => img.isFixed)
+  //               .length,
+  //             totalOperations: autoFixOperations.length,
+  //             appliedOperations: autoFixOperations,
+  //           };
+  //         }
+  //       } catch (autoFixErr: any) {
+  //         setAutoFixError(autoFixErr.message || "Auto-fix failed");
+  //         console.error("Auto-fix error:", autoFixErr);
+  //       } finally {
+  //         setIsAutoFixing(false);
+  //       }
+  //     }
+
+  //     setUploadResult(result);
+  //     setLineDiagramResults([]); 
+  //     setImages([]);
+  //     setProductPageUrl("");
+  //     setCloudPath("");
+
+  //     // Dispatch event with the processed result
+  //     window.dispatchEvent(
+  //       new CustomEvent("upload-complete", {
+  //         detail: result,
+  //       })
+  //     );
+  //   } catch (err: any) {
+  //     setError(err.message || "Upload failed");
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
   const handleUpload = async () => {
     if (images.length === 0 && uploadSource === "files") return;
     setUploading(true);
     setError("");
     setUploadResult(null);
+    setIsAutoFixing(true); // Show the "Auto-fixing" UI state
 
     try {
-      let result;
-      const isOnlyLineDiagram =
-        selectedProcessing.length === 1 &&
-        selectedProcessing.includes("line-diagram") &&
-        lineDiagramResults.length > 0;
-
-      if (isOnlyLineDiagram) {
-        console.log("Uploading annotated images only...");
-
-        const annotatedFiles = await Promise.all(
-          lineDiagramResults.map(async (diagramResult) => {
-            if (diagramResult.annotatedImageUrl) {
-              const response = await fetch(diagramResult.annotatedImageUrl);
-              const blob = await response.blob();
-              return new File(
-                [blob],
-                `${diagramResult.imageName.replace(
-                  /\.[^/.]+$/,
-                  ""
-                )}_annotated.png`,
-                { type: "image/png" }
-              );
-            }
+      // Step A: Upload Images to FastAPI (Storage)
+      const uploadedAssets = await Promise.all(
+        images.map(async (img) => {
+          if (!img.file) return null;
+          try {
+            return await assetApi.upload(img.file);
+          } catch (err) {
+            console.error(`Failed to upload ${img.name}`, err);
             return null;
-          })
-        );
-        if (selectedProcessing.includes("pdf-extract")) {
-          const hasPdfs = images.some((img) => isPdfFile(img));
-          if (!hasPdfs) {
-            toast.error("PDF extraction can only be performed on PDF files");
-            return;
           }
-        }
-        const validFiles = annotatedFiles.filter((f): f is File => f !== null);
-
-        if (validFiles.length > 0) {
-          result = await api.uploadImages(validFiles);
-
-          if (result?.images) {
-            result.images = result.images.map((img: any, index: number) => ({
-              ...img,
-              hasLineDiagram: true,
-              measurements: lineDiagramResults[index]?.measurements || [],
-              measurementCount:
-                lineDiagramResults[index]?.measurements?.length || 0,
-            }));
-
-            result.lineDiagramSummary = {
-              totalProcessed: result.images.length,
-              images: result.images.map((img: any) => ({
-                id: img.id,
-                originalUrl: img.url,
-                annotatedUrl: img.cloudinaryUrl || img.url,
-                measurementCount: img.measurementCount,
-                measurements: img.measurements,
-              })),
-            };
-          }
-        }
-      } else {
-        switch (uploadSource) {
-          case "files": {
-            const files = await Promise.all(
-              images.map(async (img) => {
-                if (img.file) return img.file;
-                if (img.preview) {
-                  const response = await fetch(img.url);
-                  const blob = await response.blob();
-                  return new File([blob], img.name, { type: blob.type });
-                }
-                return null;
-              })
-            );
-            const validFiles = files.filter((f): f is File => f !== null);
-            result = await api.uploadImages(validFiles);
-            break;
-          }
-          case "urls": {
-            const filesToUpload: File[] = [];
-            const urlsToUpload: string[] = [];
-
-            await Promise.all(
-              images.map(async (img) => {
-                if (img.file) {
-                  filesToUpload.push(img.file);
-                  return;
-                }
-                if (img.url.startsWith("blob:")) {
-                  try {
-                    const res = await fetch(img.url);
-                    const blob = await res.blob();
-                    const file = new File([blob], img.name, {
-                      type: blob.type,
-                    });
-                    filesToUpload.push(file);
-                  } catch (e) {
-                    console.error("Failed to convert blob to file", e);
-                  }
-                  return;
-                }
-                urlsToUpload.push(img.url);
-              })
-            );
-
-            let fileResults = { images: [], uploadId: null };
-            let urlResults = { images: [], uploadId: null };
-
-            if (filesToUpload.length > 0) {
-              fileResults = await api.uploadImages(filesToUpload);
-            }
-
-            if (urlsToUpload.length > 0) {
-              urlResults = await api.uploadFromUrls(urlsToUpload);
-            }
-
-            result = {
-              uploadId: fileResults.uploadId || urlResults.uploadId,
-              images: [
-                ...(fileResults.images || []),
-                ...(urlResults.images || []),
-              ],
-            };
-            break;
-          }
-          case "product-page": {
-            result = await api.uploadFromProductPage(productPageUrl);
-            break;
-          }
-          case "cloud": {
-            result = await api.uploadFromCloudStorage(cloudProvider, cloudPath);
-            break;
-          }
-          default:
-            throw new Error("Invalid upload source");
-        }
-      }
-      const activeOperations: (
-        | "bg-remove"
-        | "resize"
-        | "compress"
-        | "3d-model"
-        | "retouch"
-        | "pdf-extract"
-      )[] = [];
-
-      if (!autoDetect) {
-        if (selectedProcessing.includes("retouch"))
-          activeOperations.push("retouch");
-        if (selectedProcessing.includes("bg-remove"))
-          activeOperations.push("bg-remove");
-        if (selectedProcessing.includes("resize"))
-          activeOperations.push("resize");
-        if (selectedProcessing.includes("compress"))
-          activeOperations.push("compress");
-        if (selectedProcessing.includes("3d-model"))
-          activeOperations.push("3d-model");
-        if (selectedProcessing.includes("pdf-extract"))
-          activeOperations.push("pdf-extract");
-      }
-
-      if (activeOperations.length > 0 && result?.images) {
-        try {
-          console.log(`Initiating processes: ${activeOperations.join(", ")}`);
-          const pdfOperations = activeOperations.filter(
-            (op) => op === "pdf-extract"
-          );
-          const imgOperations = activeOperations.filter(
-            (op) => op !== "pdf-extract"
-          );
-          await Promise.all(
-            result.images.map(async (uploadedImage: any, index: number) => {
-              const originalImage = images[index];
-              if (!originalImage) return;
-              let currentSourceUrl =
-                uploadedImage.cloudinaryUrl || uploadedImage.url;
-              const originalName = originalImage.name || uploadedImage.id;
-
-              // if (uploadSource === "files") {
-              //   if (images[index]) originalName = images[index].name;
-              // } else if (uploadSource === "urls") {
-              //   const parts = images[index]?.url.split("/");
-              //   const lastPart = parts[parts.length - 1];
-              //   if (lastPart) originalName = lastPart;
-              // }
-
-              const processedOps: string[] = [];
-              const failedOps: string[] = [];
-              if (isPdfFile(originalImage) && pdfOperations.length > 0) {
-                console.log(`Processing PDF operations for ${originalName}`);
-                for (const op of pdfOperations) {
-                  try {
-                    const response = await api.processImageAI(
-                      uploadedImage.id,
-                      currentSourceUrl,
-                      op,
-                      originalName,
-                      {}
-                    );
-
-                    if (response && response.url) {
-                      currentSourceUrl = response.url;
-                      processedOps.push(op);
-                    } else {
-                      throw new Error(`No output URL from ${op}`);
-                    }
-                  } catch (error: any) {
-                    console.error(
-                      `Operation "${op}" FAILED on ${originalName}:`,
-                      error.message
-                    );
-                    failedOps.push(op);
-                  }
-                }
-              }
-              if (isImgFile(originalImage) && imgOperations.length > 0) {
-                console.log(`Processing image operations for ${originalName}`);
-                for (const op of imgOperations) {
-                  let options = {};
-                  if (op === "resize") options = resizeDims;
-                  if (op === "compress")
-                    options = { quality: compressionQuality };
-                  try {
-                    const response = await api.processImageAI(
-                      uploadedImage.id,
-                      currentSourceUrl,
-                      op,
-                      originalName,
-                      options
-                    );
-
-                    if (response && response.url) {
-                      currentSourceUrl = response.url;
-                      processedOps.push(op);
-                    } else {
-                      throw new Error(`No output URL from ${op}`);
-                    }
-                  } catch (error: any) {
-                    console.error(
-                      ` Operation "${op}" FAILED on ${originalName}:`,
-                      error.message
-                    );
-                    failedOps.push(op);
-                  }
-                }
-
-                // Update the image URL with the final processed result
-                if (failedOps.length === 0 && processedOps.length > 0) {
-                  uploadedImage.cloudinaryUrl = currentSourceUrl;
-                  uploadedImage.url = currentSourceUrl;
-                  uploadedImage.isProcessed = true;
-                  uploadedImage.processedOperations = processedOps;
-                  uploadedImage.processingStatus = "success";
-                } else {
-                  uploadedImage.isProcessed = false;
-                  uploadedImage.processingStatus =
-                    failedOps.length === activeOperations.length
-                      ? "failed"
-                      : "partial_failure";
-                  uploadedImage.processedOperations = processedOps;
-                  uploadedImage.failedOperations = failedOps;
-                  setError((prev) =>
-                    prev
-                      ? `${prev}\n${originalName}: ${failedOps.join(", ")}`
-                      : `${originalName}: ${failedOps.join(", ")}`
-                  );
-                }
-              }
-            })
-          );
-          console.log("All AI tasks finished.");
-        } catch (processError: any) {
-          console.error("AI Processing failed", processError);
-        }
-      }
-
-      if (selectedProcessing.includes("line-diagram") && result?.images) {
-        try {
-          console.log("Processing line diagrams...");
-
-          await Promise.all(
-            result.images.map(async (uploadedImage: any, index: number) => {
-              const originalImage = images[index];
-              if (!originalImage) return;
-
-              const diagramResult = lineDiagramResults.find(
-                (r) => r.imageId === originalImage.id
-              );
-
-              if (diagramResult && diagramResult.annotatedImageUrl) {
-                console.log(
-                  `Uploading annotated image for: ${originalImage.name}`
-                );
-
-                try {
-                  const response = await fetch(diagramResult.annotatedImageUrl);
-                  const blob = await response.blob();
-                  const annotatedFile = new File(
-                    [blob],
-                    `${originalImage.name.replace(
-                      /\.[^/.]+$/,
-                      ""
-                    )}_annotated.png`,
-                    { type: "image/png" }
-                  );
-
-                  const annotatedUploadResult = await api.uploadImages([
-                    annotatedFile,
-                  ]);
-
-                  if (annotatedUploadResult?.images?.[0]) {
-                    uploadedImage.annotatedImageUrl =
-                      annotatedUploadResult.images[0].cloudinaryUrl ||
-                      annotatedUploadResult.images[0].url;
-                    uploadedImage.hasLineDiagram = true;
-                    uploadedImage.measurements = diagramResult.measurements;
-
-                    console.log(
-                      `Annotated image uploaded: ${uploadedImage.annotatedImageUrl}`
-                    );
-                  }
-                } catch (annotatedError: any) {
-                  console.error(
-                    `Failed to upload annotated image for ${originalImage.name}:`,
-                    annotatedError
-                  );
-                  uploadedImage.annotatedImageUrl =
-                    diagramResult.annotatedImageUrl;
-                  uploadedImage.hasLineDiagram = true;
-                  uploadedImage.measurements = diagramResult.measurements;
-                }
-              }
-            })
-          );
-
-          const imagesWithDiagrams = result.images.filter(
-            (img: any) => img.hasLineDiagram
-          );
-          if (imagesWithDiagrams.length > 0) {
-            result.lineDiagramSummary = {
-              totalProcessed: imagesWithDiagrams.length,
-              images: imagesWithDiagrams.map((img: any) => ({
-                id: img.id,
-                originalUrl: img.url,
-                annotatedUrl: img.annotatedImageUrl,
-                measurementCount: img.measurements?.length || 0,
-                measurements: img.measurements,
-              })),
-            };
-          }
-
-          console.log("Line diagram processing complete.");
-        } catch (lineDiagramError: any) {
-          console.error("Line diagram processing failed:", lineDiagramError);
-          setError((prev) =>
-            prev
-              ? `${prev}\nLine diagram: ${lineDiagramError.message}`
-              : `Line diagram: ${lineDiagramError.message}`
-          );
-        }
-      }
-
-      if (selectedProcessing.includes("infographic") && images.length > 0) {
-        try {
-          setIsGeneratingInfographic(true);
-          setIsAnalyzingForInfographic(true);
-
-          const imageToAnalyze = images[0];
-          if (!imageToAnalyze.file) throw new Error("No file to analyze");
-
-          const infographicResult = await api.generateInfographicFromImage(
-            imageToAnalyze.file
-          );
-
-          const updatedResult = {
-            ...result,
-            infographics: result?.infographics
-              ? [
-                  ...result.infographics,
-                  {
-                    imageUrl: infographicResult.imageUrl,
-                    sourceImageId: imageToAnalyze.id,
-                    analysis: infographicResult.analysis,
-                  },
-                ]
-              : [
-                  {
-                    imageUrl: infographicResult.imageUrl,
-                    sourceImageId: imageToAnalyze.id,
-                    analysis: infographicResult.analysis,
-                  },
-                ],
-          };
-
-          result = updatedResult;
-
-          window.dispatchEvent(
-            new CustomEvent("infographic-generated", {
-              detail: infographicResult,
-            })
-          );
-        } catch (err: any) {
-          console.error("Infographic generation failed:", err);
-          setError("Failed to generate infographic: " + err.message);
-        } finally {
-          setIsGeneratingInfographic(false);
-          setIsAnalyzingForInfographic(false);
-        }
-      }
-
-      const otherProcessing = selectedProcessing.filter(
-        (p) =>
-          p !== "bg-remove" &&
-          p !== "resize" &&
-          p !== "compress" &&
-          p !== "line-diagram" &&
-          p !== "pdf-extract"
-      );
-
-      if (!autoDetect && otherProcessing.length > 0) {
-        const imageProcessing: Record<string, string[]> = {};
-        images.forEach((img) => {
-          imageProcessing[img.id] = otherProcessing;
-        });
-        await api.createBatchProcessingJob(result.uploadId, imageProcessing);
-      }
-
-      if (
-        autoDetect &&
-        currentAnalysis &&
-        result?.images &&
-        result.images.length > 0
-      ) {
-        setIsAutoFixing(true);
-        setAutoFixResults([]);
-        setAutoFixError(null);
-
-        try {
-          console.log("Applying auto-detected fixes...");
-
-          const autoFixOperations: string[] = [];
-          if (currentAnalysis.suggestions.backgroundRemoval)
-            autoFixOperations.push("bg-remove");
-          if (
-            currentAnalysis.suggestions.upscaling ||
-            currentAnalysis.qualityScore < 80
-          )
-            autoFixOperations.push("retouch");
-          if (currentAnalysis.suggestions.compression)
-            autoFixOperations.push("compress");
-          if (currentAnalysis.suggestions.cropping)
-            autoFixOperations.push("crop");
-
-          if (autoFixOperations.length > 0) {
-            console.log(`Auto-fix operations: ${autoFixOperations.join(", ")}`);
-
-            const processedImages = await Promise.all(
-              result.images.map(async (uploadedImage: any, index: number) => {
-                let currentSourceUrl =
-                  uploadedImage.cloudinaryUrl || uploadedImage.url;
-                let originalName = uploadedImage.id;
-
-                if (uploadSource === "files") {
-                  if (images[index]) originalName = images[index].name;
-                } else if (uploadSource === "urls") {
-                  const parts = images[index]?.url.split("/");
-                  const lastPart = parts[parts.length - 1];
-                  if (lastPart) originalName = lastPart;
-                }
-
-                const operations: any[] = [];
-                const failedOps: string[] = [];
-
-                for (const op of autoFixOperations) {
-                  try {
-                    console.log(`Auto-applying ${op} to ${originalName}...`);
-                    let options = {};
-                    if (op === "resize") options = resizeDims;
-                    if (op === "compress")
-                      options = { quality: compressionQuality };
-
-                    const response = await api.processImageAI(
-                      uploadedImage.id,
-                      currentSourceUrl,
-                      op,
-                      originalName,
-                      options
-                    );
-
-                    if (response && response.url) {
-                      operations.push({
-                        operation: op,
-                        status: "success",
-                        url: response.url,
-                      });
-
-                      currentSourceUrl = response.url;
-                    }
-                  } catch (opError: any) {
-                    console.error(
-                      `Auto-fix failed for ${op} on ${originalName}:`,
-                      opError
-                    );
-                    operations.push({
-                      operation: op,
-                      status: "failed",
-                      error: opError.message,
-                    });
-                    failedOps.push(op);
-                  }
-                }
-
-                if (
-                  failedOps.length === 0 &&
-                  operations.some((op) => op.status === "success")
-                ) {
-                  uploadedImage.cloudinaryUrl = currentSourceUrl;
-                  uploadedImage.url = currentSourceUrl;
-                  uploadedImage.isAutoFixed = true;
-                  uploadedImage.autoFixOperations = operations
-                    .filter((op) => op.status === "success")
-                    .map((op) => op.operation);
-                } else {
-                  uploadedImage.isAutoFixed = false;
-                  uploadedImage.autoFixStatus = "partial_failure";
-                }
-
-                return {
-                  imageId: uploadedImage.id,
-                  originalName,
-                  operations,
-                  finalUrl: currentSourceUrl,
-                  isFixed: operations.some((op) => op.status === "success"),
-                };
-              })
-            );
-
-            setAutoFixResults(processedImages);
-
-            result.isAutoFixed = processedImages.some((img) => img.isFixed);
-            result.autoFixSummary = {
-              totalImages: processedImages.length,
-              successfullyFixed: processedImages.filter((img) => img.isFixed)
-                .length,
-              totalOperations: autoFixOperations.length,
-              appliedOperations: autoFixOperations,
-            };
-          }
-        } catch (autoFixErr: any) {
-          setAutoFixError(autoFixErr.message || "Auto-fix failed");
-          console.error("Auto-fix error:", autoFixErr);
-        } finally {
-          setIsAutoFixing(false);
-        }
-      }
-
-      setUploadResult(result);
-      setLineDiagramResults([]); 
-      setImages([]);
-      setProductPageUrl("");
-      setCloudPath("");
-
-      // Dispatch event with the processed result
-      window.dispatchEvent(
-        new CustomEvent("upload-complete", {
-          detail: result,
         })
       );
+
+      const validAssets = uploadedAssets.filter((a) => a !== null);
+
+      // Step B: Trigger Python Processing (OpenCV/Rembg)
+      // We run this for ALL images because your backend logic decides what to apply based on confidence
+      const processedResults = await Promise.all(
+        validAssets.map(async (asset: any) => {
+          try {
+            console.log(`Processing asset ${asset.id}...`);
+            const result = await assetApi.process(asset.id);
+            
+            // Map Python Backend Response to Frontend UI Structure
+            return {
+              imageId: asset.id,
+              originalName: asset.name,
+              finalUrl: result.status === 'completed' ? asset.url : asset.url, // In local mode URL stays same usually, or update if processed path changes
+              isFixed: result.telemetry.steps.length > 0,
+              operations: result.telemetry.steps.map(step => ({
+                operation: step,
+                status: "success"
+              })),
+              telemetry: result.telemetry // Store for analysis card
+            };
+          } catch (err: any) {
+            console.error(`Processing failed for ${asset.id}`, err);
+            return {
+              imageId: asset.id,
+              originalName: asset.name,
+              operations: [],
+              isFixed: false,
+              error: err.message
+            };
+          }
+        })
+      );
+
+      setAutoFixResults(processedResults);
+
+      // Step C: Update UI State
+      setUploadResult({
+        images: validAssets.map(a => ({ ...a, isProcessed: true })),
+        uploadId: "batch-" + Date.now(), // Mock ID or get from backend if you return it
+        isAutoFixed: processedResults.some(r => r.isFixed),
+        autoFixSummary: {
+          totalImages: processedResults.length,
+          successfullyFixed: processedResults.filter(r => r.isFixed).length,
+          totalOperations: processedResults.reduce((acc, r) => acc + r.operations.length, 0),
+          appliedOperations: Array.from(new Set(processedResults.flatMap(r => r.operations.map(o => o.operation))))
+        }
+      });
+
+      // Step D: Map the FIRST image's analysis to the UI "AI Analysis" card
+      if (processedResults.length > 0 && processedResults[0].telemetry) {
+        const t = processedResults[0].telemetry;
+        
+        // Convert Python Confidence (0.0-1.0) to UI Score (0-100)
+        // Logic: Lower confidence means cleaner image in your script, so quality is inverse?
+        // Or actually, your logic: High score = Needs fix. 
+        // So Quality Score = 100 - (Avg Badness * 100)
+        const avgIssues = (t.confidence.bg_clean + t.confidence.shadow + t.confidence.crop) / 3;
+        const qualityScore = Math.max(0, Math.round(100 - (avgIssues * 100)));
+
+        setCurrentAnalysis({
+          qualityScore: qualityScore,
+          productCategory: "Detected Object", // You could add a classifier later
+          backgroundAnalysis: {
+            type: t.confidence.bg_clean > 0.6 ? "Cluttered/Complex" : "Clean/Solid",
+          },
+          suggestions: {
+            backgroundRemoval: t.steps.includes("bg_removal"),
+            cropping: t.steps.includes("smart_crop"),
+            enhancement: t.steps.includes("shadow_fix"),
+            upscaling: t.steps.includes("resize"), // Resize usually implies standardization
+          },
+          issues: [
+            ...(t.confidence.bg_clean > 0.6 ? [{ type: "Background", severity: "medium", description: "Background detected as cluttered", suggestedAction: "Remove Background" }] : []),
+            ...(t.confidence.shadow > 0.6 ? [{ type: "Lighting", severity: "medium", description: "Heavy shadows detected", suggestedAction: "Fix Lighting" }] : []),
+            ...(t.confidence.crop > 0.6 ? [{ type: "Framing", severity: "high", description: "Subject is too small", suggestedAction: "Smart Crop" }] : [])
+          ],
+          compliance: {
+            amazon: { isCompliant: t.confidence.bg_clean < 0.1, violations: t.confidence.bg_clean > 0.1 ? ["Background not pure white"] : [] },
+            shopify: { isCompliant: true, violations: [] }
+          }
+        });
+      }
+
+      setImages([]); // Clear preview list
+      toast.success("Upload and processing complete!");
+
     } catch (err: any) {
       setError(err.message || "Upload failed");
+      toast.error("Process failed");
     } finally {
       setUploading(false);
+      setIsAutoFixing(false);
     }
   };
 

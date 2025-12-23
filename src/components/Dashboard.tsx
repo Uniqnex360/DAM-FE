@@ -25,14 +25,24 @@ const OPERATION_ICONS: Record<string, any> = {
   "default": FileImage
 };
 
+// const OPERATION_LABELS: Record<string, string> = {
+//   "resize": "Smart Resizing",
+//   "bg_removal": "Background Removal",
+//   "shadow_fix": "Shadow Correction",
+//   "smart_crop": "AI Smart Crop",
+//   "watermark_removal": "Watermark Removal",
+// };
 const OPERATION_LABELS: Record<string, string> = {
-  "resize": "Smart Resizing",
-  "bg_removal": "Background Removal",
+  // Existing
+  resize: "Image Resizing",
+  "bg-remove": "Background Removal",
+  
+  "bg_removal": "AI Background Removal",
   "shadow_fix": "Shadow Correction",
-  "smart_crop": "AI Smart Crop",
-  "watermark_removal": "Watermark Removal",
+  "smart_crop": "Smart Object Cropping",
+  "watermark_removal": "Watermark Inpainting",
+  "resize": "Standardization (2000px)",
 };
-
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardData>({
     summary: {
