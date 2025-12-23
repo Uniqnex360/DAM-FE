@@ -1,7 +1,7 @@
 import axios from 'axios';
-
+const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:8000';
 export const api = axios.create({
-  baseURL: 'http://localhost:8000/api/v1', // Change to your Render URL in production
+  baseURL: `${baseURL}/api/v1`,
 });
 
 api.interceptors.request.use((config) => {
