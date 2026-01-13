@@ -2392,7 +2392,7 @@ export function AdvancedUpload() {
                           </div>
                         </label>
                         {option.id === "resize" && selectedProcessing.includes("resize") && (
-                          <div className="mt-2 ml-8 p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
+                          <div className="mt-2  p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
 
                             <div className="grid grid-cols-4 gap-2">
                               {(['original', 'preset', 'custom', 'percentage'] as const).map((mode) => (
