@@ -10,7 +10,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// --- Types ---
 export interface AnalysisResponse {
   qualityScore: number;
   productCategory: string;
@@ -30,7 +29,6 @@ export interface AnalysisResponse {
 }
 
 export const assetApi = {
-  // 1. Upload
   upload: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -43,16 +41,13 @@ export const assetApi = {
     const response = await api.get('/assets/gallery');
     return response.data;
   },
-  // 2. Analyze (Replaces Supabase Function)
   analyze: async (file: File): Promise<AnalysisResponse> => {
-    // Convert to Base64 for analysis
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
     });
 
-    // Create an Image object to get dimensions
     const img = new Image();
     const dims = await new Promise<{w:number, h:number}>((resolve) => {
         img.onload = () => resolve({ w: img.width, h: img.height });
@@ -70,16 +65,15 @@ export const assetApi = {
     return data.analysis;
   },
 
-  // 3. Process (Handles generic ops AND recoloring)
-  process: async (id: string, operation: string, options: any = {}) => {
-    const { data } = await api.post(`/assets/${id}/process`, {
-      operation,
-      options
-    });
-    return data;
-  },
+process: async (id: string, operations?: string[], options: any = {},autoDetect: boolean = false  ) => {
+  const { data } = await api.post(`/assets/${id}/process`, {
+    operations: operations || [],
+    options,
+    autoDetect
+  });
+  return data;
+},
   
-  // Helper for URL uploads
   proxyUrlToFile: async (url: string, filename: string): Promise<File> => {
     const response = await fetch(url, { mode: "cors" });
     const blob = await response.blob();

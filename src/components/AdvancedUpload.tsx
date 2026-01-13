@@ -31,6 +31,8 @@ interface ImageItem {
   isProcessed?: boolean;
   isAutoFixed?: boolean;
   processedOperations?: string[];
+   originalWidth?: number;
+  originalHeight?: number;
   failedOperations?: string[];
   autoFixOperations?: string[];
   processingStatus?: "pending" | "success" | "partial_failure" | "failed";
@@ -116,10 +118,12 @@ export function AdvancedUpload() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+const [resizeMode, setResizeMode] = useState<'custom' | 'preset'>('preset');
+const [selectedPreset, setSelectedPreset] = useState<'500x500' | '800x800' | '1024x1024'>('800x800');
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
-  const [measurementImage, setMeasurementImage] = useState<ImageItem | null>(
-    null
-  );
+  const [measurementImage, setMeasurementImage] = useState<ImageItem | null>(null);
+const [resizeByPercentage, setResizeByPercentage] = useState(false);
+const [resizePercentage, setResizePercentage] = useState(100);
   const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
   const [uploadResult, setUploadResult] = useState<any>(null);
@@ -138,9 +142,7 @@ export function AdvancedUpload() {
   const [autoFixError, setAutoFixError] = useState<string | null>(null);
   const [productPageUrl, setProductPageUrl] = useState("");
   const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
-  const [recoloringImage, setRecoloringImage] = useState<ImageItem | null>(
-    null
-  );
+  const [recoloringImage, setRecoloringImage] = useState<ImageItem | null>(null);
   const [pickedColor, setPickedColor] = useState("#000000");
   const [replaceColor, setReplaceColor] = useState("#ff0000");
   const [isAnalyzingForInfographic, setIsAnalyzingForInfographic] =
@@ -319,7 +321,7 @@ const applyRecoloring = async () => {
       handleFileSelect(droppedFiles);
     }
   }, []);
-  const handleFileSelect = (files: File[]) => {
+  const handleFileSelect = async (files: File[]) => {
     const validFiles = files.filter(
       (file) =>
         file.type.startsWith("image/") || file.type === "application/pdf"
@@ -333,15 +335,31 @@ const applyRecoloring = async () => {
       return;
     }
 
-    const newImages = files.map((file, idx) => ({
-      id: `${Date.now()}-${idx}`,
-      url: URL.createObjectURL(file),
-      name: file.name,
-      preview: file.type.startsWith("image/")
-        ? URL.createObjectURL(file)
-        : "/pdf-icon.svg",
-      file: file,
-    }));
+const newImages = await Promise.all(files.map(async (file, idx) => {
+  const url = URL.createObjectURL(file);
+  
+  // Get image dimensions
+  let width, height;
+  if (file.type.startsWith("image/")) {
+    const img = await new Promise<HTMLImageElement>((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.src = url;
+    });
+    width = img.naturalWidth;
+    height = img.naturalHeight;
+  }
+  
+  return {
+    id: `${Date.now()}-${idx}`,
+    url,
+    name: file.name,
+    preview: file.type.startsWith("image/") ? url : "/pdf-icon.svg",
+    file,
+    originalWidth: width,
+    originalHeight: height,
+  };
+}));
     setImages((prev) => [...prev, ...newImages]);
   };
   const urlToFile = async (url: string, filename: string): Promise<File> => {
@@ -1183,40 +1201,92 @@ const applyRecoloring = async () => {
       );
 
       const validAssets = uploadedAssets.filter((a) => a !== null);
-
-      // Step B: Trigger Python Processing (OpenCV/Rembg)
-      // We run this for ALL images because your backend logic decides what to apply based on confidence
+      
       const processedResults = await Promise.all(
-        validAssets.map(async (asset: any) => {
-          try {
-            console.log(`Processing asset ${asset.id}...`);
-            const result = await assetApi.process(asset.id);
+  validAssets.map(async (asset: any) => {
+    try {
+      console.log(`Processing asset ${asset.id}...`);
+      
+      const originalImage = images.find(img => img.file?.name === asset.name);
+      
+      const processOptions: any = {};
+      
+      // Handle resize operation
+       if (selectedProcessing.includes("resize")) {
+        let targetWidth: number;
+        let targetHeight: number;
+        
+        if (resizeByPercentage) {
+          // PERCENTAGE MODE: Calculate dimensions from percentage
+          if (originalImage?.originalWidth && originalImage?.originalHeight) {
+            targetWidth = Math.round(originalImage.originalWidth * (resizePercentage / 100));
+            targetHeight = Math.round(originalImage.originalHeight * (resizePercentage / 100));
             
-            // Map Python Backend Response to Frontend UI Structure
-            return {
-              imageId: asset.id,
-              originalName: asset.name,
-              finalUrl: result.status === 'completed' ? asset.url : asset.url, // In local mode URL stays same usually, or update if processed path changes
-              isFixed: result.telemetry.steps.length > 0,
-              operations: result.telemetry.steps.map(step => ({
-                operation: step,
-                status: "success"
-              })),
-              telemetry: result.telemetry // Store for analysis card
-            };
-          } catch (err: any) {
-            console.error(`Processing failed for ${asset.id}`, err);
-            return {
-              imageId: asset.id,
-              originalName: asset.name,
-              operations: [],
-              isFixed: false,
-              error: err.message
-            };
+            console.log(`Percentage resize: ${resizePercentage}% of ${originalImage.originalWidth}x${originalImage.originalHeight} = ${targetWidth}x${targetHeight}`);
+          } else {
+            // Fallback: Use asset dimensions from upload response
+            targetWidth = Math.round((asset.width || 1000) * (resizePercentage / 100));
+            targetHeight = Math.round((asset.height || 1000) * (resizePercentage / 100));
           }
-        })
+        } else {
+          // PRESET or CUSTOM MODE: Use resizeDims directly
+          targetWidth = resizeDims.width;
+          targetHeight = resizeDims.height;
+        }
+        
+        // Skip resize if dimensions match original
+        if (
+          originalImage?.originalWidth && 
+          originalImage?.originalHeight &&
+          targetWidth === originalImage.originalWidth &&
+          targetHeight === originalImage.originalHeight
+        ) {
+          console.log(`Skipping resize for ${asset.name} - same as original`);
+        } else {
+          processOptions.resize = {
+            width: targetWidth,
+            height: targetHeight
+          };
+        }
+      }
+      
+       const result = await assetApi.process(
+        asset.id, 
+        autoDetect ? [] : selectedProcessing,  
+        processOptions,
+        autoDetect 
       );
-
+      console.log("Uploaded assets:", validAssets);
+console.log("Selected processing operations:", selectedProcessing);
+console.log("Process options:", processOptions);
+console.log(`About to process asset ${asset.id} with:`, {
+  operations: selectedProcessing,
+  options: processOptions
+});
+      return {
+        imageId: asset.id,
+        originalName: asset.name,
+        finalUrl: result.status === 'completed' ? asset.url : asset.url,
+        isFixed: result.telemetry.steps.length > 0,
+        operations: result.telemetry.steps.map(step => ({
+          operation: step,
+          status: "success"
+        })),
+        telemetry: result.telemetry
+      };
+    } catch (err: any) {
+      console.error(`Processing failed for ${asset.id}`, err);
+      return {
+        imageId: asset.id,
+        originalName: asset.name,
+        operations: [],
+        isFixed: false,
+        error: err.message
+      };
+    }
+  })
+);
+      
       setAutoFixResults(processedResults);
 
       // Step C: Update UI State
@@ -1526,6 +1596,11 @@ const applyRecoloring = async () => {
                             {/* <Globe className="w-12 h-12 text-slate-400" /> */}
                           </div>
                         )}
+                          {image.originalWidth && image.originalHeight && (
+    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 text-white text-xs font-medium rounded">
+      {image.originalWidth} × {image.originalHeight}
+    </div>
+  )}
                         <div className="absolute top-2 left-2 z-10">
                           <div
                             className={`px-2 py-1 text-xs font-medium rounded ${
@@ -2312,43 +2387,139 @@ const applyRecoloring = async () => {
                             </p>
                           </div>
                         </label>
-                        {option.id === "resize" &&
-                          selectedProcessing.includes("resize") && (
-                            <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-semibold text-slate-500">
-                                  Width (px)
-                                </label>
-                                <input
-                                  type="number"
-                                  value={resizeDims.width}
-                                  onChange={(e) =>
-                                    setResizeDims((prev) => ({
-                                      ...prev,
-                                      width: Number(e.target.value),
-                                    }))
-                                  }
-                                  className="w-full mt-1 px-2 py-1 text-sm border rounded"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs font-semibold text-slate-500">
-                                  Height (px)
-                                </label>
-                                <input
-                                  type="number"
-                                  value={resizeDims.height}
-                                  onChange={(e) =>
-                                    setResizeDims((prev) => ({
-                                      ...prev,
-                                      height: Number(e.target.value),
-                                    }))
-                                  }
-                                  className="w-full mt-1 px-2 py-1 text-sm border rounded"
-                                />
-                              </div>
-                            </div>
-                          )}
+                        {option.id === "resize" && selectedProcessing.includes("resize") && (
+  <div className="mt-2 ml-8 p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
+    {/* Mode Toggle - 3 buttons now */}
+    <div className="grid grid-cols-3 gap-2">
+      <button
+        onClick={() => {
+          setResizeMode('preset');
+          setResizeByPercentage(false);
+        }}
+        className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+          resizeMode === 'preset' && !resizeByPercentage
+            ? 'bg-blue-600 text-white' 
+            : 'bg-slate-100 text-slate-700'
+        }`}
+      >
+        Preset
+      </button>
+      <button
+        onClick={() => {
+          setResizeMode('custom');
+          setResizeByPercentage(false);
+        }}
+        className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+          resizeMode === 'custom' && !resizeByPercentage
+            ? 'bg-blue-600 text-white' 
+            : 'bg-slate-100 text-slate-700'
+        }`}
+      >
+        Custom
+      </button>
+      <button
+        onClick={() => {
+          setResizeByPercentage(true);
+        }}
+        className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+          resizeByPercentage
+            ? 'bg-blue-600 text-white' 
+            : 'bg-slate-100 text-slate-700'
+        }`}
+      >
+        Percentage
+      </button>
+    </div>
+
+    {/* Preset Buttons */}
+    {resizeMode === 'preset' && !resizeByPercentage && (
+      <div className="grid grid-cols-3 gap-2">
+        {(['500x500', '800x800', '1024x1024'] as const).map((preset) => (
+          <button
+            key={preset}
+            onClick={() => {
+              setSelectedPreset(preset);
+              const [w, h] = preset.split('x').map(Number);
+              setResizeDims({ width: w, height: h });
+            }}
+            className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+              selectedPreset === preset
+                ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                : 'bg-slate-50 text-slate-700 border border-slate-200'
+            }`}
+          >
+            {preset}
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* Custom Inputs */}
+    {resizeMode === 'custom' && !resizeByPercentage && (
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs font-semibold text-slate-500">Width (px)</label>
+          <input
+            type="number"
+            value={resizeDims.width}
+            onChange={(e) =>
+              setResizeDims((prev) => ({
+                ...prev,
+                width: Number(e.target.value),
+              }))
+            }
+            className="w-full mt-1 px-2 py-1 text-sm border rounded"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500">Height (px)</label>
+          <input
+            type="number"
+            value={resizeDims.height}
+            onChange={(e) =>
+              setResizeDims((prev) => ({
+                ...prev,
+                height: Number(e.target.value),
+              }))
+            }
+            className="w-full mt-1 px-2 py-1 text-sm border rounded"
+          />
+        </div>
+      </div>
+    )}
+
+    {/* Percentage Input */}
+    {resizeByPercentage && (
+      <div>
+        <div className="flex justify-between mb-2">
+          <label className="text-xs font-semibold text-slate-500">
+            Resize Percentage
+          </label>
+          <span className="text-xs font-bold text-blue-600">
+            {resizePercentage}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min="10"
+          max="200"
+          step="5"
+          value={resizePercentage}
+          onChange={(e) => setResizePercentage(Number(e.target.value))}
+          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+        <div className="flex justify-between mt-1 text-[10px] text-slate-400">
+          <span>10% (Smaller)</span>
+          <span>100% (Original)</span>
+          <span>200% (Larger)</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          Current size will be scaled by {resizePercentage}%
+        </p>
+      </div>
+    )}
+  </div>
+)}
                         {option.id === "compress" &&
                           selectedProcessing.includes("compress") && (
                             <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
