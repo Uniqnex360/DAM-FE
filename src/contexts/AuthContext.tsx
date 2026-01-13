@@ -16,21 +16,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is already logged in on page load
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const email=localStorage.getItem('email')
     if (token) {
-      // You could create a /me endpoint in FastAPI to validate the token here
-      // For now, we just assume presence of token means logged in
-      setUser({ token }); 
+     setUser({ email: email || 'User', token }); 
     }
     setLoading(false);
   }, []);
 
   const signIn = async (email: string, pass: string) => {
-    // FastAPI OAuth2 expects form-data, not JSON
     const formData = new URLSearchParams();
-    formData.append('username', email); // FastAPI maps 'username' to email
+    formData.append('username', email);
     formData.append('password', pass);
 
     const response = await api.post('/auth/login', formData, {
@@ -39,23 +36,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { access_token } = response.data;
     localStorage.setItem('token', access_token);
+    localStorage.setItem('email',email)
     setUser({ email, token: access_token });
   };
 
   const signUp = async (email: string, pass: string) => {
-    // Register endpoint expects JSON
     await api.post('/auth/register', {
       email: email,
       password: pass,
-      full_name: email.split('@')[0], // Optional: Default name from email
+      full_name: email.split('@')[0], 
     });
     
-    // Auto login after sign up
     await signIn(email, pass);
   };
 
   const signOut = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('email')
     setUser(null);
   };
 
