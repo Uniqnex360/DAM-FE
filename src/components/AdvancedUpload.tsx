@@ -1219,7 +1219,7 @@ export function AdvancedUpload() {
       
       const uploadedAssets = await runWithConcurrency(
         validImages, 
-        5, // Limit: 5 concurrent uploads
+        3, // Limit: 5 concurrent uploads
         async (img) => {
           if (!img.file) return null;
           try {
@@ -1241,7 +1241,7 @@ export function AdvancedUpload() {
 
       const processedResults = await runWithConcurrency(
         validAssets,
-        2, // Limit: 2 concurrent AI processes
+        1, // Limit: 2 concurrent AI processes
         async (asset: any) => {
           try {
             console.log(`Processing asset ${asset.id}...`);
@@ -1579,7 +1579,7 @@ export function AdvancedUpload() {
                 onClose={() => setEditingImage(null)}
                 onSave={handleCropSave}
               />
-            )}Advanced Upload
+            )}
 
             {images.length > 0 && (
               <div className="mt-6">
