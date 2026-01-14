@@ -14,8 +14,11 @@ import {
   Palette,
   X,
   Sparkles,
+  Download,
 } from "lucide-react";
 import { api } from "../services/api";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import { ImageCropModal } from "./ImageCropModal";
 import { supabase } from "../lib/supabase";
 import { MeasurementModal } from "./MeasurementModal";
@@ -140,6 +143,7 @@ async function runWithConcurrency<T, R>(
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function AdvancedUpload() {
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
+  const [isZipping,setIsZipping]=useState(false)
   const [images, setImages] = useState<ImageItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -219,7 +223,37 @@ export function AdvancedUpload() {
 
     setPickedColor(hex.toUpperCase());
   };
-
+  const handleBulkDownload=async()=>{
+    if(!uploadResult?.images||uploadResult.images.length===0)return
+    setIsZipping(true)
+    const zip=new JSZip()
+    const folder=zip.folder('processed_images')
+    try {
+      toast.info('Preparing download....')
+      const promises=uploadResult.images.map(async(img:any)=>{
+        const downloadUrl=img.cloudinaryUrl||img.url
+        const fileName=img.name||`image-${img.id}.png`
+        try {
+          const response=await fetch(downloadUrl,{mode:'cors'})
+          if(!response.ok)throw new Error("Network response was not ok")
+          const blob=await response.blob()
+          folder?.file(fileName,blob)
+        } catch (error) {
+          console.error(`Failed to download ${fileName}`,error)
+        }
+      })
+      await Promise.all(promises)
+      const content=await zip.generateAsync({type:'blob'})
+      saveAs(content,`processed_batch_${Date.now()}.zip`)
+      toast.success("ZIP file downloaded!")
+    } catch (error) {
+      console.error('Error creating zip',error)
+      toast.error("Failed to generate zip file")
+    }
+    finally{
+      setIsZipping(false)
+    }
+  }
   const getRecoloredPreviewUrl = (): string => {
     if (!recoloringImage) return "";
 
@@ -1344,11 +1378,11 @@ export function AdvancedUpload() {
                 processOptions,
                 autoDetect
               );
-
+              const processedUrl = result.url || result.secure_url || asset.url;
               return {
                 imageId: asset.id,
                 originalName: asset.name,
-                finalUrl: result.status === "completed" ? asset.url : asset.url,
+                finalUrl:processedUrl,
                 isFixed: result.telemetry.steps.length > 0,
                 operations: result.telemetry.steps.map((step: string) => ({
                   operation: step,
@@ -1375,6 +1409,7 @@ export function AdvancedUpload() {
                 originalName: asset.name,
                 operations: [],
                 isFixed: false,
+                finalUrl: asset.url, 
                 error: err.message,
               };
             }
@@ -1391,7 +1426,13 @@ export function AdvancedUpload() {
       setAutoFixResults(processedResults);
 
       setUploadResult({
-        images: validAssets.map((a) => ({ ...a, isProcessed: true })),
+        images: processedResults.map(res => ({
+          id: res?.imageId,
+          name: res?.originalName,
+          url: res?.finalUrl,
+          cloudinaryUrl: res?.finalUrl, 
+          isProcessed: true
+        })),
         uploadId: "batch-" + Date.now(),
         isAutoFixed: processedResults.some((r) => r.isFixed),
         autoFixSummary: {
@@ -1914,6 +1955,22 @@ export function AdvancedUpload() {
                         </div>
                       </div>
                     )}
+                    <div className="mt-4 pt-4 border-t border-green-200">
+                      <button onClick={handleBulkDownload}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm disabled:opacity-70">
+                        {isZipping ? (
+                          <>
+                          <Loader2 className="w-4 h-4 animate-spin"/>
+                          <span>Zipping files...</span>
+                          </>
+                        ):(
+                          <>
+                          <Download className="w-4  h-4"/>
+                          <span>Download All as ZIP</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     {autoFixResults.length > 0 && (
                       <p className="text-green-600 text-sm mt-2">
                         Auto-fix complete:{" "}

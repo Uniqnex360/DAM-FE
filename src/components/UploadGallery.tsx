@@ -37,16 +37,12 @@ export function UploadGallery() {
 
   const loadUploads = async () => {
     try {
-      // --- CHANGE START ---
-      // We fetch from Python API now. It returns uploads WITH images nested.
       const data = await assetApi.getGallery();
       setUploads(data);
 
-      // Auto-expand the first item if nothing is open
       if (data.length > 0 && !expandedUpload) {
         setExpandedUpload(data[0].id);
       }
-      // --- CHANGE END ---
     } catch (error) {
       console.error("Failed to load uploads:", error);
     } finally {
