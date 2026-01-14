@@ -118,33 +118,39 @@ async function runWithConcurrency<T, R>(
   fn: (item: T) => Promise<R>,
   onProgress?: (completedCount: number) => void
 ): Promise<R[]> {
-  const results: R[] = []
-  const executing: Promise<void>[] = []
-  let completed = 0
+  const results: R[] = [];
+  const executing: Promise<void>[] = [];
+  let completed = 0;
   for (const item of items) {
     const p = fn(item).then((result) => {
-      results.push(result)
-      completed++
-      if (onProgress) onProgress(completed)
-    })
-    executing.push(p)
+      results.push(result);
+      completed++;
+      if (onProgress) onProgress(completed);
+    });
+    executing.push(p);
+    const clean = () => executing.splice(executing.indexOf(p), 1);
+    p.then(clean).catch(clean);
     if (executing.length >= concurrencyLimit) {
-      await Promise.race(executing)
+      await Promise.race(executing);
     }
-
   }
-  await Promise.all(executing)
-  return results
+  await Promise.all(executing);
+  return results;
 }
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function AdvancedUpload() {
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<ImageItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" })
-  const [selectedPreset, setSelectedPreset] = useState<'500x500' | '800x800' | '1024x1024'>('800x800');
+  const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
+  const [selectedPreset, setSelectedPreset] = useState<
+    "500x500" | "800x800" | "1024x1024"
+  >("800x800");
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
-  const [measurementImage, setMeasurementImage] = useState<ImageItem | null>(null);
+  const [measurementImage, setMeasurementImage] = useState<ImageItem | null>(
+    null
+  );
   const [resizePercentage, setResizePercentage] = useState(100);
   const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
@@ -157,7 +163,9 @@ export function AdvancedUpload() {
   const [compressionQuality, setCompressionQuality] = useState(80);
   const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
-  const [activeResizeMode, setActiveResizeMode] = useState<'original' | 'preset' | 'custom' | 'percentage'>('original');
+  const [activeResizeMode, setActiveResizeMode] = useState<
+    "original" | "preset" | "custom" | "percentage"
+  >("original");
   const [resizeDims, setResizeDims] = useState({ width: 800, height: 800 });
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isAutoFixing, setIsAutoFixing] = useState(false);
@@ -165,7 +173,9 @@ export function AdvancedUpload() {
   const [autoFixError, setAutoFixError] = useState<string | null>(null);
   const [productPageUrl, setProductPageUrl] = useState("");
   const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
-  const [recoloringImage, setRecoloringImage] = useState<ImageItem | null>(null);
+  const [recoloringImage, setRecoloringImage] = useState<ImageItem | null>(
+    null
+  );
   const [pickedColor, setPickedColor] = useState("#000000");
   const [replaceColor, setReplaceColor] = useState("#ff0000");
   const [isAnalyzingForInfographic, setIsAnalyzingForInfographic] =
@@ -185,11 +195,11 @@ export function AdvancedUpload() {
     }
   }, []);
   const pickColorFromImage = () => {
-    const img = document.getElementById('original-image');
+    const img = document.getElementById("original-image");
     if (!img) return;
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     canvas.width = img.naturalWidth || img.width;
@@ -201,47 +211,50 @@ export function AdvancedUpload() {
     const y = canvas.height / 2;
     const pixel = ctx.getImageData(x, y, 1, 1).data;
 
-    const hex = '#' +
-      pixel[0].toString(16).padStart(2, '0') +
-      pixel[1].toString(16).padStart(2, '0') +
-      pixel[2].toString(16).padStart(2, '0');
+    const hex =
+      "#" +
+      pixel[0].toString(16).padStart(2, "0") +
+      pixel[1].toString(16).padStart(2, "0") +
+      pixel[2].toString(16).padStart(2, "0");
 
     setPickedColor(hex.toUpperCase());
   };
 
   const getRecoloredPreviewUrl = (): string => {
-    if (!recoloringImage) return '';
+    if (!recoloringImage) return "";
 
     if (recoloringImage.cloudinaryUrl) {
-      const fromColor = pickedColor.replace('#', '').toLowerCase();
-      const toColor = replaceColor.replace('#', '').toLowerCase();
+      const fromColor = pickedColor.replace("#", "").toLowerCase();
+      const toColor = replaceColor.replace("#", "").toLowerCase();
 
       return `${recoloringImage.cloudinaryUrl}?e_replace_color:${fromColor}:${toColor}:30`;
     }
 
-    return recoloringImage.preview || recoloringImage.url || '';
+    return recoloringImage.preview || recoloringImage.url || "";
   };
   useEffect(() => {
-    if (activeResizeMode === 'preset') {
-      const [w, h] = selectedPreset.split('x').map(Number);
+    if (activeResizeMode === "preset") {
+      const [w, h] = selectedPreset.split("x").map(Number);
       setResizeDims({ width: w, height: h });
     }
   }, [activeResizeMode, selectedPreset]);
 
   const hexToRgb = (hex: string): [number, number, number] => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ] : [0, 0, 0];
+    return result
+      ? [
+          parseInt(result[1], 16),
+          parseInt(result[2], 16),
+          parseInt(result[3], 16),
+        ]
+      : [0, 0, 0];
   };
 
   const colorDistance = (rgb1: number[], rgb2: number[]): number => {
     return Math.sqrt(
       Math.pow(rgb1[0] - rgb2[0], 2) +
-      Math.pow(rgb1[1] - rgb2[1], 2) +
-      Math.pow(rgb1[2] - rgb2[2], 2)
+        Math.pow(rgb1[1] - rgb2[1], 2) +
+        Math.pow(rgb1[2] - rgb2[2], 2)
     );
   };
 
@@ -251,8 +264,8 @@ export function AdvancedUpload() {
     try {
       let imageRecord = recoloringImage;
 
-      if (recoloringImage.url.startsWith('blob:') || recoloringImage.file) {
-        toast.info('Uploading image to Cloudinary first...');
+      if (recoloringImage.url.startsWith("blob:") || recoloringImage.file) {
+        toast.info("Uploading image to Cloudinary first...");
 
         let fileToUpload;
         if (recoloringImage.file) {
@@ -260,26 +273,32 @@ export function AdvancedUpload() {
         } else {
           const response = await fetch(recoloringImage.url);
           const blob = await response.blob();
-          const fileExt = recoloringImage.name.split('.').pop() || 'png';
+          const fileExt = recoloringImage.name.split(".").pop() || "png";
           fileToUpload = new File([blob], recoloringImage.name, {
-            type: blob.type || `image/${fileExt}`
+            type: blob.type || `image/${fileExt}`,
           });
         }
 
         const uploadResponse = await api.uploadImages([fileToUpload]);
 
-        if (!uploadResponse || !uploadResponse.images || uploadResponse.images.length === 0) {
-          throw new Error('Failed to upload image to Cloudinary');
+        if (
+          !uploadResponse ||
+          !uploadResponse.images ||
+          uploadResponse.images.length === 0
+        ) {
+          throw new Error("Failed to upload image to Cloudinary");
         }
 
         imageRecord = {
           ...recoloringImage,
           id: uploadResponse.images[0].id,
           cloudinaryUrl: uploadResponse.images[0].cloudinaryUrl,
-          url: uploadResponse.images[0].url || uploadResponse.images[0].cloudinaryUrl
+          url:
+            uploadResponse.images[0].url ||
+            uploadResponse.images[0].cloudinaryUrl,
         };
 
-        toast.success('Image uploaded to Cloudinary successfully!');
+        toast.success("Image uploaded to Cloudinary successfully!");
       }
 
       const imageUrlToProcess = imageRecord.cloudinaryUrl || imageRecord.url;
@@ -287,38 +306,40 @@ export function AdvancedUpload() {
       const response = await api.processImageAI(
         imageRecord.id,
         imageUrlToProcess,
-        'recolor',
+        "recolor",
         imageRecord.name,
         {
           fromColor: pickedColor,
           toColor: replaceColor,
-          tolerance: 20
+          tolerance: 20,
         }
       );
 
       if (response && response.url) {
-        toast.success('Image recolored successfully!');
+        toast.success("Image recolored successfully!");
 
-        setImages(prev => prev.map(img =>
-          img.id === recoloringImage?.id
-            ? {
-              ...img,
-              cloudinaryUrl: response.url,
-              url: response.url,
-              isProcessed: true
-            }
-            : img
-        ));
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === recoloringImage?.id
+              ? {
+                  ...img,
+                  cloudinaryUrl: response.url,
+                  url: response.url,
+                  isProcessed: true,
+                }
+              : img
+          )
+        );
 
         setRecoloringImage(null);
 
-        window.dispatchEvent(new CustomEvent('image-updated'));
+        window.dispatchEvent(new CustomEvent("image-updated"));
       } else {
-        throw new Error('Recoloring failed');
+        throw new Error("Recoloring failed");
       }
     } catch (error) {
-      console.error('Recoloring error:', error);
-      toast.error('Failed to recolor image: ' + error.message);
+      console.error("Recoloring error:", error);
+      toast.error("Failed to recolor image: " + error.message);
     } finally {
       setIsApplyingRecolor(false);
     }
@@ -359,30 +380,32 @@ export function AdvancedUpload() {
       return;
     }
 
-    const newImages = await Promise.all(files.map(async (file, idx) => {
-      const url = URL.createObjectURL(file);
+    const newImages = await Promise.all(
+      files.map(async (file, idx) => {
+        const url = URL.createObjectURL(file);
 
-      let width, height;
-      if (file.type.startsWith("image/")) {
-        const img = await new Promise<HTMLImageElement>((resolve) => {
-          const image = new Image();
-          image.onload = () => resolve(image);
-          image.src = url;
-        });
-        width = img.naturalWidth;
-        height = img.naturalHeight;
-      }
+        let width, height;
+        if (file.type.startsWith("image/")) {
+          const img = await new Promise<HTMLImageElement>((resolve) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.src = url;
+          });
+          width = img.naturalWidth;
+          height = img.naturalHeight;
+        }
 
-      return {
-        id: `${Date.now()}-${idx}`,
-        url,
-        name: file.name,
-        preview: file.type.startsWith("image/") ? url : "/pdf-icon.svg",
-        file,
-        originalWidth: width,
-        originalHeight: height,
-      };
-    }));
+        return {
+          id: `${Date.now()}-${idx}`,
+          url,
+          name: file.name,
+          preview: file.type.startsWith("image/") ? url : "/pdf-icon.svg",
+          file,
+          originalWidth: width,
+          originalHeight: height,
+        };
+      })
+    );
     setImages((prev) => [...prev, ...newImages]);
   };
   const urlToFile = async (url: string, filename: string): Promise<File> => {
@@ -512,8 +535,8 @@ export function AdvancedUpload() {
     const img = e.currentTarget;
     const rect = img.getBoundingClientRect();
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
     if (!ctx) return;
 
@@ -523,14 +546,17 @@ export function AdvancedUpload() {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
-    const y = Math.floor((e.clientY - rect.top) * (canvas.height / rect.height));
+    const y = Math.floor(
+      (e.clientY - rect.top) * (canvas.height / rect.height)
+    );
 
     const pixel = ctx.getImageData(x, y, 1, 1).data;
 
-    const hex = '#' +
-      pixel[0].toString(16).padStart(2, '0') +
-      pixel[1].toString(16).padStart(2, '0') +
-      pixel[2].toString(16).padStart(2, '0');
+    const hex =
+      "#" +
+      pixel[0].toString(16).padStart(2, "0") +
+      pixel[1].toString(16).padStart(2, "0") +
+      pixel[2].toString(16).padStart(2, "0");
 
     setPickedColor(hex.toUpperCase());
 
@@ -610,7 +636,8 @@ export function AdvancedUpload() {
       !images.some((img) => isImgFile(img))
     ) {
       toast.error(
-        `${PROCESSING_OPTIONS.find((op) => op.id === processingId)?.label
+        `${
+          PROCESSING_OPTIONS.find((op) => op.id === processingId)?.label
         } can only be performed on image files`
       );
       return;
@@ -1184,7 +1211,7 @@ export function AdvancedUpload() {
   //     }
 
   //     setUploadResult(result);
-  //     setLineDiagramResults([]); 
+  //     setLineDiagramResults([]);
   //     setImages([]);
   //     setProductPageUrl("");
   //     setCloudPath("");
@@ -1201,141 +1228,201 @@ export function AdvancedUpload() {
   //     setUploading(false);
   //   }
   // };
-    const handleUpload = async () => {
+  const handleUpload = async () => {
     if (images.length === 0 && uploadSource === "files") return;
-    
+
     setUploading(true);
     setError("");
     setUploadResult(null);
     setIsAutoFixing(true);
-    
-    // Initialize Progress
-    setProgress({ current: 0, total: images.length, phase: 'Uploading' });
+
+    setProgress({ current: 0, total: images.length, phase: "Uploading" });
 
     try {
-      // Step A: Upload Images (Concurrency Limit: 5)
-      // We filter for valid files first to avoid null checks inside the loop
-      const validImages = images.filter(img => img.file);
-      
+      const validImages = images.filter((img) => img.file);
+
       const uploadedAssets = await runWithConcurrency(
-        validImages, 
+        validImages,
         3, // Limit: 5 concurrent uploads
         async (img) => {
           if (!img.file) return null;
-          try {
-            return await assetApi.upload(img.file);
-          } catch (err) {
-            console.error(`Failed to upload ${img.name}`, err);
-            return null;
+          let retries = 2;
+          while (retries > 0) {
+            try {
+              return await assetApi.upload(img.file);
+            } catch (error) {
+              console.warn(`Upload failed for ${img.name}, retrying...`);
+              retries--;
+              if (retries === 0) {
+                console.error(`Failed to upload ${img.name}`, error);
+                return null;
+              }
+              await delay(1000);
+            }
           }
         },
         // Update progress bar
-        (completed) => setProgress({ current: completed, total: validImages.length, phase: 'Uploading' })
+        (completed) =>
+          setProgress({
+            current: completed,
+            total: validImages.length,
+            phase: "Uploading",
+          })
       );
 
       const validAssets = uploadedAssets.filter((a) => a !== null);
-      
+
       // Step B: Process Images (Concurrency Limit: 2)
       // We limit this to 2 because AI processing is heavy on the server
-      setProgress({ current: 0, total: validAssets.length, phase: 'Processing' });
+      setProgress({
+        current: 0,
+        total: validAssets.length,
+        phase: "Processing",
+      });
 
       const processedResults = await runWithConcurrency(
         validAssets,
         1, // Limit: 2 concurrent AI processes
         async (asset: any) => {
-          try {
-            console.log(`Processing asset ${asset.id}...`);
+          let retries = 2;
+          while (retries >= 0) {
+            try {
+              console.log(`Processing asset ${asset.id}...`);
 
-            const originalImage = images.find(img => img.file?.name === asset.name);
-            let operationsToSend = [...selectedProcessing];
-            const processOptions: any = {};
+              const originalImage = images.find(
+                (img) => img.file?.name === asset.name
+              );
+              let operationsToSend = [...selectedProcessing];
+              const processOptions: any = {};
 
-            // Handle resize logic based on activeResizeMode
-            if (selectedProcessing.includes("resize")) {
-              switch (activeResizeMode) {
-                case 'original':
-                  operationsToSend = operationsToSend.filter(op => op !== 'resize');
-                  break;
-                case 'preset':
-                case 'custom':
-                  processOptions.resize = {
-                    width: resizeDims.width,
-                    height: resizeDims.height
-                  };
-                  break;
-                case 'percentage':
-                  let targetWidth, targetHeight;
-                  if (originalImage?.originalWidth && originalImage?.originalHeight) {
-                    targetWidth = Math.round(originalImage.originalWidth * (resizePercentage / 100));
-                    targetHeight = Math.round(originalImage.originalHeight * (resizePercentage / 100));
-                  } else {
-                    targetWidth = Math.round((asset.width || 1000) * (resizePercentage / 100));
-                    targetHeight = Math.round((asset.height || 1000) * (resizePercentage / 100));
-                  }
-                  processOptions.resize = {
-                    width: targetWidth,
-                    height: targetHeight
-                  };
-                  break;
+              // Handle resize logic based on activeResizeMode
+              if (selectedProcessing.includes("resize")) {
+                switch (activeResizeMode) {
+                  case "original":
+                    operationsToSend = operationsToSend.filter(
+                      (op) => op !== "resize"
+                    );
+                    break;
+                  case "preset":
+                  case "custom":
+                    processOptions.resize = {
+                      width: resizeDims.width,
+                      height: resizeDims.height,
+                    };
+                    break;
+                  case "percentage":
+                    let targetWidth, targetHeight;
+                    if (
+                      originalImage?.originalWidth &&
+                      originalImage?.originalHeight
+                    ) {
+                      targetWidth = Math.round(
+                        originalImage.originalWidth * (resizePercentage / 100)
+                      );
+                      targetHeight = Math.round(
+                        originalImage.originalHeight * (resizePercentage / 100)
+                      );
+                    } else {
+                      targetWidth = Math.round(
+                        (asset.width || 1000) * (resizePercentage / 100)
+                      );
+                      targetHeight = Math.round(
+                        (asset.height || 1000) * (resizePercentage / 100)
+                      );
+                    }
+                    processOptions.resize = {
+                      width: targetWidth,
+                      height: targetHeight,
+                    };
+                    break;
+                }
               }
+
+              const result = await assetApi.process(
+                asset.id,
+                autoDetect ? [] : operationsToSend,
+                processOptions,
+                autoDetect
+              );
+
+              return {
+                imageId: asset.id,
+                originalName: asset.name,
+                finalUrl: result.status === "completed" ? asset.url : asset.url,
+                isFixed: result.telemetry.steps.length > 0,
+                operations: result.telemetry.steps.map((step: string) => ({
+                  operation: step,
+                  status: "success",
+                })),
+                telemetry: result.telemetry,
+              };
+            } catch (err: any) {
+              const isNetworkError =
+                err.code === "ERR_NETWORK" ||
+                err.response?.status === 504 ||
+                err.response?.status === 502;
+              if (retries > 0 && isNetworkError) {
+                console.warn(
+                  `Processing timeout/error for ${asset.id},retrying....`
+                );
+                retries--;
+                await delay(3000);
+                continue;
+              }
+              console.error(`Processing failed for ${asset.id}`, err);
+              return {
+                imageId: asset.id,
+                originalName: asset.name,
+                operations: [],
+                isFixed: false,
+                error: err.message,
+              };
             }
-
-            const result = await assetApi.process(
-              asset.id,
-              autoDetect ? [] : operationsToSend,
-              processOptions,
-              autoDetect
-            );
-
-            return {
-              imageId: asset.id,
-              originalName: asset.name,
-              finalUrl: result.status === 'completed' ? asset.url : asset.url,
-              isFixed: result.telemetry.steps.length > 0,
-              operations: result.telemetry.steps.map((step: string) => ({
-                operation: step,
-                status: "success"
-              })),
-              telemetry: result.telemetry
-            };
-          } catch (err: any) {
-            console.error(`Processing failed for ${asset.id}`, err);
-            return {
-              imageId: asset.id,
-              originalName: asset.name,
-              operations: [],
-              isFixed: false,
-              error: err.message
-            };
           }
         },
-        (completed) => setProgress({ current: completed, total: validAssets.length, phase: 'Processing' })
+        (completed) =>
+          setProgress({
+            current: completed,
+            total: validAssets.length,
+            phase: "Processing",
+          })
       );
 
       setAutoFixResults(processedResults);
 
       setUploadResult({
-        images: validAssets.map(a => ({ ...a, isProcessed: true })),
+        images: validAssets.map((a) => ({ ...a, isProcessed: true })),
         uploadId: "batch-" + Date.now(),
-        isAutoFixed: processedResults.some(r => r.isFixed),
+        isAutoFixed: processedResults.some((r) => r.isFixed),
         autoFixSummary: {
           totalImages: processedResults.length,
-          successfullyFixed: processedResults.filter(r => r.isFixed).length,
-          totalOperations: processedResults.reduce((acc, r) => acc + (r.operations?.length || 0), 0),
-          appliedOperations: Array.from(new Set(processedResults.flatMap(r => r.operations?.map((o: any) => o.operation) || [])))
-        }
+          successfullyFixed: processedResults.filter((r) => r.isFixed).length,
+          totalOperations: processedResults.reduce(
+            (acc, r) => acc + (r.operations?.length || 0),
+            0
+          ),
+          appliedOperations: Array.from(
+            new Set(
+              processedResults.flatMap(
+                (r) => r.operations?.map((o: any) => o.operation) || []
+              )
+            )
+          ),
+        },
       });
 
       if (processedResults.length > 0 && processedResults[0].telemetry) {
         const t = processedResults[0].telemetry;
-        const avgIssues = (t.confidence.bg_clean + t.confidence.shadow + t.confidence.crop) / 3;
-        const qualityScore = Math.max(0, Math.round(100 - (avgIssues * 100)));
+        const avgIssues =
+          (t.confidence.bg_clean + t.confidence.shadow + t.confidence.crop) / 3;
+        const qualityScore = Math.max(0, Math.round(100 - avgIssues * 100));
 
         setCurrentAnalysis({
           qualityScore,
           productCategory: "Detected Object",
           backgroundAnalysis: {
-            type: t.confidence.bg_clean > 0.6 ? "Cluttered/Complex" : "Clean/Solid",
+            type:
+              t.confidence.bg_clean > 0.6 ? "Cluttered/Complex" : "Clean/Solid",
           },
           suggestions: {
             backgroundRemoval: t.steps.includes("bg_removal"),
@@ -1344,20 +1431,52 @@ export function AdvancedUpload() {
             upscaling: t.steps.includes("resize"),
           },
           issues: [
-            ...(t.confidence.bg_clean > 0.6 ? [{ type: "Background", severity: "medium", description: "Background detected as cluttered", suggestedAction: "Remove Background" }] : []),
-            ...(t.confidence.shadow > 0.6 ? [{ type: "Lighting", severity: "medium", description: "Heavy shadows detected", suggestedAction: "Fix Lighting" }] : []),
-            ...(t.confidence.crop > 0.6 ? [{ type: "Framing", severity: "high", description: "Subject is too small", suggestedAction: "Smart Crop" }] : [])
+            ...(t.confidence.bg_clean > 0.6
+              ? [
+                  {
+                    type: "Background",
+                    severity: "medium",
+                    description: "Background detected as cluttered",
+                    suggestedAction: "Remove Background",
+                  },
+                ]
+              : []),
+            ...(t.confidence.shadow > 0.6
+              ? [
+                  {
+                    type: "Lighting",
+                    severity: "medium",
+                    description: "Heavy shadows detected",
+                    suggestedAction: "Fix Lighting",
+                  },
+                ]
+              : []),
+            ...(t.confidence.crop > 0.6
+              ? [
+                  {
+                    type: "Framing",
+                    severity: "high",
+                    description: "Subject is too small",
+                    suggestedAction: "Smart Crop",
+                  },
+                ]
+              : []),
           ],
           compliance: {
-            amazon: { isCompliant: t.confidence.bg_clean < 0.1, violations: t.confidence.bg_clean > 0.1 ? ["Background not pure white"] : [] },
-            shopify: { isCompliant: true, violations: [] }
-          }
+            amazon: {
+              isCompliant: t.confidence.bg_clean < 0.1,
+              violations:
+                t.confidence.bg_clean > 0.1
+                  ? ["Background not pure white"]
+                  : [],
+            },
+            shopify: { isCompliant: true, violations: [] },
+          },
         });
       }
 
-      setImages([]); 
+      setImages([]);
       toast.success("Upload and processing complete!");
-
     } catch (err: any) {
       setError(err.message || "Upload failed");
       toast.error("Process failed");
@@ -1386,50 +1505,55 @@ export function AdvancedUpload() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <button
                   onClick={() => setUploadSource("files")}
-                  className={`p-4 border-2 rounded-lg transition-all ${uploadSource === "files"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    uploadSource === "files"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
                   <Upload className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                   <span className="text-sm font-medium">Files</span>
                 </button>
                 <button
                   onClick={() => setUploadSource("urls")}
-                  className={`p-4 border-2 rounded-lg transition-all ${uploadSource === "urls"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    uploadSource === "urls"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
                   <Link className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                   <span className="text-sm font-medium">URLs</span>
                 </button>
                 <button
                   onClick={() => setUploadSource("csv")}
-                  className={`p-4 border-2 rounded-lg transition-all ${uploadSource === "csv"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    uploadSource === "csv"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
                   <FileText className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                   <span className="text-sm font-medium">CSV</span>
                 </button>
                 <button
                   onClick={() => setUploadSource("product-page")}
-                  className={`p-4 border-2 rounded-lg transition-all ${uploadSource === "product-page"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    uploadSource === "product-page"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
                   <Globe className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                   <span className="text-sm font-medium">Page</span>
                 </button>
                 <button
                   onClick={() => setUploadSource("cloud")}
-                  className={`p-4 border-2 rounded-lg transition-all ${uploadSource === "cloud"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    uploadSource === "cloud"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
                 >
                   <Cloud className="w-6 h-6 mx-auto mb-2 text-slate-700" />
                   <span className="text-sm font-medium">Cloud</span>
@@ -1442,14 +1566,16 @@ export function AdvancedUpload() {
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${dragActive
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-300 hover:border-slate-400"
-                  }`}
+                className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+                  dragActive
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-300 hover:border-slate-400"
+                }`}
               >
                 <Upload
-                  className={`w-12 h-12 mx-auto mb-4 ${dragActive ? "text-blue-500" : "text-slate-400"
-                    }`}
+                  className={`w-12 h-12 mx-auto mb-4 ${
+                    dragActive ? "text-blue-500" : "text-slate-400"
+                  }`}
                 />
                 <p className="text-lg font-medium text-slate-700 mb-2">
                   Drag and drop images
@@ -1540,19 +1666,21 @@ export function AdvancedUpload() {
                   <div className="flex space-x-3">
                     <button
                       onClick={() => setCloudProvider("dropbox")}
-                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${cloudProvider === "dropbox"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-200"
-                        }`}
+                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${
+                        cloudProvider === "dropbox"
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200"
+                      }`}
                     >
                       Dropbox
                     </button>
                     <button
                       onClick={() => setCloudProvider("google-drive")}
-                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${cloudProvider === "google-drive"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-200"
-                        }`}
+                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${
+                        cloudProvider === "google-drive"
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200"
+                      }`}
                     >
                       Google Drive
                     </button>
@@ -1613,10 +1741,11 @@ export function AdvancedUpload() {
                         )}
                         <div className="absolute top-2 left-2 z-10">
                           <div
-                            className={`px-2 py-1 text-xs font-medium rounded ${isPdfFile(image)
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
-                              }`}
+                            className={`px-2 py-1 text-xs font-medium rounded ${
+                              isPdfFile(image)
+                                ? "bg-red-100 text-red-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
                           >
                             {isPdfFile(image) ? "PDF" : "Image"}
                           </div>
@@ -1719,18 +1848,18 @@ export function AdvancedUpload() {
                   className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   {uploading ||
-                    isAutoFixing ||
-                    isGeneratingInfographic ||
-                    isAnalyzingForInfographic ? (
+                  isAutoFixing ||
+                  isGeneratingInfographic ||
+                  isAnalyzingForInfographic ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span>
-        {uploading
-          ? (progress.total > 0 
-              ? `${progress.phase}... (${progress.current}/${progress.total})` 
-              : "Uploading...")
-          : "Auto-fixing Images..."}
-      </span>
+                        {uploading
+                          ? progress.total > 0
+                            ? `${progress.phase}... (${progress.current}/${progress.total})`
+                            : "Uploading..."
+                          : "Auto-fixing Images..."}
+                      </span>
                     </>
                   ) : (
                     <>
@@ -1745,10 +1874,14 @@ export function AdvancedUpload() {
                     </>
                   )}
                 </button>
-                {uploading && progress.total>0 && (
+                {uploading && progress.total > 0 && (
                   <div className="w-full bg-slate-200 rounded-full h-2.5 mt-3">
-                    <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
-                    style={{ width: `${(progress.current / progress.total) * 100}%` }}></div>
+                    <div
+                      className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(progress.current / progress.total) * 100}%`,
+                      }}
+                    ></div>
                   </div>
                 )}
               </div>
@@ -1916,8 +2049,8 @@ export function AdvancedUpload() {
                       {isAutoFixing
                         ? "Processing..."
                         : autoFixResults.length > 0
-                          ? `${autoFixResults.length} image(s) processed`
-                          : "Ready to apply"}
+                        ? `${autoFixResults.length} image(s) processed`
+                        : "Ready to apply"}
                     </div>
                   </div>
                 </div>
@@ -1949,23 +2082,25 @@ export function AdvancedUpload() {
                     {currentAnalysis.issues.map((issue, index) => (
                       <div
                         key={index}
-                        className={`p-4 border-l-4 rounded-r-lg ${issue.severity === "high"
-                          ? "border-red-500 bg-red-50"
-                          : issue.severity === "medium"
+                        className={`p-4 border-l-4 rounded-r-lg ${
+                          issue.severity === "high"
+                            ? "border-red-500 bg-red-50"
+                            : issue.severity === "medium"
                             ? "border-yellow-500 bg-yellow-50"
                             : "border-blue-500 bg-blue-50"
-                          }`}
+                        }`}
                       >
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center space-x-2 mb-1">
                               <span
-                                className={`px-2 py-0.5 text-xs font-medium rounded ${issue.severity === "high"
-                                  ? "bg-red-100 text-red-800"
-                                  : issue.severity === "medium"
+                                className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                  issue.severity === "high"
+                                    ? "bg-red-100 text-red-800"
+                                    : issue.severity === "medium"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : "bg-blue-100 text-blue-800"
-                                  }`}
+                                }`}
                               >
                                 {issue.severity.toUpperCase()}
                               </span>
@@ -1995,10 +2130,11 @@ export function AdvancedUpload() {
                 </div>
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div
-                    className={`p-4 border-2 rounded-lg ${currentAnalysis.compliance.amazon.isCompliant
-                      ? "border-green-200 bg-green-50"
-                      : "border-red-200 bg-red-50"
-                      }`}
+                    className={`p-4 border-2 rounded-lg ${
+                      currentAnalysis.compliance.amazon.isCompliant
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
@@ -2012,10 +2148,11 @@ export function AdvancedUpload() {
                         </span>
                       </div>
                       <span
-                        className={`px-2 py-1 text-xs font-medium rounded ${currentAnalysis.compliance.amazon.isCompliant
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                          }`}
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          currentAnalysis.compliance.amazon.isCompliant
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
                       >
                         {currentAnalysis.compliance.amazon.isCompliant
                           ? "COMPLIANT"
@@ -2024,28 +2161,29 @@ export function AdvancedUpload() {
                     </div>
                     {currentAnalysis.compliance.amazon.violations.length >
                       0 && (
-                        <div>
-                          <div className="text-sm font-medium text-slate-700 mb-1">
-                            Violations:
-                          </div>
-                          <ul className="text-sm text-slate-600 space-y-1">
-                            {currentAnalysis.compliance.amazon.violations
-                              .slice(0, 3)
-                              .map((violation, idx) => (
-                                <li key={idx} className="flex items-start">
-                                  <span className="mr-2">•</span>
-                                  {violation}
-                                </li>
-                              ))}
-                          </ul>
+                      <div>
+                        <div className="text-sm font-medium text-slate-700 mb-1">
+                          Violations:
                         </div>
-                      )}
+                        <ul className="text-sm text-slate-600 space-y-1">
+                          {currentAnalysis.compliance.amazon.violations
+                            .slice(0, 3)
+                            .map((violation, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <span className="mr-2">•</span>
+                                {violation}
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div
-                    className={`p-4 border-2 rounded-lg ${currentAnalysis.compliance.shopify.isCompliant
-                      ? "border-green-200 bg-green-50"
-                      : "border-red-200 bg-red-50"
-                      }`}
+                    className={`p-4 border-2 rounded-lg ${
+                      currentAnalysis.compliance.shopify.isCompliant
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
@@ -2059,10 +2197,11 @@ export function AdvancedUpload() {
                         </span>
                       </div>
                       <span
-                        className={`px-2 py-1 text-xs font-medium rounded ${currentAnalysis.compliance.shopify.isCompliant
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                          }`}
+                        className={`px-2 py-1 text-xs font-medium rounded ${
+                          currentAnalysis.compliance.shopify.isCompliant
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
                       >
                         {currentAnalysis.compliance.shopify.isCompliant
                           ? "COMPLIANT"
@@ -2071,22 +2210,22 @@ export function AdvancedUpload() {
                     </div>
                     {currentAnalysis.compliance.shopify.violations.length >
                       0 && (
-                        <div>
-                          <div className="text-sm font-medium text-slate-700 mb-1">
-                            Violations:
-                          </div>
-                          <ul className="text-sm text-slate-600 space-y-1">
-                            {currentAnalysis.compliance.shopify.violations
-                              .slice(0, 3)
-                              .map((violation, idx) => (
-                                <li key={idx} className="flex items-start">
-                                  <span className="mr-2">•</span>
-                                  {violation}
-                                </li>
-                              ))}
-                          </ul>
+                      <div>
+                        <div className="text-sm font-medium text-slate-700 mb-1">
+                          Violations:
                         </div>
-                      )}
+                        <ul className="text-sm text-slate-600 space-y-1">
+                          {currentAnalysis.compliance.shopify.violations
+                            .slice(0, 3)
+                            .map((violation, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <span className="mr-2">•</span>
+                                {violation}
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="mb-6">
@@ -2098,10 +2237,11 @@ export function AdvancedUpload() {
                       ([key, value]) => (
                         <div
                           key={key}
-                          className={`p-3 border-2 rounded-lg text-center transition-all ${value
-                            ? "border-green-500 bg-green-50"
-                            : "border-slate-200 bg-slate-50"
-                            }`}
+                          className={`p-3 border-2 rounded-lg text-center transition-all ${
+                            value
+                              ? "border-green-500 bg-green-50"
+                              : "border-slate-200 bg-slate-50"
+                          }`}
                         >
                           <div className="text-sm font-medium text-slate-900 capitalize">
                             {key.replace(/([A-Z])/g, " $1")}
@@ -2352,11 +2492,13 @@ export function AdvancedUpload() {
                     return (
                       <div key={option.id}>
                         <label
-                          className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${selectedProcessing.includes(option.id)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-slate-200 hover:bg-slate-50"
-                            } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""
-                            }`}
+                          className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedProcessing.includes(option.id)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 hover:bg-slate-50"
+                          } ${
+                            isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -2391,99 +2533,136 @@ export function AdvancedUpload() {
                             </p>
                           </div>
                         </label>
-                        {option.id === "resize" && selectedProcessing.includes("resize") && (
-                          <div className="mt-2  p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
-
-                            <div className="grid grid-cols-4 gap-2">
-                              {(['original', 'preset', 'custom', 'percentage'] as const).map((mode) => (
-                                <button
-                                  key={mode}
-                                  onClick={() => setActiveResizeMode(mode)}
-                                  className={`px-2 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeResizeMode === mode
-                                      ? 'bg-blue-600 text-white shadow-md'
-                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        {option.id === "resize" &&
+                          selectedProcessing.includes("resize") && (
+                            <div className="mt-2  p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
+                              <div className="grid grid-cols-4 gap-2">
+                                {(
+                                  [
+                                    "original",
+                                    "preset",
+                                    "custom",
+                                    "percentage",
+                                  ] as const
+                                ).map((mode) => (
+                                  <button
+                                    key={mode}
+                                    onClick={() => setActiveResizeMode(mode)}
+                                    className={`px-2 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                      activeResizeMode === mode
+                                        ? "bg-blue-600 text-white shadow-md"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                     }`}
-                                >
-                                  {mode}
-                                </button>
-                              ))}
-                            </div>
+                                  >
+                                    {mode}
+                                  </button>
+                                ))}
+                              </div>
 
-                            <div className="pt-2 border-t border-slate-100">
+                              <div className="pt-2 border-t border-slate-100">
+                                {activeResizeMode === "original" && (
+                                  <div className="text-xs text-slate-500 italic text-center">
+                                    The original image dimensions will be
+                                    preserved.
+                                  </div>
+                                )}
 
-                              {activeResizeMode === 'original' && (
-                                <div className="text-xs text-slate-500 italic text-center">
-                                  The original image dimensions will be preserved.
-                                </div>
-                              )}
-
-                              {activeResizeMode === 'preset' && (
-                                <div className="grid grid-cols-3 gap-2">
-                                  {(['500x500', '800x800', '1024x1024'] as const).map((preset) => (
-                                    <button
-                                      key={preset}
-                                      onClick={() => setSelectedPreset(preset)}
-                                      className={`px-3 py-2 text-sm font-medium rounded-lg border transition ${selectedPreset === preset
-                                          ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                {activeResizeMode === "preset" && (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {(
+                                      [
+                                        "500x500",
+                                        "800x800",
+                                        "1024x1024",
+                                      ] as const
+                                    ).map((preset) => (
+                                      <button
+                                        key={preset}
+                                        onClick={() =>
+                                          setSelectedPreset(preset)
+                                        }
+                                        className={`px-3 py-2 text-sm font-medium rounded-lg border transition ${
+                                          selectedPreset === preset
+                                            ? "bg-blue-50 border-blue-500 text-blue-700"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                                         }`}
-                                    >
-                                      {preset}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
 
-                              {activeResizeMode === 'custom' && (
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Width (px)</label>
-                                    <input
-                                      type="number"
-                                      value={resizeDims.width}
-                                      onChange={(e) => setResizeDims(prev => ({ ...prev, width: Number(e.target.value) }))}
-                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
+                                {activeResizeMode === "custom" && (
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                                        Width (px)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={resizeDims.width}
+                                        onChange={(e) =>
+                                          setResizeDims((prev) => ({
+                                            ...prev,
+                                            width: Number(e.target.value),
+                                          }))
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                                        Height (px)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={resizeDims.height}
+                                        onChange={(e) =>
+                                          setResizeDims((prev) => ({
+                                            ...prev,
+                                            height: Number(e.target.value),
+                                          }))
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Height (px)</label>
-                                    <input
-                                      type="number"
-                                      value={resizeDims.height}
-                                      onChange={(e) => setResizeDims(prev => ({ ...prev, height: Number(e.target.value) }))}
-                                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  </div>
-                                </div>
-                              )}
+                                )}
 
-                              {activeResizeMode === 'percentage' && (
-                                <div>
-                                  <div className="flex justify-between mb-2">
-                                    <label className="text-xs font-semibold text-slate-500">Scale Factor</label>
-                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                      {resizePercentage}%
-                                    </span>
+                                {activeResizeMode === "percentage" && (
+                                  <div>
+                                    <div className="flex justify-between mb-2">
+                                      <label className="text-xs font-semibold text-slate-500">
+                                        Scale Factor
+                                      </label>
+                                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                        {resizePercentage}%
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min="10"
+                                      max="200"
+                                      step="10"
+                                      value={resizePercentage}
+                                      onChange={(e) =>
+                                        setResizePercentage(
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                    <div className="flex justify-between mt-1 text-[10px] text-slate-400">
+                                      <span>10%</span>
+                                      <span>100%</span>
+                                      <span>200%</span>
+                                    </div>
                                   </div>
-                                  <input
-                                    type="range"
-                                    min="10"
-                                    max="200"
-                                    step="10"
-                                    value={resizePercentage}
-                                    onChange={(e) => setResizePercentage(Number(e.target.value))}
-                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                  />
-                                  <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-                                    <span>10%</span>
-                                    <span>100%</span>
-                                    <span>200%</span>
-                                  </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                         {option.id === "compress" &&
                           selectedProcessing.includes("compress") && (
                             <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
@@ -2585,7 +2764,9 @@ export function AdvancedUpload() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-4">Recolored Preview</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Recolored Preview
+                </h3>
                 <div className="relative rounded-xl overflow-hidden shadow-2xl mb-8 border-4 border-purple-200">
                   <img
                     src={getRecoloredPreviewUrl()}
@@ -2641,25 +2822,27 @@ export function AdvancedUpload() {
                         <span className="text-lg">#</span>
                         <input
                           type="text"
-                          value={replaceColor.replace('#', '')}
-                          onChange={(e) => setReplaceColor('#' + e.target.value)}
+                          value={replaceColor.replace("#", "")}
+                          onChange={(e) =>
+                            setReplaceColor("#" + e.target.value)
+                          }
                           className="font-mono text-sm px-2 py-1 border rounded w-24"
                           placeholder="FF0000"
                         />
                       </div>
                       <div className="mt-3 space-y-1">
                         <button
-                          onClick={() => setReplaceColor('#FF0000')}
+                          onClick={() => setReplaceColor("#FF0000")}
                           className="w-6 h-6 bg-red-500 rounded-full border-2 border-white"
                           title="Red"
                         />
                         <button
-                          onClick={() => setReplaceColor('#0000FF')}
+                          onClick={() => setReplaceColor("#0000FF")}
                           className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white ml-2"
                           title="Blue"
                         />
                         <button
-                          onClick={() => setReplaceColor('#00FF00')}
+                          onClick={() => setReplaceColor("#00FF00")}
                           className="w-6 h-6 bg-green-500 rounded-full border-2 border-white ml-2"
                           title="Green"
                         />
