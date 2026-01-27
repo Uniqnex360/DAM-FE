@@ -20,7 +20,6 @@ import { api } from "../services/api";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCropModal } from "./ImageCropModal";
-import { supabase } from "../lib/supabase";
 import { MeasurementModal } from "./MeasurementModal";
 import { toast } from "sonner";
 import { assetApi } from "../lib/api";

@@ -21,7 +21,13 @@ export function AuthPage() {
         await signIn(email, password);
       }
     } catch (err: any) {
-      setError(err.message || "Authentication failed");
+      console.log(err)
+      const errorMessage = 
+      err.response?.data?.detail || 
+      err.response?.data?.message || 
+      err.message || 
+      "Authentication failed";
+    setError(errorMessage);
     } finally {
       setLoading(false);
     }
