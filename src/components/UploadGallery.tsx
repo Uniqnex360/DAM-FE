@@ -108,13 +108,17 @@ export function UploadGallery() {
   const handleDownload = async (url: string, fallbackName: string) => {
     try {
       let filename = fallbackName;
+      if(!filename)
+      {
       try {
         const urlObj = new URL(url);
         const parts = urlObj.pathname.split("/");
         const lastPart = parts[parts.length - 1];
         if (lastPart.length > 3) filename = decodeURIComponent(lastPart);
-      } catch (e) {}
-      
+      } catch (e) {
+         filename = "image.png";
+      }
+    }
       const response = await fetch(url);
       const blob = await response.blob();
       const link = document.createElement("a");
@@ -278,10 +282,7 @@ export function UploadGallery() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDownload(
-                                    displayUrl,
-                                    `image-${image.id}.png`
-                                  );
+                                  handleDownload(displayUrl, image.name);
                                 }}
                                 className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
                                 title="Download Image"
