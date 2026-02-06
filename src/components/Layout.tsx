@@ -92,7 +92,6 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         </div>
       </nav>
 
-      {/* CHANGED: Updated main container to match nav width logic if desired */}
       <main className="w-full mx-auto px-4 py-8">
         {children}
       </main>

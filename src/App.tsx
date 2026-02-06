@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -18,25 +18,13 @@ import { ClientManagement } from './components/ClientManagement';
 import { ToastContainer, Bounce } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'sonner';
+import { BrowserRouter, Routes,Route } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
-  const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
-  if (!user) {
-    return <AuthPage />;
-  }
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
@@ -103,10 +91,25 @@ function AppContent() {
 
 function App() {
   return (
+    <BrowserRouter>
     <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<AuthPage />} />
+        <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppContent />
+              </ProtectedRoute>
+            }
+          />
+      </Routes>
       <AppContent />
     </AuthProvider>
+    </BrowserRouter>
+
   );
 }
 
 export default App;
+  

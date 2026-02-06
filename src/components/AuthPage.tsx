@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export function AuthPage() {
@@ -7,7 +8,17 @@ export function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the page user was trying to access, or default to "/"
+  const from = location.state?.from?.pathname || "/";
+
+  // Redirect to home if already logged in
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,19 +26,25 @@ export function AuthPage() {
     setLoading(true);
 
     try {
+      console.log("Attempting login...");
       if (isSignUp) {
         await signUp(email, password);
       } else {
         await signIn(email, password);
       }
+      console.log("Login successful!");
+      
+      // Navigate to home page after successful login
+      navigate(from, { replace: true });
+      
     } catch (err: any) {
-      console.log(err)
-      const errorMessage = 
-      err.response?.data?.detail || 
-      err.response?.data?.message || 
-      err.message || 
-      "Authentication failed";
-    setError(errorMessage);
+      console.log("Login error:", err);
+      const errorMessage =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        "Authentication failed";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
