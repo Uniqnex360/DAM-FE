@@ -14,7 +14,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-
+import logo from '../logo/logo-main.png';
 interface LayoutProps {
   children: ReactNode;
   currentView: string;
@@ -51,9 +51,11 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             <div className="flex items-center space-x-3">
               
               {/* CHANGED: (Optional) Reduced text-xl to text-lg to take up less space */}
-              <h1 className="text-lg font-bold text-slate-900 whitespace-nowrap">
-                DAM & Product Visualizer
-              </h1>
+              <img 
+                src={logo} 
+                alt="DAM & Product Visualizer" 
+                className="h-20 w-20 object-contain" // Adjust height as needed
+              />
 
               <div className="hidden md:flex space-x-1">
                 {navItems.map((item) => {

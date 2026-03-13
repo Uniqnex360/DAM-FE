@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import logo from '../logo/logo-main.png';
 
 export function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -54,7 +55,12 @@ export function AuthPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 flex flex-col items-center justify-center">
+            <img 
+                src={logo} 
+                alt="DAM & Product Visualizer" 
+                className="h-20 w-32 object-contain mb-4"   
+              />
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
               DAM & Product Visualizer
             </h1>

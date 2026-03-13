@@ -104,7 +104,6 @@ function App() {
             }
           />
       </Routes>
-      <AppContent />
     </AuthProvider>
     </BrowserRouter>
 
