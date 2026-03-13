@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: any | null;
@@ -14,15 +15,44 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const navigate=useNavigate()
+  
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const email=localStorage.getItem('email')
-    if (token) {
-     setUser({ email: email || 'User', token }); 
-    }
-    setLoading(false);
-  }, []);
+    const validateToken = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        const token = localStorage.getItem('token');
+        const email = localStorage.getItem('email');
+        
+        console.log('Auth validation - Token from localStorage:', token ? 'exists' : 'missing');
+        console.log('Auth validation - Email from localStorage:', email ? 'exists' : 'missing');
+        
+        if (!token || !email) {
+          console.log('No token or email found, user not logged in');
+          setLoading(false);
+          return;
+        }
+
+        setUser({ email, token });
+        
+        api.get('/auth/verify').catch(() => {
+          console.log('Token verification failed, logging out');
+          localStorage.removeItem('token');
+          localStorage.removeItem('email');
+          setUser(null);
+          navigate('/login');
+        });
+        
+      } catch (error) {
+        console.error('Error in token validation:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateToken();
+  }, [navigate]);
 
   const signIn = async (email: string, pass: string) => {
     const formData = new URLSearchParams();

@@ -14,11 +14,11 @@ export function AuthPage() {
   const location = useLocation();
 
   // Get the page user was trying to access, or default to "/"
-  const from = location.state?.from?.pathname || "/";
+const from = location.state?.from?.pathname || "/dashboard";
 
   // Redirect to home if already logged in
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

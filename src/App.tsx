@@ -15,7 +15,6 @@ import { AugmentedReality } from './components/AugmentedReality';
 import { PromotionalTags } from './components/PromotionalTags';
 import { AIPromptOptimization } from './components/AIPromptOptimization';
 import { ClientManagement } from './components/ClientManagement';
-import { ToastContainer, Bounce } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';

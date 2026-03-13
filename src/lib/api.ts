@@ -9,6 +9,22 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403 || error.response?.status === 401) {
+      console.log('Auth error - redirecting to login');
+      
+      localStorage.removeItem('token');
+      localStorage.removeItem('email');
+      
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface AnalysisResponse {
   qualityScore: number;
