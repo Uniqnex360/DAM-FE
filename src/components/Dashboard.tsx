@@ -73,7 +73,11 @@ export function Dashboard() {
   useEffect(() => {
     loadData();
   }, []);
-
+useEffect(() => {
+  console.log('Dashboard mounted');
+  console.log('Token in localStorage:', localStorage.getItem('token'));
+  loadData();
+}, []);
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
