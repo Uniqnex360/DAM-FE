@@ -14,7 +14,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import logo from '../logo/logo-main.png';
+import logo from "../logo/logo-main.png";
 interface LayoutProps {
   children: ReactNode;
   currentView: string;
@@ -43,18 +43,13 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        {/* CHANGED: Removed max-w-7xl to let it expand, reduced complex padding to just px-4 */}
         <div className="w-full mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            
-            {/* CHANGED: Reduced space-x-8 to space-x-3 (Reduces gap between Title and Menu) */}
             <div className="flex items-center space-x-3">
-              
-              {/* CHANGED: (Optional) Reduced text-xl to text-lg to take up less space */}
-              <img 
-                src={logo} 
-                alt="DAM & Product Visualizer" 
-                className="h-20 w-20 object-contain" // Adjust height as needed
+              <img
+                src={logo}
+                alt="DAM & Product Visualizer"
+                className="h-16 w-auto object-contain"
               />
 
               <div className="hidden md:flex space-x-1">
@@ -79,9 +74,6 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* <span className="text-sm text-slate-600 max-w-[150px] truncate overflow-hidden text-ellipsis">
-                {user?.email}
-              </span> */}
               <button
                 onClick={() => signOut()}
                 className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
@@ -94,9 +86,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         </div>
       </nav>
 
-      <main className="w-full mx-auto px-4 py-8">
-        {children}
-      </main>
+      <main className="w-full mx-auto px-4 py-8">{children}</main>
     </div>
   );
 }

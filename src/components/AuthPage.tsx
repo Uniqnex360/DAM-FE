@@ -59,7 +59,7 @@ export function AuthPage() {
             <img 
                 src={logo} 
                 alt="DAM & Product Visualizer" 
-                className="h-20 w-32 object-contain mb-4"   
+                 className="h-24 w-80 object-contain mb-6" 
               />
             <h1 className="text-3xl font-bold text-slate-900 mb-2">
               DAM & Product Visualizer

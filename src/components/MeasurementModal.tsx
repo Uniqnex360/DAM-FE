@@ -434,7 +434,6 @@ const scaleFactor=imageSize.width/displayCanvasWidth
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
             <h2 className="text-xl font-bold text-slate-900">
@@ -466,9 +465,7 @@ const scaleFactor=imageSize.width/displayCanvasWidth
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Canvas Area */}
           <div className="flex-1 flex flex-col">
             <Toolbar activeTool={activeTool} onToolChange={setActiveTool} hasMeasurements={measurements.length > 0}/>
             <div ref={canvasContainerRef} className="flex-1 p-4 bg-slate-100">
@@ -488,7 +485,6 @@ const scaleFactor=imageSize.width/displayCanvasWidth
             </div>
           </div>
 
-          {/* Sidebar */}
           <aside className="w-80 bg-white border-l border-slate-200 overflow-y-auto">
             <div className="p-4 border-b border-slate-200">
               <h3 className="text-lg font-semibold text-slate-800">

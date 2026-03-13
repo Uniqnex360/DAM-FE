@@ -1192,7 +1192,6 @@ export function AdvancedUpload() {
                             <span className="mt-2 text-xs text-slate-600">
                               PDF Document
                             </span>
-                            {/* <Globe className="w-12 h-12 text-slate-400" /> */}
                           </div>
                         )}
                         {image.originalWidth && image.originalHeight && (

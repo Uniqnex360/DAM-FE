@@ -117,7 +117,6 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="flex items-center justify-between mb-4">
@@ -145,7 +144,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Enhancements Applied */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Enhancements Applied</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -165,16 +163,13 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Activity Table */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Recent Activity</h2>
         <div className="space-y-3">
           {stats.recentOperations.map((op) => (
             <div key={op.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
               
-              {/* Left Side: Thumbnail + Filename + Ops */}
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                {/* Thumbnail Image */}
                 <div className="h-12 w-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 flex-shrink-0">
                   <img 
                     src={op.thumbnailUrl} 
@@ -184,7 +179,6 @@ export function Dashboard() {
                   />
                 </div>
                 
-                {/* Text Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900 truncate">{op.fileName}</p>
                   <p className="text-xs text-slate-500 mt-0.5 truncate" title={op.operationType.replace(/_/g, ' ')}>
@@ -193,7 +187,6 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* Right Side: Time + Status */}
               <div className="flex items-center space-x-4">
                 <div className="text-right hidden sm:block">
                   <p className="text-xs text-slate-500">{new Date(op.createdAt).toLocaleString()}</p>

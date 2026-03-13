@@ -243,7 +243,6 @@ export function UploadGallery() {
                 <div className="p-4 border-t border-slate-200 bg-white">
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {upload.images.map((image) => {
-                      // LOGIC: Show processed image if available, otherwise original
                       const displayUrl = image.processed_url || image.url;
                       const isProcessed = !!image.processed_url;
                       
@@ -252,14 +251,12 @@ export function UploadGallery() {
                           key={image.id}
                           className="group relative border border-slate-100 rounded-lg p-2 hover:shadow-md transition-shadow"
                         >
-                          {/* Image Container */}
                           <div className="aspect-square bg-slate-100 rounded-md overflow-hidden relative mb-2">
                             <img
                               src={displayUrl}
                               alt="Uploaded"
                               className="w-full h-full object-contain"
                             />
-                            {/* Processed Badge */}
                             {isProcessed && (
                               <div
                                 className="absolute top-2 left-2 bg-green-500/90 text-white p-1 rounded-full shadow-sm"
@@ -268,7 +265,6 @@ export function UploadGallery() {
                                 <Wand2 className="w-3 h-3" />
                               </div>
                             )}
-                            {/* Hover Actions */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
                               <a
                                 href={displayUrl}
@@ -301,7 +297,6 @@ export function UploadGallery() {
                               </button>
                             </div>
                           </div>
-                          {/* Info Footer */}
                           <div className="flex items-center justify-between px-1">
                             <span className={`text-xs font-mono truncate max-w-[80px] ${isProcessed ? 'text-green-600 font-bold' : 'text-slate-500'}`}>
                               {isProcessed ? "Processed" : "Original"}
