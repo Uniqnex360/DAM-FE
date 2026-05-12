@@ -694,40 +694,56 @@ export function AdvancedUpload() {
 
     try {
       const validImages = images.filter((img) => img.file);
+      const formData=new FormData()
+      validImages.map((img)=>{
+        if(img.file)
+        {
+          formData.append('files',img.file,img.name)
+        }
+      })
+      const batchResult = await assetApi.upload(formData);
+      const validAssets = batchResult.images.map((img: any) => ({
+        id: img.id,
+        name: img.name,
+        url: img.url,
+        width: img.width,
+        height: img.height,
+      }));
+      setProgress({
+        current: 0,
+        total: validAssets.length,
+        phase: "Processing",
+      });
+      // const uploadedAssets = await runWithConcurrency(
+      //   validImages,
+      //   3, // Limit: 5 concurrent uploads
+      //   async (img) => {
+      //     if (!img.file) return null;
+      //     let retries = 2;
+      //     while (retries > 0) {
+      //       try {
+      //         return await assetApi.upload(img.file);
+      //       } catch (error) {
+      //         console.warn(`Upload failed for ${img.name}, retrying...`);
+      //         retries--;
+      //         if (retries === 0) {
+      //           console.error(`Failed to upload ${img.name}`, error);
+      //           return null;
+      //         }
+      //         await delay(1000);
+      //       }
+      //     }
+      //   },
+      //   // Update progress bar
+      //   (completed) =>
+      //     setProgress({
+      //       current: completed,
+      //       total: validImages.length,
+      //       phase: "Uploading",
+      //     })
+      // );
 
-      const uploadedAssets = await runWithConcurrency(
-        validImages,
-        3, // Limit: 5 concurrent uploads
-        async (img) => {
-          if (!img.file) return null;
-          let retries = 2;
-          while (retries > 0) {
-            try {
-              return await assetApi.upload(img.file);
-            } catch (error) {
-              console.warn(`Upload failed for ${img.name}, retrying...`);
-              retries--;
-              if (retries === 0) {
-                console.error(`Failed to upload ${img.name}`, error);
-                return null;
-              }
-              await delay(1000);
-            }
-          }
-        },
-        // Update progress bar
-        (completed) =>
-          setProgress({
-            current: completed,
-            total: validImages.length,
-            phase: "Uploading",
-          })
-      );
 
-      const validAssets = uploadedAssets.filter((a) => a !== null);
-
-      // Step B: Process Images (Concurrency Limit: 2)
-      // We limit this to 2 because AI processing is heavy on the server
       setProgress({
         current: 0,
         total: validAssets.length,

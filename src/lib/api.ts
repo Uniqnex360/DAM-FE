@@ -45,9 +45,12 @@ export interface AnalysisResponse {
 }
 
 export const assetApi = {
-  upload: async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
+  upload: async (files: File[]|FormData) => {
+     const formData = files instanceof FormData ? files : (() => {
+      const fd = new FormData();
+      (files as File[]).forEach((file) => fd.append('files', file));
+      return fd;
+    })();
     const { data } = await api.post('/assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
