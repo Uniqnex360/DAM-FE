@@ -19,6 +19,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ReportsDashboard } from './components/ReportsDashboard';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -51,6 +52,8 @@ function AppContent() {
             <JobTracker />
           </>
         )}
+        {currentView === "reports" && <ReportsDashboard />}
+
 
         {currentView === 'search' && <SearchImages />}
 

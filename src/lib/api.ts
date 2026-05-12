@@ -56,6 +56,15 @@ export const assetApi = {
     });
     return data;
   },
+   getReport: async () => {
+    try {
+         const { data } = await api.get('/reports/processing');   
+        return data;
+    } catch (error) {
+        console.error("Failed to fetch processing report:", error);
+        throw error;
+    }
+},
  getGallery: async () => {
     const response = await api.get('/assets/gallery');
     return response.data;

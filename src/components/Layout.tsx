@@ -27,6 +27,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "upload", label: "Upload", icon: Upload },
+    { id: "reports", label: "Reports", icon: TrendingUp }, 
     { id: "search", label: "Search", icon: Search },
     { id: "catalog", label: "Catalog", icon: Briefcase },
     { id: "marketplace", label: "Marketplace", icon: TrendingUp },
