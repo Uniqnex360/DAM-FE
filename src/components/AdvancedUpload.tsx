@@ -1,10 +1,10 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Link,
   FileText,
-  Cloud,
   Globe,
+  Cloud,
   Loader2,
   CheckCircle,
   XCircle,
@@ -15,256 +15,226 @@ import {
   X,
   Sparkles,
   Download,
+  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
+  Search,
+  Bell,
+  User,
+  Filter,
+  SortAsc,
+  LayoutGrid,
+  List as ListIcon,
+  Plus,
+  Maximize2,
+  Image as ImageIcon,
+  Box,
+  Minimize2,
+  BarChart,
+  ShoppingBag,
 } from "lucide-react";
-import { api } from "../services/api";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
-import { ImageCropModal } from "./ImageCropModal";
-import { MeasurementModal } from "./MeasurementModal";
-import { toast } from "sonner";
 import { assetApi } from "../lib/api";
-interface ImageItem {
-  id: string;
-  url: string;
-  name: string;
-  file?: File;
-  preview?: string;
-  isProcessed?: boolean;
-  isAutoFixed?: boolean;
-  processedOperations?: string[];
-  originalWidth?: number;
-  originalHeight?: number;
-  failedOperations?: string[];
-  autoFixOperations?: string[];
-  processingStatus?: "pending" | "success" | "partial_failure" | "failed";
-  autoFixStatus?: "pending" | "success" | "partial_failure" | "failed";
-  cloudinaryUrl?: string;
-}
-type UploadSource = "files" | "urls" | "csv" | "product-page" | "cloud";
+import { toast } from "sonner";
+import { cn } from "../lib/utils";
+
+const ECOMMERCE_DESTINATIONS = [
+  {
+    id: "unified-commerce",
+    label: "Unified E-Commerce",
+    initial: "U",
+    bg: "bg-slate-50",
+    text: "text-slate-500",
+    border: "border-slate-100",
+  },
+  {
+    id: "shopify",
+    label: "Shopify",
+    initial: "S",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    border: "border-emerald-100",
+  },
+  {
+    id: "woocommerce",
+    label: "WooCommerce",
+    initial: "W",
+    bg: "bg-indigo-50",
+    text: "text-indigo-600",
+    border: "border-indigo-100",
+  },
+  {
+    id: "magento",
+    label: "Magento",
+    initial: "M",
+    bg: "bg-orange-50",
+    text: "text-orange-600",
+    border: "border-orange-100",
+  },
+  {
+    id: "bigcommerce",
+    label: "BigCommerce",
+    initial: "B",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-100",
+  },
+  {
+    id: "wix-store",
+    label: "Wix Store",
+    initial: "W",
+    bg: "bg-violet-50",
+    text: "text-violet-600",
+    border: "border-violet-100",
+  },
+];
+const SOURCES = [
+  { id: "files", label: "Files", icon: Upload },
+  { id: "urls", label: "URLs", icon: Link },
+  { id: "csv", label: "CSV", icon: FileText },
+  { id: "page", label: "Page", icon: Globe },
+  { id: "cloud", label: "Cloud", icon: Cloud },
+];
+const MARKETPLACE_DESTINATIONS = [
+  {
+    id: "amazon-us",
+    label: "Amazon US",
+    initial: "Am",
+    bg: "bg-orange-50",
+    text: "text-orange-600",
+    border: "border-orange-100",
+  },
+  {
+    id: "walmart",
+    label: "Walmart",
+    initial: "Wa",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-100",
+  },
+  {
+    id: "ebay-us",
+    label: "eBay US",
+    initial: "eB",
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    border: "border-rose-100",
+  },
+  {
+    id: "wayfair-us",
+    label: "Wayfair",
+    initial: "Wa",
+    bg: "bg-purple-50",
+    text: "text-purple-600",
+    border: "border-purple-100",
+  },
+];
+
+const MARKETPLACE_GROUPS = [
+  {
+    id: "us",
+    countryCode: "US",
+    countryName: "United States",
+    items: MARKETPLACE_DESTINATIONS,
+  },
+];
+
 const PROCESSING_OPTIONS = [
   {
     id: "resize",
     label: "Image Resizing",
     description: "Resize to specific dimensions",
+    icon: Ruler,
   },
   {
     id: "bg-remove",
     label: "Background Removal",
     description: "Remove background automatically",
+    icon: Palette,
   },
   {
     id: "retouch",
     label: "Image Retouch / Enhancer",
-    description: "Enhance image quality",
+    description: "Enhance color, sharpness, and quality",
+    icon: Sparkles,
   },
   {
     id: "crop",
     label: "Image Cropping / Reframing",
-    description: "Smart cropping",
+    description: "Smart crop and aspect ratio adjust",
+    icon: Crop,
   },
   {
     id: "compress",
-    label: "Image Compression & Optimization",
-    description: "Optimize file size",
+    label: "Image Compression",
+    description: "Optimize file size without quality loss",
+    icon: Minimize2,
   },
   {
     id: "lifestyle",
     label: "Lifestyle Image Creation",
-    description: "Create lifestyle scenes",
+    description: "Generate lifestyle scene images",
+    icon: ImageIcon,
   },
   {
     id: "infographic",
     label: "Infographic Creation",
-    description: "Generate infographics",
+    description: "Auto-generate product infographics",
+    icon: BarChart,
   },
   {
     id: "line-diagram",
     label: "Line Diagram",
-    description: "Technical line drawings",
+    description: "Technical line drawing generation",
+    icon: Ruler,
   },
   {
     id: "swatch",
     label: "Material Swatch Creation",
-    description: "Generate material swatches",
+    description: "Generate color and material swatches",
+    icon: Palette,
   },
   {
-    id: "color-analysis",
-    label: "Color Analysis",
-    description: "Analyze colors",
-  },
-  { id: "3d-model", label: "3D Modeling", description: "Generate 3D models" },
-  {
-    id: "360-spin",
-    label: "360° Product Spin Video",
-    description: "Turntable videos",
-  },
-  {
-    id: "recolor",
-    label: "Image Re-coloring",
-    description: "Change product colors",
-  },
-  {
-    id: "configurator",
-    label: "3D Product Configurator",
-    description: "Create configurator",
-  },
-  {
-    id: "pdf-extract",
-    label: "Image Extraction from PDF",
-    description: "Extract from PDFs",
+    id: "3d-model",
+    label: "3D Render",
+    description: "Create photorealistic 3D product renders",
+    icon: Box,
   },
 ];
-async function runWithConcurrency<T, R>(
-  items: T[],
-  concurrencyLimit: number,
-  fn: (item: T) => Promise<R>,
-  onProgress?: (completedCount: number) => void
-): Promise<R[]> {
-  const results: R[] = [];
-  const executing: Promise<void>[] = [];
-  let completed = 0;
-  for (const item of items) {
-    const p = fn(item).then((result) => {
-      results.push(result);
-      completed++;
-      if (onProgress) onProgress(completed);
-    });
-    executing.push(p);
-    const clean = () => executing.splice(executing.indexOf(p), 1);
-    p.then(clean).catch(clean);
-    if (executing.length >= concurrencyLimit) {
-      await Promise.race(executing);
-    }
-  }
-  await Promise.all(executing);
-  return results;
-}
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type Step = "upload" | "destinations" | "processing" | "results";
+type UploadSource = "files" | "urls" | "csv" | "page" | "cloud";
+
 export function AdvancedUpload() {
+  const [currentStep, setCurrentStep] = useState<Step>("upload");
+  const [projectName, setProjectName] = useState("");
+
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
-  const [isZipping,setIsZipping]=useState(false)
-  const [images, setImages] = useState<ImageItem[]>([]);
-  const [dragActive, setDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
-  const [selectedPreset, setSelectedPreset] = useState<
-    "500x500" | "800x800" | "1024x1024"
-  >("800x800");
-  const [showMeasurementTool, setShowMeasurementTool] = useState(false);
-  const [measurementImage, setMeasurementImage] = useState<ImageItem | null>(
-    null
-  );
-  const [resizePercentage, setResizePercentage] = useState(100);
-  const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
-  const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  const [error, setError] = useState<string>("");
-  const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
+  const [images, setImages] = useState<any[]>([]);
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>([
+    "shopify",
+    "amazon-us",
+    "walmart",
+    "bigcommerce",
+  ]);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
   const [autoDetect, setAutoDetect] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentAnalysis, setCurrentAnalysis] = useState<any>(null);
-  const [compressionQuality, setCompressionQuality] = useState(80);
-  const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
-  const [urlInput, setUrlInput] = useState("");
+  const [selectedProcessing, setSelectedProcessing] = useState<string[]>([
+    "retouch",
+    "crop",
+  ]);
   const [activeResizeMode, setActiveResizeMode] = useState<
     "original" | "preset" | "custom" | "percentage"
-  >("original");
+  >("preset");
+  const [selectedPreset, setSelectedPreset] = useState("800x800");
   const [resizeDims, setResizeDims] = useState({ width: 800, height: 800 });
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [isAutoFixing, setIsAutoFixing] = useState(false);
-  const [autoFixResults, setAutoFixResults] = useState<any[]>([]);
-  const [autoFixError, setAutoFixError] = useState<string | null>(null);
-  const [productPageUrl, setProductPageUrl] = useState("");
-  const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
-  const [recoloringImage, setRecoloringImage] = useState<ImageItem | null>(
-    null
-  );
-  const [pickedColor, setPickedColor] = useState("#000000");
-  const [replaceColor, setReplaceColor] = useState("#ff0000");
-  const [isAnalyzingForInfographic, setIsAnalyzingForInfographic] =
-    useState(false);
-  const [cloudProvider, setCloudProvider] = useState<
-    "dropbox" | "google-drive"
-  >("dropbox");
-  const [cloudPath, setCloudPath] = useState("");
+  const [resizePercentage, setResizePercentage] = useState(100);
+  const [compressionQuality, setCompressionQuality] = useState(80);
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-  const pickColorFromImage = () => {
-    const img = document.getElementById("original-image");
-    if (!img) return;
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
+  const [processedResults, setProcessedResults] = useState<any[]>([]);
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
-
-    ctx.drawImage(img, 0, 0);
-
-    const x = canvas.width / 2;
-    const y = canvas.height / 2;
-    const pixel = ctx.getImageData(x, y, 1, 1).data;
-
-    const hex =
-      "#" +
-      pixel[0].toString(16).padStart(2, "0") +
-      pixel[1].toString(16).padStart(2, "0") +
-      pixel[2].toString(16).padStart(2, "0");
-
-    setPickedColor(hex.toUpperCase());
-  };
-  const handleBulkDownload=async()=>{
-    if(!uploadResult?.images||uploadResult.images.length===0)return
-    setIsZipping(true)
-    const zip=new JSZip()
-    const folder=zip.folder('processed_images')
-    try {
-      toast.info('Preparing download....')
-      const promises=uploadResult.images.map(async(img:any)=>{
-        const downloadUrl=img.cloudinaryUrl||img.url
-        const fileName = img.name; 
-        try {
-          const response=await fetch(downloadUrl,{mode:'cors'})
-          if(!response.ok)throw new Error("Network response was not ok")
-          const blob=await response.blob()
-          folder?.file(fileName,blob)
-        } catch (error) {
-          console.error(`Failed to download ${fileName}`,error)
-        }
-      })
-      await Promise.all(promises)
-      const content=await zip.generateAsync({type:'blob'})
-      saveAs(content,`processed_batch_${Date.now()}.zip`)
-      toast.success("ZIP file downloaded!")
-    } catch (error) {
-      console.error('Error creating zip',error)
-      toast.error("Failed to generate zip file")
-    }
-    finally{
-      setIsZipping(false)
-    }
-  }
-  const getRecoloredPreviewUrl = (): string => {
-    if (!recoloringImage) return "";
-
-    if (recoloringImage.cloudinaryUrl) {
-      const fromColor = pickedColor.replace("#", "").toLowerCase();
-      const toColor = replaceColor.replace("#", "").toLowerCase();
-
-      return `${recoloringImage.cloudinaryUrl}?e_replace_color:${fromColor}:${toColor}:30`;
-    }
-
-    return recoloringImage.preview || recoloringImage.url || "";
-  };
   useEffect(() => {
     if (activeResizeMode === "preset") {
       const [w, h] = selectedPreset.split("x").map(Number);
@@ -272,2110 +242,1153 @@ export function AdvancedUpload() {
     }
   }, [activeResizeMode, selectedPreset]);
 
-  const hexToRgb = (hex: string): [number, number, number] => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? [
-          parseInt(result[1], 16),
-          parseInt(result[2], 16),
-          parseInt(result[3], 16),
-        ]
-      : [0, 0, 0];
-  };
-
-  const colorDistance = (rgb1: number[], rgb2: number[]): number => {
-    return Math.sqrt(
-      Math.pow(rgb1[0] - rgb2[0], 2) +
-        Math.pow(rgb1[1] - rgb2[1], 2) +
-        Math.pow(rgb1[2] - rgb2[2], 2)
-    );
-  };
-
-  const applyRecoloring = async () => {
-    setIsApplyingRecolor(true);
-
-    try {
-      let imageRecord = recoloringImage;
-
-      if (recoloringImage.url.startsWith("blob:") || recoloringImage.file) {
-        toast.info("Uploading image to Cloudinary first...");
-
-        let fileToUpload;
-        if (recoloringImage.file) {
-          fileToUpload = recoloringImage.file;
-        } else {
-          const response = await fetch(recoloringImage.url);
-          const blob = await response.blob();
-          const fileExt = recoloringImage.name.split(".").pop() || "png";
-          fileToUpload = new File([blob], recoloringImage.name, {
-            type: blob.type || `image/${fileExt}`,
-          });
-        }
-
-        const uploadResponse = await api.uploadImages([fileToUpload]);
-
-        if (
-          !uploadResponse ||
-          !uploadResponse.images ||
-          uploadResponse.images.length === 0
-        ) {
-          throw new Error("Failed to upload image to Cloudinary");
-        }
-
-        imageRecord = {
-          ...recoloringImage,
-          id: uploadResponse.images[0].id,
-          cloudinaryUrl: uploadResponse.images[0].cloudinaryUrl,
-          url:
-            uploadResponse.images[0].url ||
-            uploadResponse.images[0].cloudinaryUrl,
-        };
-
-        toast.success("Image uploaded to Cloudinary successfully!");
-      }
-
-      const imageUrlToProcess = imageRecord.cloudinaryUrl || imageRecord.url;
-
-      const response = await api.processImageAI(
-        imageRecord.id,
-        imageUrlToProcess,
-        "recolor",
-        imageRecord.name,
-        {
-          fromColor: pickedColor,
-          toColor: replaceColor,
-          tolerance: 20,
-        }
-      );
-
-      if (response && response.url) {
-        toast.success("Image recolored successfully!");
-
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === recoloringImage?.id
-              ? {
-                  ...img,
-                  cloudinaryUrl: response.url,
-                  url: response.url,
-                  isProcessed: true,
-                }
-              : img
-          )
-        );
-
-        setRecoloringImage(null);
-
-        window.dispatchEvent(new CustomEvent("image-updated"));
-      } else {
-        throw new Error("Recoloring failed");
-      }
-    } catch (error) {
-      console.error("Recoloring error:", error);
-      toast.error("Failed to recolor image: " + error.message);
-    } finally {
-      setIsApplyingRecolor(false);
-    }
-  };
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      (file) =>
-        file.type.startsWith("image/") ||
-        file.type === "text/csv" ||
-        file.name.endsWith(".xlsx")
-    );
-    if (
-      droppedFiles.some(
-        (f) => f.type === "text/csv" || f.name.endsWith(".xlsx")
-      )
-    ) {
-      setCsvFile(droppedFiles[0]);
-      setUploadSource("csv");
-      parseCsvFile(droppedFiles[0]);
-    } else {
-      handleFileSelect(droppedFiles);
-    }
-  }, []);
-  const handleFileSelect = async (files: File[]) => {
-    const validFiles = files.filter(
-      (file) =>
-        file.type.startsWith("image/") || file.type === "application/pdf"
-    );
-    const invalidFiles = files.filter((file) => !validFiles.includes(file));
-    if (invalidFiles.length > 0) {
-      const invalidFileNames = invalidFiles.map((f) => f.name).join(", ");
-      toast.error(
-        `Unsupported file types were ignored: ${invalidFileNames}. Please select only images or PDF files.`
-      );
-      return;
-    }
-
-    const newImages = await Promise.all(
-      files.map(async (file, idx) => {
-        const url = URL.createObjectURL(file);
-
-        let width, height;
-        if (file.type.startsWith("image/")) {
-          const img = await new Promise<HTMLImageElement>((resolve) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.src = url;
-          });
-          width = img.naturalWidth;
-          height = img.naturalHeight;
-        }
-
-        return {
-          id: `${Date.now()}-${idx}`,
-          url,
-          name: file.name,
-          preview: file.type.startsWith("image/") ? url : "/pdf-icon.svg",
-          file,
-          originalWidth: width,
-          originalHeight: height,
-        };
-      })
-    );
-    setImages((prev) => [...prev, ...newImages]);
-  };
-  const urlToFile = async (url: string, filename: string): Promise<File> => {
-    try {
-      const response = await fetch(url, { mode: "cors" });
-      const blob = await response.blob();
-      return new File([blob], filename, { type: blob.type });
-    } catch (e) {
-      console.warn("Could not convert URL to File (CORS restriction):", url);
-      throw e;
-    }
-  };
-  const handleLineDiagramClick = (image: ImageItem) => {
-    setMeasurementImage(image);
-    setShowMeasurementTool(true);
-  };
-  const handleMeasurementSave = (
-    measurements: any[],
-    annotatedImageUrl: string
-  ) => {
-    if (measurementImage) {
-      setLineDiagramResults((prev) => {
-        const existingIndex = prev.findIndex(
-          (r) => r.imageId === measurementImage.id
-        );
-
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = {
-            imageId: measurementImage.id,
-            imageName: measurementImage.name,
-            measurements,
-            annotatedImageUrl,
-          };
-          return updated;
-        } else {
-          return [
-            ...prev,
-            {
-              imageId: measurementImage.id,
-              imageName: measurementImage.name,
-              measurements,
-              annotatedImageUrl,
-            },
-          ];
-        }
-      });
-    }
-    setShowMeasurementTool(false);
-    setMeasurementImage(null);
-  };
-  // const runAutoDetection = async () => {
-  //   const itemToAnalyze = images.find((img) => img.file);
-  //   if (!itemToAnalyze || !itemToAnalyze.file) return;
-  //   setIsAnalyzing(true);
-  //   try {
-  //     const base64 = await new Promise<string>((resolve) => {
-  //       const r = new FileReader();
-  //       r.readAsDataURL(itemToAnalyze.file!);
-  //       r.onload = () => resolve(r.result as string);
-  //     });
-  //     const img = new Image();
-  //     await new Promise((r) => {
-  //       img.onload = r;
-  //       img.src = URL.createObjectURL(itemToAnalyze.file!);
-  //     });
-  //     const { data, error } = await supabase.functions.invoke("analyze-image", {
-  //       body: {
-  //         imageBase64: base64,
-  //         fileName: itemToAnalyze.name,
-  //         fileSize: itemToAnalyze.file!.size,
-  //         width: img.width,
-  //         height: img.height,
-  //       },
-  //     });
-  //     if (error || !data.analysis) throw error;
-  //     const analysis = data.analysis;
-  //     console.log("Full AI Analysis:", analysis);
-  //     setCurrentAnalysis(analysis);
-  //     const newOps = new Set<string>();
-  //     if (analysis.suggestions.backgroundRemoval) newOps.add("bg-remove");
-  //     if (analysis.suggestions.upscaling || analysis.qualityScore < 80)
-  //       newOps.add("retouch");
-  //     if (analysis.suggestions.compression) {
-  //       newOps.add("compress");
-  //       setCompressionQuality(80);
-  //     }
-  //     if (analysis.suggestions.cropping) newOps.add("crop");
-  //     setSelectedProcessing(Array.from(newOps));
-  //   } catch (e) {
-  //     console.error(e);
-  //   } finally {
-  //     setIsAnalyzing(false);
-  //   }
-  // };
-  const runAutoDetection = async () => {
-    const itemToAnalyze = images.find((img) => img.file);
-    if (!itemToAnalyze || !itemToAnalyze.file) return;
-
-    setIsAnalyzing(true);
-
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      toast.info("Analysing....");
-    }, 1500);
-  };
-  const handleCropSave = (newFile: File) => {
-    if (!editingImage) return;
-    const newUrl = URL.createObjectURL(newFile);
-    setImages((prev) =>
-      prev.map((img) => {
-        if (img.id === editingImage.id) {
-          return {
-            ...img,
-            url: newUrl,
-            preview: newUrl,
-            file: newFile,
-            name: newFile.name,
-          };
-        }
-        return img;
-      })
-    );
-    setEditingImage(null);
-  };
-  const handleImageColorPick = (e: React.MouseEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const rect = img.getBoundingClientRect();
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
-    const y = Math.floor(
-      (e.clientY - rect.top) * (canvas.height / rect.height)
-    );
-
-    const pixel = ctx.getImageData(x, y, 1, 1).data;
-
-    const hex =
-      "#" +
-      pixel[0].toString(16).padStart(2, "0") +
-      pixel[1].toString(16).padStart(2, "0") +
-      pixel[2].toString(16).padStart(2, "0");
-
-    setPickedColor(hex.toUpperCase());
-
-    toast.success(`Picked color: ${hex.toUpperCase()}`);
-  };
-  const handleUrlsAdd = async () => {
-    const urls = urlInput.split("\n").filter((u) => u.trim());
-    const tempIds = urls.map((_, i) => `url-${Date.now()}-${i}`);
-    const placeholders = urls.map((url, idx) => ({
-      id: tempIds[idx],
-      url: url.trim(),
-      name: `Image ${idx + 1}`,
-      preview: url.trim(),
-      file: undefined,
-    }));
-    setImages((prev) => [...prev, ...placeholders]);
-    setUrlInput("");
-    placeholders.forEach(async (item) => {
-      try {
-        console.log("Proxying:", item.url);
-        const file = await api.proxyUrlToFile(item.url, item.name + ".jpg");
-        const localPreview = URL.createObjectURL(file);
-        setImages((currentImages) =>
-          currentImages.map((img) =>
-            img.id === item.id
-              ? { ...img, file: file, preview: localPreview, url: localPreview }
-              : img
-          )
-        );
-      } catch (e) {
-        console.error("Could not fetch URL for cropping:", e);
-      }
-    });
-  };
-  const parseCsvFile = async (file: File) => {
-    const text = await file.text();
-    const lines = text.split("\n").slice(1);
-    const urls = lines
-      .map((line) => {
-        const cols = line.split(",");
-        return cols[0]?.trim();
-      })
-      .filter(Boolean);
-    const newImages = urls.map((url, idx) => ({
-      id: `csv-${Date.now()}-${idx}`,
-      url,
-      name: `CSV Image ${idx + 1}`,
-    }));
-    setImages((prev) => [...prev, ...newImages]);
-  };
-  const isPdfFile = (file) => {
-    return (
-      file.type === "application/pdf" ||
-      file.file_type === "application/pdf" ||
-      (file.name && file.name.toLowerCase().endsWith(".pdf")) ||
-      file.resource_type === "raw" ||
-      (file.url && file.url.toLowerCase().includes(".pdf"))
-    );
-  };
-  const isImgFile = (file) => {
-    return (
-      (file.type && file.type.startsWith("image/")) ||
-      (file.file_type && file.file_type.startsWith("image/")) ||
-      (!isPdfFile(file) && file.preview && file.preview !== "/pdf-icon.svg")
-    );
-  };
-  const toggleProcessing = (processingId: string) => {
-    if (
-      processingId === "pdf-extract" &&
-      !images.some((img) => isPdfFile(img))
-    ) {
-      toast.error("PDF extraction can only be performed on PDF files");
-      return;
-    }
-    if (
-      processingId !== "pdf-extract" &&
-      !images.some((img) => isImgFile(img))
-    ) {
-      toast.error(
-        `${
-          PROCESSING_OPTIONS.find((op) => op.id === processingId)?.label
-        } can only be performed on image files`
-      );
-      return;
-    }
-    setSelectedProcessing((prev) =>
-      prev.includes(processingId)
-        ? prev.filter((p) => p !== processingId)
-        : [...prev, processingId]
-    );
-  };
-  
-  const handleUpload = async () => {
-    if (images.length === 0 && uploadSource === "files") return;
-
+  const handleProcessBatch = async () => {
     setUploading(true);
-    setError("");
-    setUploadResult(null);
-    setIsAutoFixing(true);
-
     setProgress({ current: 0, total: images.length, phase: "Uploading" });
 
     try {
-      const validImages = images.filter((img) => img.file);
-      const formData=new FormData()
-      validImages.map((img)=>{
-        if(img.file)
-        {
-          formData.append('files',img.file,img.name)
-        }
-      })
+      const project = projectName.trim();
+      const formData = new FormData();
+      if (project) formData.append("project_name", project);
+      images.forEach(
+        (img) => img.file && formData.append("files", img.file, img.name),
+      );
       const batchResult = await assetApi.upload(formData);
-      const validAssets = batchResult.images.map((img: any) => ({
-        id: img.id,
-        name: img.name,
-        url: img.url,
-        width: img.width,
-        height: img.height,
-      }));
-      setProgress({
-        current: 0,
-        total: validAssets.length,
-        phase: "Processing",
-      });
-      // const uploadedAssets = await runWithConcurrency(
-      //   validImages,
-      //   3, // Limit: 5 concurrent uploads
-      //   async (img) => {
-      //     if (!img.file) return null;
-      //     let retries = 2;
-      //     while (retries > 0) {
-      //       try {
-      //         return await assetApi.upload(img.file);
-      //       } catch (error) {
-      //         console.warn(`Upload failed for ${img.name}, retrying...`);
-      //         retries--;
-      //         if (retries === 0) {
-      //           console.error(`Failed to upload ${img.name}`, error);
-      //           return null;
-      //         }
-      //         await delay(1000);
-      //       }
-      //     }
-      //   },
-      //   // Update progress bar
-      //   (completed) =>
-      //     setProgress({
-      //       current: completed,
-      //       total: validImages.length,
-      //       phase: "Uploading",
-      //     })
-      // );
-
 
       setProgress({
         current: 0,
-        total: validAssets.length,
+        total: batchResult.images.length,
         phase: "Processing",
       });
 
-      const processedResults = await runWithConcurrency(
-        validAssets,
-        1, // Limit: 2 concurrent AI processes
-        async (asset: any) => {
-          let retries = 2;
-          while (retries >= 0) {
-            try {
-              console.log(`Processing asset ${asset.id}...`);
+      const results = await Promise.all(
+        batchResult.images.map(async (asset: any, idx: number) => {
+          let operationsToSend = [...selectedProcessing];
+          const processOptions: any = {};
 
-              const originalImage = images.find(
-                (img) => img.file?.name === asset.name
-              );
-              let operationsToSend = [...selectedProcessing];
-              const processOptions: any = {};
-
-              // Handle resize logic based on activeResizeMode
-              if (selectedProcessing.includes("resize")) {
-                switch (activeResizeMode) {
-                  case "original":
-                    operationsToSend = operationsToSend.filter(
-                      (op) => op !== "resize"
-                    );
-                    break;
-                  case "preset":
-                  case "custom":
-                    processOptions.resize = {
-                      width: resizeDims.width,
-                      height: resizeDims.height,
-                    };
-                    break;
-                  case "percentage":
-                    let targetWidth, targetHeight;
-                    if (
-                      originalImage?.originalWidth &&
-                      originalImage?.originalHeight
-                    ) {
-                      targetWidth = Math.round(
-                        originalImage.originalWidth * (resizePercentage / 100)
-                      );
-                      targetHeight = Math.round(
-                        originalImage.originalHeight * (resizePercentage / 100)
-                      );
-                    } else {
-                      targetWidth = Math.round(
-                        (asset.width || 1000) * (resizePercentage / 100)
-                      );
-                      targetHeight = Math.round(
-                        (asset.height || 1000) * (resizePercentage / 100)
-                      );
-                    }
-                    processOptions.resize = {
-                      width: targetWidth,
-                      height: targetHeight,
-                    };
-                    break;
-                }
-              }
-
-              const result = await assetApi.process(
-                asset.id,
-                autoDetect ? [] : operationsToSend,
-                processOptions,
-                autoDetect
-              );
-              const appliedOperations = result.telemetry?.steps || [];
-              const processedUrl = result.url || result.secure_url || asset.url;
-              return {
-                imageId: asset.id,
-                originalName: asset.name,
-                finalUrl:processedUrl,
-                isFixed: result.telemetry.steps.length > 0,
-                operations: result.telemetry.steps.map((step: string) => ({
-                  operation: step,
-                  status: "success",
-                })),
-                telemetry: result.telemetry,
-                appliedOps:appliedOperations
-              };
-            } catch (err: any) {
-              const isNetworkError =
-                err.code === "ERR_NETWORK" ||
-                err.response?.status === 504 ||
-                err.response?.status === 502;
-              if (retries > 0 && isNetworkError) {
-                console.warn(
-                  `Processing timeout/error for ${asset.id},retrying....`
+          if (selectedProcessing.includes("resize")) {
+            switch (activeResizeMode) {
+              case "original":
+                operationsToSend = operationsToSend.filter(
+                  (op) => op !== "resize",
                 );
-                retries--;
-                await delay(3000);
-                continue;
-              }
-              console.error(`Processing failed for ${asset.id}`, err);
-              return {
-                imageId: asset.id,
-                originalName: asset.name,
-                operations: [],
-                isFixed: false,
-                finalUrl: asset.url, 
-                error: err.message,
-              };
+                break;
+              case "preset":
+              case "custom":
+                processOptions.resize = {
+                  width: resizeDims.width,
+                  height: resizeDims.height,
+                };
+                break;
+              case "percentage":
+                const targetWidth = Math.round(
+                  (asset.width || 1000) * (resizePercentage / 100),
+                );
+                const targetHeight = Math.round(
+                  (asset.height || 1000) * (resizePercentage / 100),
+                );
+                processOptions.resize = {
+                  width: targetWidth,
+                  height: targetHeight,
+                };
+                break;
             }
           }
-        },
-        (completed) =>
-          setProgress({
-            current: completed,
-            total: validAssets.length,
-            phase: "Processing",
-          })
+
+          if (selectedProcessing.includes("compress")) {
+            processOptions.quality = compressionQuality;
+          }
+
+          const ops = autoDetect ? [] : operationsToSend;
+          const res = await assetApi.process(
+            asset.id,
+            ops,
+            processOptions,
+            autoDetect,
+          );
+
+          setProgress((prev) => ({ ...prev, current: idx + 1 }));
+          return {
+            ...res,
+            originalName: asset.name,
+            metadata: asset,
+            appliedOps: res.telemetry?.steps || ops,
+            projectName: project,
+          };
+        }),
       );
 
-      setAutoFixResults(processedResults);
-
-      setUploadResult({
-        images: processedResults.map(res => ({
-          id: res?.imageId,
-          name: res?.originalName,
-          url: res?.finalUrl,
-          cloudinaryUrl: res?.finalUrl, 
-          isProcessed: true
-        })),
-        uploadId: "batch-" + Date.now(),
-        isAutoFixed: processedResults.some((r) => r.isFixed),
-        autoFixSummary: {
-          totalImages: processedResults.length,
-          successfullyFixed: processedResults.filter((r) => r.isFixed).length,
-          totalOperations: processedResults.reduce(
-            (acc, r) => acc + (r.appliedOps?.length || 0),
-            0
-          ),
-          appliedOperations: Array.from(
-            new Set(
-              processedResults.flatMap(
-                 (r) => r.appliedOps || [] 
-              )
-            )
-          ),
-        },
-      });
-
-      if (processedResults.length > 0 && processedResults[0].telemetry) {
-        const t = processedResults[0].telemetry;
-        const avgIssues =
-          (t.confidence.bg_clean + t.confidence.shadow + t.confidence.crop) / 3;
-        const qualityScore = Math.max(0, Math.round(100 - avgIssues * 100));
-
-        setCurrentAnalysis({
-          qualityScore,
-          productCategory: "Detected Object",
-          backgroundAnalysis: {
-            type:
-              t.confidence.bg_clean > 0.6 ? "Cluttered/Complex" : "Clean/Solid",
-          },
-          suggestions: {
-            backgroundRemoval: t.steps.includes("bg_removal"),
-            cropping: t.steps.includes("smart_crop"),
-            enhancement: t.steps.includes("shadow_fix"),
-            upscaling: t.steps.includes("resize"),
-          },
-          issues: [
-            ...(t.confidence.bg_clean > 0.6
-              ? [
-                  {
-                    type: "Background",
-                    severity: "medium",
-                    description: "Background detected as cluttered",
-                    suggestedAction: "Remove Background",
-                  },
-                ]
-              : []),
-            ...(t.confidence.shadow > 0.6
-              ? [
-                  {
-                    type: "Lighting",
-                    severity: "medium",
-                    description: "Heavy shadows detected",
-                    suggestedAction: "Fix Lighting",
-                  },
-                ]
-              : []),
-            ...(t.confidence.crop > 0.6
-              ? [
-                  {
-                    type: "Framing",
-                    severity: "high",
-                    description: "Subject is too small",
-                    suggestedAction: "Smart Crop",
-                  },
-                ]
-              : []),
-          ],
-          compliance: {
-            amazon: {
-              isCompliant: t.confidence.bg_clean < 0.1,
-              violations:
-                t.confidence.bg_clean > 0.1
-                  ? ["Background not pure white"]
-                  : [],
-            },
-            shopify: { isCompliant: true, violations: [] },
-          },
-        });
-      }
-
-      setImages([]);
-      toast.success("Upload and processing complete!");
-    } catch (err: any) {
-      setError(err.message || "Upload failed");
-      toast.error("Process failed");
+      setProcessedResults(results);
+      setCurrentStep("results");
+      toast.success("Processing complete!");
+    } catch (e: any) {
+      toast.error("Failed to process batch");
     } finally {
       setUploading(false);
-      setIsAutoFixing(false);
-      setProgress({ current: 0, total: 0, phase: "" });
     }
   };
 
-  const removeImage = (id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
-  };
-  return (
-    <>
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">
-              Advanced Upload
-            </h2>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Upload Source
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <button
-                  onClick={() => setUploadSource("files")}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    uploadSource === "files"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <Upload className="w-6 h-6 mx-auto mb-2 text-slate-700" />
-                  <span className="text-sm font-medium">Files</span>
-                </button>
-                <button
-                  onClick={() => setUploadSource("urls")}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    uploadSource === "urls"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <Link className="w-6 h-6 mx-auto mb-2 text-slate-700" />
-                  <span className="text-sm font-medium">URLs</span>
-                </button>
-                <button
-                  onClick={() => setUploadSource("csv")}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    uploadSource === "csv"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <FileText className="w-6 h-6 mx-auto mb-2 text-slate-700" />
-                  <span className="text-sm font-medium">CSV</span>
-                </button>
-                <button
-                  onClick={() => setUploadSource("product-page")}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    uploadSource === "product-page"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <Globe className="w-6 h-6 mx-auto mb-2 text-slate-700" />
-                  <span className="text-sm font-medium">Page</span>
-                </button>
-                <button
-                  onClick={() => setUploadSource("cloud")}
-                  className={`p-4 border-2 rounded-lg transition-all ${
-                    uploadSource === "cloud"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <Cloud className="w-6 h-6 mx-auto mb-2 text-slate-700" />
-                  <span className="text-sm font-medium">Cloud</span>
-                </button>
-              </div>
-            </div>
-            {uploadSource === "files" && (
-              <div
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
-                  dragActive
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-300 hover:border-slate-400"
-                }`}
-              >
-                <Upload
-                  className={`w-12 h-12 mx-auto mb-4 ${
-                    dragActive ? "text-blue-500" : "text-slate-400"
-                  }`}
-                />
-                <p className="text-lg font-medium text-slate-700 mb-2">
-                  Drag and drop images
-                </p>
-                <p className="text-slate-500 mb-4">or</p>
-                <label className="inline-block">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    onChange={(e) =>
-                      e.target.files &&
-                      handleFileSelect(Array.from(e.target.files))
-                    }
-                    className="hidden"
-                  />
-                  <span className="px-6 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition-colors inline-block">
-                    Browse Files
-                  </span>
-                </label>
-              </div>
-            )}
-            {uploadSource === "urls" && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Image URLs (one per line)
-                </label>
-                <textarea
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="https://www.example.com/"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={6}
-                />
-                <button
-                  onClick={handleUrlsAdd}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Add URLs
-                </button>
-              </div>
-            )}
-            {uploadSource === "csv" && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Upload CSV/XLSX File
-                </label>
-                <p className="text-sm text-slate-600 mb-3">
-                  CSV format: First column should contain image URLs
-                </p>
-                <input
-                  type="file"
-                  accept=".csv,.xlsx"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setCsvFile(file);
-                      parseCsvFile(file);
-                    }
-                  }}
-                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-            )}
-            {uploadSource === "product-page" && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  Product Page URL
-                </label>
-                <input
-                  type="url"
-                  value={productPageUrl}
-                  onChange={(e) => setProductPageUrl(e.target.value)}
-                  placeholder="https://www.example.com/"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="text-sm text-slate-600">
-                  Auto-extract all product images from this page
-                </p>
-              </div>
-            )}
-            {uploadSource === "cloud" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cloud Provider
-                  </label>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => setCloudProvider("dropbox")}
-                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${
-                        cloudProvider === "dropbox"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-slate-200"
-                      }`}
-                    >
-                      Dropbox
-                    </button>
-                    <button
-                      onClick={() => setCloudProvider("google-drive")}
-                      className={`flex-1 px-4 py-3 border-2 rounded-lg ${
-                        cloudProvider === "google-drive"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-slate-200"
-                      }`}
-                    >
-                      Google Drive
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Folder Path
-                  </label>
-                  <input
-                    type="text"
-                    value={cloudPath}
-                    onChange={(e) => setCloudPath(e.target.value)}
-                    placeholder="/Furniture/Products"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            )}
-            {editingImage && (
-              <ImageCropModal
-                imageSrc={editingImage.url}
-                fileName={editingImage.name}
-                onClose={() => setEditingImage(null)}
-                onSave={handleCropSave}
-              />
-            )}
+  const Stepper = () => {
+    const steps = [
+      { id: "upload", label: "Import Files" },
+      { id: "destinations", label: "Destinations" },
+      { id: "processing", label: "Processing" },
+      { id: "results", label: "Results" },
+    ];
+    const currentIndex = steps.findIndex((s) => s.id === currentStep);
 
-            {images.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                  Images ({images.length})
+    return (
+      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between mb-8 shadow-sm">
+        {steps.map((s, idx) => {
+          const isCompleted =
+            steps.findIndex((x) => x.id === s.id) < currentIndex;
+          const isActive = s.id === currentStep;
+          return (
+            <div key={s.id} className="flex items-center flex-1 last:flex-none">
+              <div className="flex items-center space-x-3">
+                <div
+                  className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                    isCompleted
+                      ? "bg-emerald-500 text-white"
+                      : isActive
+                        ? "bg-blue-500 text-white ring-4 ring-blue-50"
+                        : "bg-slate-100 text-slate-400",
+                  )}
+                >
+                  {isCompleted ? <CheckCircle className="w-4 h-4" /> : idx + 1}
+                </div>
+                <span
+                  className={cn(
+                    "text-sm font-bold tracking-tight",
+                    isActive ? "text-slate-900" : "text-slate-400",
+                  )}
+                >
+                  {idx + 1}. {s.label}
+                </span>
+              </div>
+              {idx < steps.length - 1 && (
+                <div
+                  className={cn(
+                    "h-px flex-1 mx-8",
+                    isCompleted ? "bg-emerald-200" : "bg-slate-100",
+                  )}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full space-y-6 ">
+      <div className="flex items-center justify-between mb-4 px-2">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
+            Import
+          </h1>
+          <p className="text-slate-400 text-sm font-medium mt-1">
+            Import product images,select destinations and apply AI-powered
+            processing at scale
+          </p>
+        </div>
+        <div className="flex items-center space-x-8">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+            <input
+              placeholder="Search..."
+              className="bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-6 py-3 text-sm transition-all w-80 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5"
+            />
+          </div>
+          <div className="flex items-center space-x-5">
+            <button className="text-slate-300 hover:text-slate-500 transition-colors">
+              <Bell className="w-6 h-6" />
+            </button>
+            <div className="flex items-center space-x-3 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg shadow-blue-100">
+              <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center font-black text-[10px]">
+                W
+              </div>
+              <span className="text-xs font-black tracking-widest uppercase leading-none">
+                Work
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Stepper />
+
+      {currentStep === "upload" && (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          {/* NEW: Import Source Selector Container */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">
+              Import Source
+            </h3>
+            <div className="grid grid-cols-5 gap-4">
+              {SOURCES.map((source) => {
+                const isActive = uploadSource === source.id;
+                const Icon = source.icon;
+
+                return (
+                  <button
+                    key={source.id}
+                    onClick={() => setUploadSource(source.id as UploadSource)}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-6 px-4 rounded-2xl border-2 transition-all gap-3",
+                      isActive
+                        ? "border-[#007BC7] bg-blue-50/50 text-[#007BC7] shadow-sm"
+                        : "border-slate-50 hover:border-slate-200 text-slate-400 bg-white",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "w-6 h-6",
+                        isActive ? "text-[#007BC7]" : "text-slate-300",
+                      )}
+                    />
+                    <span className="text-sm font-bold tracking-tight">
+                      {source.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main Content Area based on selected source */}
+          <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-24 text-center flex flex-col items-center group hover:border-blue-400 transition-colors relative">
+            {uploadSource === "files" ? (
+              <>
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:scale-110 transition-transform">
+                  <Upload className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2">
+                  Drag and drop images here
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  {images.map((image) => (
-                    <div key={image.id} className="relative group">
-                      <div className="aspect-square bg-slate-100 rounded-lg overflow-hidden relative">
-                        {" "}
-                        {image.preview && image.preview !== "/pdf-icon.svg" ? (
+                <p className="text-slate-400 text-sm font-medium mb-8">
+                  Supports JPG, PNG, WebP, AVIF — up to 50 MB each
+                </p>
+                <div className="flex items-center w-64 mb-8">
+                  <div className="flex-grow h-px bg-slate-100"></div>
+                  <span className="mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                    or
+                  </span>
+                  <div className="flex-grow h-px bg-slate-100"></div>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="h-px w-24 bg-slate-100 mb-2" />
+                  <label className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-10 py-4 rounded-xl font-bold flex items-center space-x-2 cursor-pointer shadow-xl shadow-blue-100 transition-all">
+                    <Plus className="w-5 h-5" />
+                    <span>Browse Files</span>
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setImages(
+                          files.map((f) => ({
+                            file: f,
+                            name: f.name,
+                            id: Math.random(),
+                          })),
+                        );
+                        setCurrentStep("destinations");
+                      }}
+                    />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
+                  {/* Dynamically show the icon for the active source */}
+                  {(() => {
+                    const activeSource = SOURCES.find(
+                      (s) => s.id === uploadSource,
+                    );
+                    const Icon = activeSource?.icon || Upload;
+                    return <Icon className="w-8 h-8 text-slate-300" />;
+                  })()}
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
+                  Import via {uploadSource}
+                </h3>
+                <p className="text-slate-400 text-sm font-medium mb-8">
+                  Connect your {uploadSource} source to fetch product images
+                  automatically.
+                </p>
+                <button className="border-2 border-slate-200 text-slate-600 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all">
+                  Configure Source
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentStep === "destinations" && (
+        <div className="flex gap-6 animate-in slide-in-from-right-4 duration-500 items-start">
+          <div className="flex-1 space-y-6">
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              {/* 1. Imported Files - Now on Top */}
+              <div className="mb-8">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">
+                  Imported Files ({images.length})
+                </h3>
+                <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                  {images.map((image: any) => {
+                    const previewUrl =
+                      image.preview ||
+                      image.url ||
+                      (image.file ? URL.createObjectURL(image.file) : "");
+                    return (
+                      <div
+                        key={image.id}
+                        className="w-16 h-16 flex-shrink-0 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden shadow-sm"
+                        title={image.name}
+                      >
+                        {previewUrl ? (
                           <img
-                            src={image.preview}
+                            src={previewUrl}
                             alt={image.name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <FileText className="w-12 h-12 text-red-500" />
-                            <span className="mt-2 text-xs text-slate-600">
-                              PDF Document
-                            </span>
+                            <ImageIcon className="w-6 h-6 text-slate-300" />
                           </div>
                         )}
-                        {image.originalWidth && image.originalHeight && (
-                          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 text-white text-xs font-medium rounded">
-                            {image.originalWidth} × {image.originalHeight}
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 z-10">
-                          <div
-                            className={`px-2 py-1 text-xs font-medium rounded ${
-                              isPdfFile(image)
-                                ? "bg-red-100 text-red-800"
-                                : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {isPdfFile(image) ? "PDF" : "Image"}
-                          </div>
-                        </div>
-                        {(image.processingStatus || image.autoFixStatus) && (
-                          <div className="absolute top-2 left-2 z-10">
-                            {image.processingStatus === "success" && (
-                              <div className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded">
-                                Processed
-                              </div>
-                            )}
-                            {image.processingStatus === "partial_failure" && (
-                              <div
-                                className="px-2 py-1 bg-yellow-600 text-white text-xs font-medium rounded"
-                                title={image.failedOperations?.join(", ")}
-                              >
-                                Partial
-                              </div>
-                            )}
-                            {image.processingStatus === "failed" && (
-                              <div
-                                className="px-2 py-1 bg-red-600 text-white text-xs font-medium rounded"
-                                title={image.failedOperations?.join(", ")}
-                              >
-                                Failed
-                              </div>
-                            )}
-                            {image.autoFixStatus === "success" &&
-                              !image.processingStatus && (
-                                <div className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
-                                  Auto-Fixed
-                                </div>
-                              )}
-                          </div>
-                        )}
-                        {currentAnalysis && (
-                          <div className="absolute top-2 left-2">
-                            <div className="px-2 py-1 bg-black/70 text-white text-xs font-medium rounded">
-                              Score: {currentAnalysis.qualityScore}
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-                          {selectedProcessing.includes("crop") && (
-                            <button
-                              onClick={() => setEditingImage(image)}
-                              className="p-2 bg-white rounded-full hover:bg-blue-50 transition-colors"
-                              title="Crop Image"
-                            >
-                              <Crop className="w-4 h-4 text-blue-600" />
-                            </button>
-                          )}
-                          {selectedProcessing.includes("recolor") && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRecoloringImage(image);
-                                setPickedColor("#000000");
-                                setReplaceColor("#ff0000");
-                              }}
-                              className="p-2 bg-purple-600 text-white rounded-full hover:bg-purple-700"
-                              title="Recolor Product"
-                            >
-                              <Palette className="w-4 h-4" />
-                            </button>
-                          )}
-                          {selectedProcessing.includes("line-diagram") && (
-                            <button
-                              onClick={() => {
-                                handleLineDiagramClick(image);
-                              }}
-                              className="p-2 bg-white rounded-full hover:bg-purple-50 transition-colors"
-                              title="Add measurements"
-                            >
-                              <Ruler className="w-4 h-4 text-purple-500" />
-                            </button>
-                          )}
-                        </div>
                       </div>
-                      <button
-                        onClick={() => removeImage(image.id)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                      <p className="mt-2 text-xs text-slate-600 truncate">
-                        {image.name}
-                      </p>
+                    );
+                  })}
+                  {images.length === 0 && (
+                    <div className="text-sm text-slate-400 py-2">
+                      No imported files yet
                     </div>
-                  ))}
+                  )}
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-100 w-full mb-8" />
+
+              {/* 2. Project Name - Now Below */}
+              <div>
+                <div className="mb-4">
+                  <h3 className="text-lg font-black text-slate-900">
+                    Project Name
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Group these images under a project for easy filtering in
+                    Results & Reports.
+                  </p>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
+                    📁
+                  </span>
+                  <input
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. Summer Collection 2025"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* E-Commerce Platforms */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    E-Commerce Platforms
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Websites and storefronts
+                  </p>
                 </div>
                 <button
-                  onClick={handleUpload}
-                  disabled={
-                    uploading ||
-                    isAutoFixing ||
-                    images.length === 0 ||
-                    (selectedProcessing.length === 0 && !autoDetect)
-                  }
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  type="button"
+                  onClick={() => {
+                    const platformIds = ECOMMERCE_DESTINATIONS.map((d) => d.id);
+                    const allSelected = platformIds.every((id) =>
+                      selectedDestinations.includes(id),
+                    );
+                    setSelectedDestinations((prev) =>
+                      allSelected
+                        ? prev.filter((id) => !platformIds.includes(id))
+                        : Array.from(new Set([...prev, ...platformIds])),
+                    );
+                  }}
+                  className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline"
                 >
-                  {uploading ||
-                  isAutoFixing ||
-                  isGeneratingInfographic ||
-                  isAnalyzingForInfographic ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>
-                        {uploading
-                          ? progress.total > 0
-                            ? `${progress.phase}... (${progress.current}/${progress.total})`
-                            : "Uploading..."
-                          : "Auto-fixing Images..."}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5" />
-                      <span>
-                        Upload {images.length} Image
-                        {images.length > 1 ? "s" : ""}
-                        {autoDetect
-                          ? " (Auto-detect)"
-                          : ` (${selectedProcessing.length} operations)`}
-                      </span>
-                    </>
-                  )}
+                  Select all
                 </button>
-                {uploading && progress.total > 0 && (
-                  <div className="w-full bg-slate-200 rounded-full h-2.5 mt-3">
-                    <div
-                      className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${(progress.current / progress.total) * 100}%`,
-                      }}
-                    ></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {ECOMMERCE_DESTINATIONS.map((dest) => {
+                  const active = selectedDestinations.includes(dest.id);
+                  return (
+                    <button
+                      key={dest.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedDestinations((prev) =>
+                          prev.includes(dest.id)
+                            ? prev.filter((id) => id !== dest.id)
+                            : [...prev, dest.id],
+                        )
+                      }
+                      className={cn(
+                        "p-4 border-2 rounded-2xl flex items-center justify-between text-left transition-all",
+                        active
+                          ? "border-blue-500 bg-blue-50/40 ring-1 ring-blue-500"
+                          : "border-slate-100 hover:border-slate-200 bg-white",
+                      )}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl border flex items-center justify-center font-black text-sm shadow-sm",
+                            dest.bg,
+                            dest.text,
+                            dest.border,
+                          )}
+                        >
+                          {dest.initial}
+                        </div>
+                        <div className="text-sm font-bold text-slate-800">
+                          {dest.label}
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                          active
+                            ? "bg-blue-500 border-blue-500"
+                            : "border-slate-200",
+                        )}
+                      >
+                        {active && (
+                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Marketplaces */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Marketplaces
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Global selling platforms
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const marketplaceIds = MARKETPLACE_DESTINATIONS.map(
+                      (d) => d.id,
+                    );
+                    const allSelected = marketplaceIds.every((id) =>
+                      selectedDestinations.includes(id),
+                    );
+                    setSelectedDestinations((prev) =>
+                      allSelected
+                        ? prev.filter((id) => !marketplaceIds.includes(id))
+                        : Array.from(new Set([...prev, ...marketplaceIds])),
+                    );
+                  }}
+                  className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline"
+                >
+                  Select all
+                </button>
+              </div>
+              <div className="space-y-5">
+                {MARKETPLACE_GROUPS.map((group) => {
+                  const groupIds = group.items.map((item) => item.id);
+                  return (
+                    <div key={group.id}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-black text-slate-700 uppercase tracking-wide">
+                          {group.countryCode} {group.countryName}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allSelected = groupIds.every((id) =>
+                              selectedDestinations.includes(id),
+                            );
+                            setSelectedDestinations((prev) =>
+                              allSelected
+                                ? prev.filter((id) => !groupIds.includes(id))
+                                : Array.from(new Set([...prev, ...groupIds])),
+                            );
+                          }}
+                          className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline"
+                        >
+                          Select all
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {group.items.map((dest) => {
+                          const active = selectedDestinations.includes(dest.id);
+                          return (
+                            <button
+                              key={dest.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedDestinations((prev) =>
+                                  prev.includes(dest.id)
+                                    ? prev.filter((id) => id !== dest.id)
+                                    : [...prev, dest.id],
+                                )
+                              }
+                              className={cn(
+                                "p-4 border-2 rounded-2xl flex items-center justify-between text-left transition-all",
+                                active
+                                  ? "border-blue-500 bg-blue-50/40 ring-1 ring-blue-500 shadow-sm"
+                                  : "border-slate-100 hover:border-slate-200 bg-white",
+                              )}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  className={cn(
+                                    "w-10 h-10 rounded-xl border flex items-center justify-center font-black text-sm shadow-sm",
+                                    dest.bg,
+                                    dest.text,
+                                    dest.border,
+                                  )}
+                                >
+                                  {dest.initial}
+                                </div>
+                                <div className="text-sm font-bold text-slate-800">
+                                  {dest.label}
+                                </div>
+                              </div>
+                              <div
+                                className={cn(
+                                  "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                  active
+                                    ? "bg-blue-500 border-blue-500"
+                                    : "border-slate-200",
+                                )}
+                              >
+                                {active && (
+                                  <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={() => setCurrentStep("upload")}
+                className="flex items-center space-x-2 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Import</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="w-[340px] shrink-0">
+            <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm sticky top-10">
+              <div className="mb-6">
+                <h3 className="text-lg font-black text-slate-900">
+                  Selection Summary
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">
+                  {selectedDestinations.length} destinations selected
+                </p>
+              </div>
+              <div className="space-y-3 mb-10 min-h-[150px]">
+                {selectedDestinations.length === 0 ? (
+                  <div className="text-sm text-slate-400 italic">
+                    No destinations selected
                   </div>
+                ) : (
+                  selectedDestinations.map((id) => {
+                    const dest = [
+                      ...ECOMMERCE_DESTINATIONS,
+                      ...MARKETPLACE_DESTINATIONS,
+                    ].find((item) => item.id === id);
+                    if (!dest) return null;
+                    return (
+                      <div
+                        key={id}
+                        className="flex items-center justify-between gap-3 py-2 px-1"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={cn(
+                              "w-7 h-7 rounded-lg border flex items-center justify-center font-black text-[10px]",
+                              dest.bg,
+                              dest.text,
+                              dest.border,
+                            )}
+                          >
+                            {dest.initial}
+                          </div>
+                          <span className="text-sm text-slate-700 font-medium truncate">
+                            {dest.label}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedDestinations((prev) =>
+                              prev.filter((item) => item !== id),
+                            )
+                          }
+                          className="text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
-            )}
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-                <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <span className="text-red-700">{error}</span>
-              </div>
-            )}
-            {uploadResult && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-green-700 font-semibold text-lg">
-                      Upload successful!
-                    </p>
-                    <p className="text-green-600 text-sm mt-2">
-                      {uploadResult.images?.length || 0} image(s) uploaded and
-                      stored
-                    </p>
-                    {isAutoFixing && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center">
-                          <Loader2 className="w-5 h-5 text-blue-600 animate-spin mr-2" />
-                          <span className="text-blue-700 font-medium">
-                            Applying auto-detected fixes...
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-4 pt-4 border-t border-green-200">
-                      <button onClick={handleBulkDownload}
-                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm disabled:opacity-70">
-                        {isZipping ? (
-                          <>
-                          <Loader2 className="w-4 h-4 animate-spin"/>
-                          <span>Zipping files...</span>
-                          </>
-                        ):(
-                          <>
-                          <Download className="w-4  h-4"/>
-                          <span>Download All as ZIP</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    {autoFixResults.length > 0 && (
-                      <p className="text-green-600 text-sm mt-2">
-                        Auto-fix complete:{" "}
-                        {
-                          autoFixResults.filter((r) =>
-                            r.operations.some((op) => op.status === "success")
-                          ).length
-                        }{" "}
-                        image(s) processed successfully
-                      </p>
-                    )}
-                    {autoFixError && (
-                      <p className="text-red-600 text-sm mt-2">
-                        Some auto-fix operations failed: {autoFixError}
-                      </p>
-                    )}
-                    {autoDetect &&
-                      !isAutoFixing &&
-                      autoFixResults.length === 0 && (
-                        <p className="text-blue-600 text-sm mt-2">
-                          Auto-detection enabled - no fixes needed for these
-                          images
-                        </p>
-                      )}
-                    <p className="text-green-700 text-sm mt-3 font-medium">
-                      Scroll down to view your uploaded images in the gallery
-                      below
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {autoFixResults.length > 0 && !isAutoFixing && (
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">
-                  Auto-Fix Summary
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-white rounded-lg border">
-                    <div className="text-sm font-medium text-slate-900">
-                      Total Images
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {autoFixResults.length}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-white rounded-lg border">
-                    <div className="text-sm font-medium text-slate-900">
-                      Successful Fixes
-                    </div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {
-                        autoFixResults.filter((r) =>
-                          r.operations.some((op) => op.status === "success")
-                        ).length
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {autoFixError && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-                <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-red-700 font-semibold">Auto-Fix Error</p>
-                  <p className="text-red-600 text-sm mt-1">{autoFixError}</p>
-                </div>
-              </div>
-            )}
-            {currentAnalysis && (
-              <div className="mt-6 p-6 bg-gradient-to-br from-white to-blue-50 border border-blue-200 rounded-xl shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Wand2 className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900">
-                        AI Image Analysis
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        Detailed assessment of your product image
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="text-right">
-                      <div className="text-3xl font-bold text-slate-900">
-                        {currentAnalysis.qualityScore}
-                        <span className="text-sm text-slate-500">/100</span>
-                      </div>
-                      <div className="text-xs font-medium text-slate-500">
-                        Quality Score
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {isAutoFixing ? (
-                        <>
-                          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                          <span className="text-blue-700 font-medium">
-                            Applying Auto-Fixes
-                          </span>
-                        </>
-                      ) : autoFixResults.length > 0 ? (
-                        <>
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                          <span className="text-green-700 font-medium">
-                            Auto-Fixes Applied
-                          </span>
-                        </>
-                      ) : autoFixError ? (
-                        <>
-                          <XCircle className="w-5 h-5 text-red-500" />
-                          <span className="text-red-700 font-medium">
-                            Auto-Fix Error
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-5 h-5 text-blue-600" />
-                          <span className="text-blue-700 font-medium">
-                            Auto-Fixes Ready
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {isAutoFixing
-                        ? "Processing..."
-                        : autoFixResults.length > 0
-                        ? `${autoFixResults.length} image(s) processed`
-                        : "Ready to apply"}
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-6 p-4 bg-white border border-slate-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-slate-500">
-                        Product Category
-                      </div>
-                      <div className="text-lg font-semibold text-slate-900">
-                        {currentAnalysis.productCategory}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-slate-500">
-                        Background Type
-                      </div>
-                      <div className="text-lg font-semibold text-slate-900">
-                        {currentAnalysis.backgroundAnalysis.type}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-slate-900 mb-4">
-                    Detected Issues ({currentAnalysis.issues.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {currentAnalysis.issues.map((issue, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 border-l-4 rounded-r-lg ${
-                          issue.severity === "high"
-                            ? "border-red-500 bg-red-50"
-                            : issue.severity === "medium"
-                            ? "border-yellow-500 bg-yellow-50"
-                            : "border-blue-500 bg-blue-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center space-x-2 mb-1">
-                              <span
-                                className={`px-2 py-0.5 text-xs font-medium rounded ${
-                                  issue.severity === "high"
-                                    ? "bg-red-100 text-red-800"
-                                    : issue.severity === "medium"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-blue-100 text-blue-800"
-                                }`}
-                              >
-                                {issue.severity.toUpperCase()}
-                              </span>
-                              <span className="text-sm font-medium text-slate-900">
-                                {issue.type}
-                              </span>
-                            </div>
-                            <p className="text-slate-700">
-                              {issue.description}
-                            </p>
-                          </div>
-                          {issue.severity === "high" && (
-                            <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                          )}
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-slate-200">
-                          <div className="text-sm font-medium text-slate-900">
-                            Suggested Action:
-                          </div>
-                          <p className="text-sm text-slate-700">
-                            {issue.suggestedAction}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div
-                    className={`p-4 border-2 rounded-lg ${
-                      currentAnalysis.compliance.amazon.isCompliant
-                        ? "border-green-200 bg-green-50"
-                        : "border-red-200 bg-red-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        {currentAnalysis.compliance.amazon.isCompliant ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-500" />
-                        )}
-                        <span className="font-semibold text-slate-900">
-                          Amazon
-                        </span>
-                      </div>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded ${
-                          currentAnalysis.compliance.amazon.isCompliant
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {currentAnalysis.compliance.amazon.isCompliant
-                          ? "COMPLIANT"
-                          : "NON-COMPLIANT"}
-                      </span>
-                    </div>
-                    {currentAnalysis.compliance.amazon.violations.length >
-                      0 && (
-                      <div>
-                        <div className="text-sm font-medium text-slate-700 mb-1">
-                          Violations:
-                        </div>
-                        <ul className="text-sm text-slate-600 space-y-1">
-                          {currentAnalysis.compliance.amazon.violations
-                            .slice(0, 3)
-                            .map((violation, idx) => (
-                              <li key={idx} className="flex items-start">
-                                <span className="mr-2">•</span>
-                                {violation}
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={`p-4 border-2 rounded-lg ${
-                      currentAnalysis.compliance.shopify.isCompliant
-                        ? "border-green-200 bg-green-50"
-                        : "border-red-200 bg-red-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        {currentAnalysis.compliance.shopify.isCompliant ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-500" />
-                        )}
-                        <span className="font-semibold text-slate-900">
-                          Shopify
-                        </span>
-                      </div>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded ${
-                          currentAnalysis.compliance.shopify.isCompliant
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {currentAnalysis.compliance.shopify.isCompliant
-                          ? "COMPLIANT"
-                          : "NON-COMPLIANT"}
-                      </span>
-                    </div>
-                    {currentAnalysis.compliance.shopify.violations.length >
-                      0 && (
-                      <div>
-                        <div className="text-sm font-medium text-slate-700 mb-1">
-                          Violations:
-                        </div>
-                        <ul className="text-sm text-slate-600 space-y-1">
-                          {currentAnalysis.compliance.shopify.violations
-                            .slice(0, 3)
-                            .map((violation, idx) => (
-                              <li key={idx} className="flex items-start">
-                                <span className="mr-2">•</span>
-                                {violation}
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-slate-900 mb-4">
-                    AI Recommendations
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {Object.entries(currentAnalysis.suggestions).map(
-                      ([key, value]) => (
-                        <div
-                          key={key}
-                          className={`p-3 border-2 rounded-lg text-center transition-all ${
-                            value
-                              ? "border-green-500 bg-green-50"
-                              : "border-slate-200 bg-slate-50"
-                          }`}
-                        >
-                          <div className="text-sm font-medium text-slate-900 capitalize">
-                            {key.replace(/([A-Z])/g, " $1")}
-                          </div>
-                          <div className="mt-1">
-                            {value ? (
-                              <CheckCircle className="w-5 h-5 text-green-500 mx-auto" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-slate-400 mx-auto" />
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-600 mt-1">
-                            {value ? "Recommended" : "Not needed"}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Wand2 className="w-5 h-5 text-blue-600" />
-                    <span className="font-semibold text-slate-900">
-                      Auto-applied Operations
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700">
-                    Based on this analysis, the following operations have been
-                    automatically selected:
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {currentAnalysis.suggestions.backgroundRemoval && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                        Background Removal
-                      </span>
-                    )}
-                    {currentAnalysis.suggestions.upscaling && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                        Image Upscaling
-                      </span>
-                    )}
-                    {currentAnalysis.suggestions.cropping && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                        Smart Cropping
-                      </span>
-                    )}
-                    {currentAnalysis.suggestions.enhancement && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                        Image Enhancement
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            {uploadResult?.infographics &&
-              uploadResult.infographics.map((ig, idx) => (
-                <div
-                  key={idx}
-                  className="mt-6 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl"
-                >
-                  <div className="flex items-center space-x-2 mb-4">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                      />
-                    </svg>
-                    <h4 className="font-bold text-slate-800">
-                      📊 Generated Marketing Poster
-                    </h4>
-                  </div>
-                  <img
-                    src={ig.imageUrl}
-                    alt="Generated poster"
-                    className="w-full max-h-[800px] object-contain rounded-lg border shadow-sm"
-                  />
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="font-medium text-slate-700">
-                        Product Type
-                      </div>
-                      <div>{ig.analysis?.productType}</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-700">
-                        Target Audience
-                      </div>
-                      <div>{ig.analysis?.targetAudience}</div>
-                    </div>
-                  </div>
-                  <a
-                    href={ig.imageUrl}
-                    download={`poster-${ig.sourceImageId}.png`}
-                    className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    Download High-Resolution Poster
-                  </a>
-                </div>
-              ))}
-            {uploadResult?.lineDiagramSummary && (
-              <div className="mt-6 p-6 bg-purple-50 border border-purple-200 rounded-xl">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Ruler className="w-5 h-5 text-purple-600" />
-                  <h3 className="text-lg font-bold text-slate-900">
-                    Uploaded Line Diagrams (
-                    {uploadResult.lineDiagramSummary.totalProcessed})
-                  </h3>
-                </div>
-                <div className="space-y-4">
-                  {uploadResult.lineDiagramSummary.images.map(
-                    (img: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="p-4 bg-white rounded-lg border border-purple-100"
-                      >
-                        {img.annotatedUrl && (
-                          <div className="mb-4">
-                            <img
-                              src={img.annotatedUrl}
-                              alt={`Annotated diagram ${idx + 1}`}
-                              className="w-full max-h-[400px] object-contain rounded-lg border border-purple-200 bg-slate-50"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-medium text-slate-900">
-                            Diagram {idx + 1}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
-                              {img.measurementCount} measurement(s)
-                            </span>
-                            {img.annotatedUrl && (
-                              <a
-                                href={img.annotatedUrl}
-                                download={`diagram_${idx + 1}_annotated.png`}
-                                className="px-3 py-1 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 transition"
-                              >
-                                Download
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        {img.measurements && img.measurements.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="text-sm font-medium text-slate-700 mb-2">
-                              Measurements:
-                            </div>
-                            {img.measurements.map((m: any, mIdx: number) => (
-                              <div
-                                key={mIdx}
-                                className="flex justify-between items-center py-2 px-3 bg-slate-50 rounded-lg text-sm"
-                              >
-                                <span className="text-slate-700">
-                                  {m.label || `Measurement ${mIdx + 1}`}
-                                </span>
-                                <span className="font-mono font-medium text-slate-900">
-                                  {m.actual_value ||
-                                    `${m.pixel_length?.toFixed(1) || 0}px`}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setCurrentStep("processing")}
+                disabled={selectedDestinations.length === 0}
+                className="w-full bg-[#007BC7] hover:bg-[#0069ab] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 transition-all flex items-center justify-center space-x-2"
+              >
+                <span>Next: Processing Options</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 sticky top-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Processing Options
-              </h3>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoDetect}
-                  onChange={(e) => {
-                    const isChecked = e.target.checked;
-                    setAutoDetect(isChecked);
-                    if (isChecked) {
-                      runAutoDetection();
-                    } else {
-                      setSelectedProcessing([]);
+      )}
+
+      {currentStep === "processing" && (
+        <div className="flex gap-10 animate-in slide-in-from-right-4 duration-500 items-start">
+          <div className="flex-1 bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm">
+            <div className="flex justify-between items-center mb-10">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">
+                  Select Processing Operations
+                </h3>
+                <p className="text-slate-400 text-sm font-medium">
+                  Choose which operations to apply. Outputs generated per
+                  destination.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-6">
+                <button
+                  type="button"
+                  onClick={() => setAutoDetect(!autoDetect)}
+                  className="flex items-center space-x-3 cursor-pointer group focus:outline-none"
+                >
+                  <div
+                    className={cn(
+                      "text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-1.5",
+                      autoDetect
+                        ? "text-blue-600"
+                        : "text-slate-500 group-hover:text-blue-600",
+                    )}
+                  >
+                    <Wand2 className="w-4 h-4" /> Auto
+                  </div>
+
+                  <div
+                    className={cn(
+                      "w-10 h-6 rounded-full transition-colors relative shadow-inner",
+                      autoDetect ? "bg-blue-600" : "bg-slate-200",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm",
+                        autoDetect ? "translate-x-5" : "translate-x-1",
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {!autoDetect && (
+                  <button
+                    onClick={() =>
+                      setSelectedProcessing(PROCESSING_OPTIONS.map((o) => o.id))
                     }
-                  }}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                <div className="flex items-center space-x-1">
-                  <Wand2 className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-slate-700">
-                    Auto
-                  </span>
-                </div>
-              </label>
+                    className="text-blue-600 font-black text-xs uppercase tracking-widest hover:underline"
+                  >
+                    Select all
+                  </button>
+                )}
+              </div>
             </div>
+
             {autoDetect ? (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  AI will automatically detect and apply the best processing
-                  operations for each image.
+              <div className="p-8 bg-blue-50 border-2 border-blue-100 rounded-[2rem] text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+                  <Wand2 className="w-8 h-8 text-blue-600" />
+                </div>
+                <h4 className="text-xl font-black text-slate-900 mb-2">
+                  AI Auto-Detection Enabled
+                </h4>
+                <p className="text-slate-600 max-w-md">
+                  Our AI will automatically analyze each image and apply the
+                  optimal set of enhancements, background removals, and crops
+                  required for your selected destinations.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-slate-600 mb-3">
-                  Select operations to apply:
-                </p>
-                <div className="space-y-1 max-h-[600px] overflow-y-auto">
-                  {PROCESSING_OPTIONS.map((option) => {
-                    const isPdfOperation = option.id === "pdf-extract";
-                    const isImageOperation = !isPdfOperation;
-                    const hasPdfs = images.some((img) => isPdfFile(img));
-                    const hasImages = images.some((img) => isImgFile(img));
-                    const isDisabled =
-                      (isPdfOperation && !hasPdfs) ||
-                      (isImageOperation && !hasImages);
-                    return (
-                      <div key={option.id}>
-                        <label
-                          className={`flex items-start space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedProcessing.includes(option.id)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-slate-200 hover:bg-slate-50"
-                          } ${
-                            isDisabled ? "opacity-50 cursor-not-allowed" : ""
-                          }`}
+              <div className="grid grid-cols-2 gap-4 items-start">
+                {PROCESSING_OPTIONS.map((op) => {
+                  const active = selectedProcessing.includes(op.id);
+                  return (
+                    <div
+                      key={op.id}
+                      className={cn(
+                        "border-2 rounded-[1.75rem] transition-all overflow-hidden h-fit",
+                        active
+                          ? "border-blue-500 bg-blue-50/30 ring-1 ring-blue-500 shadow-md shadow-blue-50"
+                          : "border-slate-100 hover:border-slate-200 bg-white",
+                      )}
+                    >
+                      <button
+                        onClick={() =>
+                          setSelectedProcessing((prev) =>
+                            active
+                              ? prev.filter((x) => x !== op.id)
+                              : [...prev, op.id],
+                          )
+                        }
+                        className="w-full p-6 flex items-center space-x-5 text-left"
+                      >
+                        <div
+                          className={cn(
+                            "p-3 rounded-2xl shadow-sm shrink-0",
+                            active
+                              ? "bg-blue-500 text-white"
+                              : "bg-blue-50 text-blue-500",
+                          )}
                         >
-                          <input
-                            type="checkbox"
-                            checked={selectedProcessing.includes(option.id)}
-                            onChange={() => {
-                              if (isDisabled) {
-                                if (isPdfOperation) {
-                                  toast.error(
-                                    "PDF extraction can be performed only on PDF files!"
-                                  );
-                                } else {
-                                  toast.error(
-                                    `${option.label} can only be performed on image files`
-                                  );
-                                }
-                                return;
-                              }
-                              toggleProcessing(option.id);
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded mt-0.5 flex-shrink-0"
-                            disabled={isDisabled}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900">
-                              {option.label}
-                            </p>
-                            <p className="text-xs text-slate-600 mt-0.5">
-                              {option.description}
-                              {isPdfOperation
-                                ? " (PDF files only)"
-                                : " (Image files only)"}
-                            </p>
+                          <op.icon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-base font-black text-slate-800 leading-tight truncate">
+                            {op.label}
                           </div>
-                        </label>
-                        {option.id === "resize" &&
-                          selectedProcessing.includes("resize") && (
-                            <div className="mt-2  p-4 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
-                              <div className="grid grid-cols-4 gap-2">
-                                {(
-                                  [
-                                    "original",
-                                    "preset",
-                                    "custom",
-                                    "percentage",
-                                  ] as const
-                                ).map((mode) => (
+                          <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
+                            {op.description}
+                          </div>
+                        </div>
+                        <div
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                            active
+                              ? "bg-blue-500 border-blue-500"
+                              : "border-slate-200",
+                          )}
+                        >
+                          {active && (
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          )}
+                        </div>
+                      </button>
+
+                      {active && op.id === "resize" && (
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
+                            {(
+                              [
+                                "original",
+                                "preset",
+                                "custom",
+                                "percentage",
+                              ] as const
+                            ).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => setActiveResizeMode(mode)}
+                                className={cn(
+                                  "flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
+                                  activeResizeMode === mode
+                                    ? "bg-white text-blue-600 shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600",
+                                )}
+                              >
+                                {mode}
+                              </button>
+                            ))}
+                          </div>
+
+                          {activeResizeMode === "preset" && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {["500x500", "800x800", "1024x1024"].map(
+                                (preset) => (
                                   <button
-                                    key={mode}
-                                    onClick={() => setActiveResizeMode(mode)}
-                                    className={`px-2 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                                      activeResizeMode === mode
-                                        ? "bg-blue-600 text-white shadow-md"
-                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                    }`}
+                                    key={preset}
+                                    onClick={() => setSelectedPreset(preset)}
+                                    className={cn(
+                                      "py-2 text-xs font-bold rounded-lg border",
+                                      selectedPreset === preset
+                                        ? "bg-blue-100 border-blue-300 text-blue-700"
+                                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300",
+                                    )}
                                   >
-                                    {mode}
+                                    {preset}
                                   </button>
-                                ))}
-                              </div>
-
-                              <div className="pt-2 border-t border-slate-100">
-                                {activeResizeMode === "original" && (
-                                  <div className="text-xs text-slate-500 italic text-center">
-                                    The original image dimensions will be
-                                    preserved.
-                                  </div>
-                                )}
-
-                                {activeResizeMode === "preset" && (
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {(
-                                      [
-                                        "500x500",
-                                        "800x800",
-                                        "1024x1024",
-                                      ] as const
-                                    ).map((preset) => (
-                                      <button
-                                        key={preset}
-                                        onClick={() =>
-                                          setSelectedPreset(preset)
-                                        }
-                                        className={`px-3 py-2 text-sm font-medium rounded-lg border transition ${
-                                          selectedPreset === preset
-                                            ? "bg-blue-50 border-blue-500 text-blue-700"
-                                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                                        }`}
-                                      >
-                                        {preset}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {activeResizeMode === "custom" && (
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-xs font-semibold text-slate-500 mb-1">
-                                        Width (px)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={resizeDims.width}
-                                        onChange={(e) =>
-                                          setResizeDims((prev) => ({
-                                            ...prev,
-                                            width: Number(e.target.value),
-                                          }))
-                                        }
-                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-xs font-semibold text-slate-500 mb-1">
-                                        Height (px)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={resizeDims.height}
-                                        onChange={(e) =>
-                                          setResizeDims((prev) => ({
-                                            ...prev,
-                                            height: Number(e.target.value),
-                                          }))
-                                        }
-                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-
-                                {activeResizeMode === "percentage" && (
-                                  <div>
-                                    <div className="flex justify-between mb-2">
-                                      <label className="text-xs font-semibold text-slate-500">
-                                        Scale Factor
-                                      </label>
-                                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                        {resizePercentage}%
-                                      </span>
-                                    </div>
-                                    <input
-                                      type="range"
-                                      min="10"
-                                      max="200"
-                                      step="10"
-                                      value={resizePercentage}
-                                      onChange={(e) =>
-                                        setResizePercentage(
-                                          Number(e.target.value)
-                                        )
-                                      }
-                                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                    />
-                                    <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-                                      <span>10%</span>
-                                      <span>100%</span>
-                                      <span>200%</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                                ),
+                              )}
                             </div>
                           )}
-                        {option.id === "compress" &&
-                          selectedProcessing.includes("compress") && (
-                            <div className="mt-2 ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                              <div className="flex justify-between mb-1">
-                                <label className="text-xs font-semibold text-slate-500">
-                                  Quality
-                                </label>
-                                <span className="text-xs font-bold text-blue-600">
-                                  {compressionQuality}%
+
+                          {activeResizeMode === "custom" && (
+                            <div className="flex gap-4">
+                              <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                Width{" "}
+                                <input
+                                  type="number"
+                                  value={resizeDims.width}
+                                  onChange={(e) =>
+                                    setResizeDims((p) => ({
+                                      ...p,
+                                      width: Number(e.target.value),
+                                    }))
+                                  }
+                                  className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                />
+                              </label>
+                              <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                Height{" "}
+                                <input
+                                  type="number"
+                                  value={resizeDims.height}
+                                  onChange={(e) =>
+                                    setResizeDims((p) => ({
+                                      ...p,
+                                      height: Number(e.target.value),
+                                    }))
+                                  }
+                                  className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                />
+                              </label>
+                            </div>
+                          )}
+
+                          {activeResizeMode === "percentage" && (
+                            <div>
+                              <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
+                                <span>Scale Factor</span>
+                                <span className="text-blue-600">
+                                  {resizePercentage}%
                                 </span>
                               </div>
                               <input
                                 type="range"
                                 min="10"
-                                max="100"
-                                step="5"
-                                value={compressionQuality}
+                                max="200"
+                                step="10"
+                                value={resizePercentage}
                                 onChange={(e) =>
-                                  setCompressionQuality(Number(e.target.value))
+                                  setResizePercentage(Number(e.target.value))
                                 }
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="w-full accent-blue-600"
                               />
-                              <p className="text-[10px] text-slate-400 mt-1">
-                                Lower % = Smaller file size, lower quality.
-                              </p>
                             </div>
                           )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {selectedProcessing.length > 0 && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm font-medium text-green-700">
-                      {selectedProcessing.length} operation
-                      {selectedProcessing.length > 1 ? "s" : ""} selected
-                    </p>
-                  </div>
-                )}
+                        </div>
+                      )}
+
+                      {active && op.id === "compress" && (
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
+                            <span>Quality Ratio</span>
+                            <span className="text-blue-600">
+                              {compressionQuality}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="5"
+                            value={compressionQuality}
+                            onChange={(e) =>
+                              setCompressionQuality(Number(e.target.value))
+                            }
+                            className="w-full accent-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
-      </div>
-      {showMeasurementTool && measurementImage && (
-        <MeasurementModal
-          imageUrl={measurementImage.preview || measurementImage.url}
-          imageName={measurementImage.name}
-          existingMeasurements={
-            lineDiagramResults.find((r) => r.imageId === measurementImage.id)
-              ?.measurements || []
-          }
-          onClose={() => {
-            setShowMeasurementTool(false);
-            setMeasurementImage(null);
-          }}
-          onSave={handleMeasurementSave}
-        />
-      )}
-      {recoloringImage && (
-        <div
-          className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4"
-          onClick={() => setRecoloringImage(null)}
-        >
-          <div
-            className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <Palette className="w-8 h-8" />
-                Recolor Product
-              </h2>
-              <button
-                onClick={() => setRecoloringImage(null)}
-                className="p-2 hover:bg-white/20 rounded-lg transition"
-              >
-                <X className="w-6 h-6" />
-              </button>
+
+          <div className="w-[340px] shrink-0 h-fit bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm sticky top-10">
+            <h3 className="font-black text-slate-900 text-lg mb-1">
+              Processing Plan
+            </h3>
+            <p className="text-[10px] text-slate-400 font-black  tracking-widest mb-10">
+              {autoDetect ? "Auto" : selectedProcessing.length} operations ×{" "}
+              {selectedDestinations.length} destinations
+            </p>
+            <div className="mb-10 p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Total outputs per image
+              </span>
+              <div className="text-5xl font-black text-[#007BC7] my-3 leading-none">
+                {autoDetect
+                  ? "~4"
+                  : selectedProcessing.length * selectedDestinations.length}
+              </div>
+              <p className="text-[11px] text-slate-400 font-bold leading-tight">
+                {images.length} files ×{" "}
+                {autoDetect ? "AI Ops" : selectedProcessing.length + " ops"} ×{" "}
+                {selectedDestinations.length} dests
+              </p>
             </div>
 
-            <div className="p-8 grid lg:grid-cols-2 gap-10 overflow-y-auto max-h-[75vh]">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Original Image</h3>
-                <div className="relative">
-                  <img
-                    src={recoloringImage.preview || recoloringImage.url}
-                    alt="Original"
-                    className="w-full rounded-xl shadow-lg border-4 border-gray-200"
-                    id="original-image"
-                    onClick={handleImageColorPick}
-                  />
-                  <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                    <p className="text-sm text-slate-600">
-                      Click on the original image to pick a color
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-4">
-                  Recolored Preview
-                </h3>
-                <div className="relative rounded-xl overflow-hidden shadow-2xl mb-8 border-4 border-purple-200">
-                  <img
-                    src={getRecoloredPreviewUrl()}
-                    alt="Recolored preview"
-                    className="w-full rounded-lg"
-                    id="recolored-preview"
-                  />
-                </div>
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center p-4 bg-slate-50 rounded-xl">
-                      <p className="text-sm font-medium text-slate-700 mb-3">
-                        Color to Replace
-                      </p>
-                      <div
-                        className="w-32 h-32 rounded-2xl shadow-lg border-4 border-white mx-auto mb-3"
-                        style={{ backgroundColor: pickedColor }}
-                      />
-                      <div className="flex items-center justify-center gap-2">
-                        <input
-                          type="color"
-                          value={pickedColor}
-                          onChange={(e) => setPickedColor(e.target.value)}
-                          className="w-8 h-8 cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={pickedColor}
-                          onChange={(e) => setPickedColor(e.target.value)}
-                          className="font-mono text-sm px-2 py-1 border rounded"
-                        />
-                      </div>
-                      <button
-                        onClick={pickColorFromImage}
-                        className="mt-3 px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 transition"
-                      >
-                        Pick from Image
-                      </button>
-                    </div>
-
-                    <div className="text-center p-4 bg-slate-50 rounded-xl">
-                      <p className="text-sm font-medium text-slate-700 mb-3">
-                        Replacement Color
-                      </p>
-                      <input
-                        type="color"
-                        value={replaceColor}
-                        onChange={(e) => setReplaceColor(e.target.value)}
-                        className="w-32 h-32 rounded-2xl cursor-pointer shadow-lg border-4 border-white mb-3"
-                      />
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-lg">#</span>
-                        <input
-                          type="text"
-                          value={replaceColor.replace("#", "")}
-                          onChange={(e) =>
-                            setReplaceColor("#" + e.target.value)
-                          }
-                          className="font-mono text-sm px-2 py-1 border rounded w-24"
-                          placeholder="FF0000"
-                        />
-                      </div>
-                      <div className="mt-3 space-y-1">
                         <button
-                          onClick={() => setReplaceColor("#FF0000")}
-                          className="w-6 h-6 bg-red-500 rounded-full border-2 border-white"
-                          title="Red"
-                        />
-                        <button
-                          onClick={() => setReplaceColor("#0000FF")}
-                          className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white ml-2"
-                          title="Blue"
-                        />
-                        <button
-                          onClick={() => setReplaceColor("#00FF00")}
-                          className="w-6 h-6 bg-green-500 rounded-full border-2 border-white ml-2"
-                          title="Green"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center gap-4">
-                    <button
-                      onClick={applyRecoloring}
-                      disabled={isApplyingRecolor}
-                      className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-2xl transition flex items-center gap-3 disabled:opacity-50"
-                    >
-                      {isApplyingRecolor ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          Apply Recoloring
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => setRecoloringImage(null)}
-                      className="px-6 py-3 border-2 border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
+              onClick={handleProcessBatch}
+              disabled={
+                uploading ||
+                (!autoDetect && selectedProcessing.length === 0) ||
+                images.length === 0
+              }
+              className="w-full bg-[#007BC7] hover:bg-[#0069ab] text-white py-5 rounded-2xl font-black flex items-center justify-center space-x-3 shadow-2xl shadow-blue-100 disabled:opacity-50 transition-all uppercase tracking-widest text-xs"
+            >
+              {uploading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Wand2 className="w-5 h-5" />
+              )}
+              <span>{uploading ? "Processing..." : "Start Processing"}</span>
+            </button>
+            
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setCurrentStep("destinations")}
+                className="group flex items-center space-x-2 text-slate-400 hover:text-blue-600 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 transform group-hover:-translate-x-0.5 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-widest">
+                  Back to Destinations
+                </span>
+              </button>
             </div>
           </div>
         </div>
       )}
-    </>
+
+      {currentStep === "results" && (
+        <div className="space-y-5 animate-in fade-in duration-500 pb-20">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-4 px-2">
+              <button
+                onClick={() => {
+                  setCurrentStep("upload");
+                  setImages([]);
+                  setProjectName("");
+
+                  setProcessedResults([]);
+                }}
+                className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center space-x-2 transition-all shadow-lg shadow-blue-100"
+              >
+                <Plus className="w-4 h-4" /> <span>Import More</span>
+              </button>
+
+              <div className="h-8 w-px bg-slate-100" />
+
+              <button className="flex items-center space-x-2 text-slate-500 text-xs font-black uppercase tracking-widest px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors">
+                <SortAsc className="w-4 h-4" />
+                <span>Newest first</span>
+              </button>
+
+              <button className="flex items-center space-x-2 text-slate-500 text-xs font-black uppercase tracking-widest px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors">
+                <Filter className="w-4 h-4" />
+                <span>All destinations</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-6">
+              <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    viewMode === "list"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-500",
+                  )}
+                >
+                  <ListIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    viewMode === "grid"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-400 hover:text-slate-500",
+                  )}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] pr-4">
+                {processedResults.length} images
+              </span>
+            </div>
+          </div>
+
+          {viewMode === "list" && (
+            <div className="space-y-3">
+              {processedResults.map((res, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-[2rem] border border-slate-200 p-5 flex items-center justify-between hover:border-blue-400 shadow-sm transition-all group"
+                >
+                  <div className="flex items-center space-x-8">
+                    <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden shadow-inner flex items-center justify-center p-2 group-hover:bg-white transition-colors">
+                      <img
+                        src={res.url}
+                        className="w-full h-full object-contain drop-shadow-sm"
+                        alt="Result"
+                      />
+                    </div>
+
+                    <div>
+                      <h4 className="font-black text-slate-800 text-base mb-1 tracking-tight">
+                        {res.originalName}
+                      </h4>
+                      <div className="flex items-center space-x-3 text-[10px] font-black text-slate-400 uppercase tracking-tight">
+                        <span>
+                          {res.metadata?.width || "1080"}×
+                          {res.metadata?.height || "1080"}
+                        </span>
+                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                        <span>233.2 KB</span>
+                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                        <span>
+                          {new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
+                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                        <span>01:29 PM</span>
+                      </div>
+
+                      <div className="flex items-center mt-3 space-x-2">
+                        {selectedDestinations.map((dId) => {
+                          const d = [
+                            ...ECOMMERCE_DESTINATIONS,
+                            ...MARKETPLACE_DESTINATIONS,
+                          ].find((i) => i.id === dId);
+                          return (
+                            <span
+                              key={dId}
+                              className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black border border-slate-100 uppercase tracking-widest shadow-sm"
+                            >
+                              {d?.label || dId}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex items-center space-x-10 pr-4">
+                    <div>
+                      <div className="flex items-center space-x-1.5 text-emerald-500 mb-1 justify-end">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">
+                          Done
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                        {selectedDestinations.length}/
+                        {selectedDestinations.length} outputs ready
+                      </div>
+                    </div>
+                    <button className="p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors text-slate-300 group-hover:text-blue-500">
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+         {viewMode === "grid" && (
+  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+    {processedResults.map((res, idx) => (
+      <div
+        key={idx}
+        className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all group p-4"
+      >
+        {/* IMAGE CONTAINER WITH HOVER OVERLAY */}
+        <div className="aspect-square bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden mb-4 flex items-center justify-center p-4 relative">
+          <img
+            src={res.url}
+            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
+            alt="Result"
+          />
+
+          {/* DOWNLOAD BUTTON OVERLAY */}
+          <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
+            <button 
+              onClick={() => window.open(res.url, '_blank')}
+              className="bg-white text-slate-700 px-5 py-2.5 rounded-2xl font-bold text-sm shadow-xl flex items-center space-x-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-slate-50 hover:scale-105 active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-1">
+          <h4 className="font-black text-slate-800 text-sm truncate mb-1">
+            {res.originalName}
+          </h4>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1 text-emerald-500">
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span className="text-[9px] font-black uppercase tracking-widest">
+                Done
+              </span>
+            </div>
+            <span className="text-[9px] font-bold text-slate-400">
+              {selectedDestinations.length} Out
+            </span>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+        </div>
+      )}
+    </div>
   );
 }

@@ -79,7 +79,7 @@ export function SearchImages() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+<div className="w-full space-y-6 ">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Search Images</h1>
         <p className="text-slate-600 mt-1">Find images by SKU, MPN, category, or brand</p>

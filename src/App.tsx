@@ -3,7 +3,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
-import { AdvancedUpload } from './components/AdvancedUpload';
 import { Viewer3D } from './components/Viewer3D';
 import { Configurator } from './components/Configurator';
 import { ProductCatalog } from './components/ProductCatalog';
@@ -19,6 +18,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import { AdvancedUpload } from './components/AdvancedUpload';
 import { ReportsDashboard } from './components/ReportsDashboard';
 
 function AppContent() {
