@@ -814,6 +814,7 @@ export function AdvancedUpload() {
                 processOptions,
                 autoDetect
               );
+              const appliedOperations = result.telemetry?.steps || [];
               const processedUrl = result.url || result.secure_url || asset.url;
               return {
                 imageId: asset.id,
@@ -825,6 +826,7 @@ export function AdvancedUpload() {
                   status: "success",
                 })),
                 telemetry: result.telemetry,
+                appliedOps:appliedOperations
               };
             } catch (err: any) {
               const isNetworkError =
@@ -875,13 +877,13 @@ export function AdvancedUpload() {
           totalImages: processedResults.length,
           successfullyFixed: processedResults.filter((r) => r.isFixed).length,
           totalOperations: processedResults.reduce(
-            (acc, r) => acc + (r.operations?.length || 0),
+            (acc, r) => acc + (r.appliedOps?.length || 0),
             0
           ),
           appliedOperations: Array.from(
             new Set(
               processedResults.flatMap(
-                (r) => r.operations?.map((o: any) => o.operation) || []
+                 (r) => r.appliedOps || [] 
               )
             )
           ),
