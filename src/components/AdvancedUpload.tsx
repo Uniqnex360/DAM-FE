@@ -455,7 +455,10 @@ export function AdvancedUpload() {
       { id: "results", label: "Results" },
     ];
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
-
+const isValidImageFile = (file: File) => {
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/avif", "application/pdf"];
+    return validTypes.includes(file.type);
+};
     return (
       <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between mb-8 shadow-sm">
         {steps.map((s, idx) => {
@@ -607,16 +610,35 @@ export function AdvancedUpload() {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setImages(
-                          files.map((f) => ({
-                            file: f,
-                            name: f.name,
-                            id: Math.random(),
-                          })),
-                        );
-                        setCurrentStep("destinations");
-                      }}
+    const files = Array.from(e.target.files || []);
+    
+    // Validate file types
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/avif", "application/pdf"];
+    const invalidFiles = files.filter(f => !validTypes.includes(f.type));
+    const validFiles = files.filter(f => validTypes.includes(f.type));
+    
+    if (invalidFiles.length > 0) {
+        const invalidNames = invalidFiles.map(f => f.name).join(", ");
+        toast.error(`Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`);
+    }
+    
+    if (validFiles.length === 0) {
+        toast.error("Please select valid image files");
+        return;
+    }
+    
+    setImages(
+        validFiles.map((f) => ({
+            file: f,
+            name: f.name,
+            id: Math.random(),
+        })),
+    );
+    setCurrentStep("destinations");
+    if (invalidFiles.length > 0) {
+        toast.warning(`${invalidFiles.length} file(s) skipped due to invalid type`);
+    }
+}}
                     />
                   </label>
                 </div>
