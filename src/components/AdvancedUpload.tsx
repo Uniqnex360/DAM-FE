@@ -36,6 +36,8 @@ import {
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { MeasurementModal } from "./MeasurementModal";
+import { ImageCropModal } from "./ImageCropModal";
 
 const ECOMMERCE_DESTINATIONS = [
   {
@@ -207,7 +209,14 @@ type UploadSource = "files" | "urls" | "csv" | "page" | "cloud";
 export function AdvancedUpload() {
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [projectName, setProjectName] = useState("");
-
+  const [showMeasurementTool, setShowMeasurementTool] = useState(false);
+  const [measurementImage, setMeasurementImage] = useState<any>(null);
+  const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
+  const [editingImage, setEditingImage] = useState<any>(null);
+  const [recoloringImage, setRecoloringImage] = useState<any>(null);
+  const [pickedColor, setPickedColor] = useState("#000000");
+  const [replaceColor, setReplaceColor] = useState("#ff0000");
+  const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<any[]>([]);
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([
@@ -327,7 +336,117 @@ export function AdvancedUpload() {
       setUploading(false);
     }
   };
+  const handleCropSave = (newFile: File) => {
+    if (!editingImage) return;
+    const newUrl = URL.createObjectURL(newFile);
+    setImages((prev) =>
+      prev.map((img) => {
+        if (img.id === editingImage.id) {
+          return {
+            ...img,
+            url: newUrl,
+            preview: newUrl,
+            file: newFile,
+            name: newFile.name,
+          };
+        }
+        return img;
+      }),
+    );
+    setEditingImage(null);
+  };
 
+  const handleLineDiagramClick = (image: any) => {
+    setMeasurementImage(image);
+    setShowMeasurementTool(true);
+  };
+
+  const handleMeasurementSave = (
+    measurements: any[],
+    annotatedImageUrl: string,
+  ) => {
+    if (measurementImage) {
+      setLineDiagramResults((prev) => {
+        const existingIndex = prev.findIndex(
+          (r) => r.imageId === measurementImage.id,
+        );
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = {
+            imageId: measurementImage.id,
+            imageName: measurementImage.name,
+            measurements,
+            annotatedImageUrl,
+          };
+          return updated;
+        }
+        return [
+          ...prev,
+          {
+            imageId: measurementImage.id,
+            imageName: measurementImage.name,
+            measurements,
+            annotatedImageUrl,
+          },
+        ];
+      });
+    }
+    setShowMeasurementTool(false);
+    setMeasurementImage(null);
+  };
+
+  const handleImageColorPick = (e: React.MouseEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const rect = img.getBoundingClientRect();
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
+    const y = Math.floor(
+      (e.clientY - rect.top) * (canvas.height / rect.height),
+    );
+    const pixel = ctx.getImageData(x, y, 1, 1).data;
+    const hex =
+      "#" +
+      pixel[0].toString(16).padStart(2, "0") +
+      pixel[1].toString(16).padStart(2, "0") +
+      pixel[2].toString(16).padStart(2, "0");
+    setPickedColor(hex.toUpperCase());
+    toast.success(`Picked color: ${hex.toUpperCase()}`);
+  };
+
+  const getRecoloredPreviewUrl = (): string => {
+    if (!recoloringImage) return "";
+    if (recoloringImage.cloudinaryUrl) {
+      const fromColor = pickedColor.replace("#", "").toLowerCase();
+      const toColor = replaceColor.replace("#", "").toLowerCase();
+      return `${recoloringImage.cloudinaryUrl}?e_replace_color:${fromColor}:${toColor}:30`;
+    }
+    return recoloringImage.preview || recoloringImage.url || "";
+  };
+
+  const applyRecoloring = async () => {
+    setIsApplyingRecolor(true);
+    try {
+      const response = await assetApi.process(
+        recoloringImage.id,
+        ["recolor"],
+        { fromColor: pickedColor, toColor: replaceColor, tolerance: 20 },
+        false,
+      );
+      if (response?.url) {
+        toast.success("Image recolored successfully!");
+        setRecoloringImage(null);
+      }
+    } catch (error: any) {
+      toast.error("Failed to recolor: " + error.message);
+    } finally {
+      setIsApplyingRecolor(false);
+    }
+  };
   const Stepper = () => {
     const steps = [
       { id: "upload", label: "Import Files" },
@@ -590,12 +709,17 @@ export function AdvancedUpload() {
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                     📁
                   </span>
-                  <input
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="e.g. Summer Collection 2025"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white"
-                  />
+                 <input
+    value={projectName}
+    onChange={(e) => setProjectName(e.target.value)}
+    placeholder="e.g. Summer Collection 2025"
+    className={`w-full bg-slate-50 border rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white ${!projectName.trim() ? 'border-amber-300' : 'border-slate-200'}`}
+/>
+{!projectName.trim() && (
+    <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1">
+        <span>⚠️</span> Project name is required to continue
+    </p>
+)}
                 </div>
               </div>
             </div>
@@ -867,15 +991,21 @@ export function AdvancedUpload() {
                   })
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setCurrentStep("processing")}
-                disabled={selectedDestinations.length === 0}
-                className="w-full bg-[#007BC7] hover:bg-[#0069ab] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 transition-all flex items-center justify-center space-x-2"
-              >
-                <span>Next: Processing Options</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+             <button
+    type="button"
+    onClick={() => {
+        if (!projectName.trim()) {
+            toast.error("Please enter a project name before proceeding");
+            return;
+        }
+        setCurrentStep("processing");
+    }}
+disabled={selectedDestinations.length === 0 || !projectName.trim()}
+    className="w-full bg-[#007BC7] hover:bg-[#0069ab] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 transition-all flex items-center justify-center space-x-2"
+>
+    <span>Next: Processing Options</span>
+    <ArrowRight className="w-5 h-5" />
+</button>
             </div>
           </div>
         </div>
@@ -1135,6 +1265,59 @@ export function AdvancedUpload() {
                           />
                         </div>
                       )}
+                      {active && op.id === "crop" && (
+    <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+        <p className="text-xs text-slate-500 mb-2">Select an image to crop</p>
+        <button
+            onClick={() => {
+                const img = images[0];
+                if (img) setEditingImage(img);
+            }}
+            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold"
+        >
+            Open Crop Tool
+        </button>
+        {editingImage && (
+            <ImageCropModal
+                imageSrc={editingImage.url}
+                fileName={editingImage.name}
+                onClose={() => setEditingImage(null)}
+                onSave={handleCropSave}
+            />
+        )}
+    </div>
+)}
+
+                      {active && op.id === "line-diagram" && (
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <p className="text-xs text-slate-500 mb-2">
+                            Click on an image to add measurements
+                          </p>
+                          <button
+                            onClick={() => {
+                              const img = images[0];
+                              if (img) handleLineDiagramClick(img);
+                            }}
+                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
+                          >
+                            Open Measurement Tool
+                          </button>
+                        </div>
+                      )}
+
+                      {active && op.id === "recolor" && (
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <button
+                            onClick={() => {
+                              const img = images[0];
+                              if (img) setRecoloringImage(img);
+                            }}
+                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
+                          >
+                            Open Color Picker
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1166,7 +1349,7 @@ export function AdvancedUpload() {
               </p>
             </div>
 
-                        <button
+            <button
               onClick={handleProcessBatch}
               disabled={
                 uploading ||
@@ -1182,7 +1365,7 @@ export function AdvancedUpload() {
               )}
               <span>{uploading ? "Processing..." : "Start Processing"}</span>
             </button>
-            
+
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
@@ -1340,53 +1523,146 @@ export function AdvancedUpload() {
             </div>
           )}
 
-         {viewMode === "grid" && (
-  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-    {processedResults.map((res, idx) => (
-      <div
-        key={idx}
-        className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all group p-4"
-      >
-        {/* IMAGE CONTAINER WITH HOVER OVERLAY */}
-        <div className="aspect-square bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden mb-4 flex items-center justify-center p-4 relative">
-          <img
-            src={res.url}
-            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-            alt="Result"
-          />
+          {viewMode === "grid" && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {processedResults.map((res, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all group p-4"
+                >
+                  {/* IMAGE CONTAINER WITH HOVER OVERLAY */}
+                  <div className="aspect-square bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden mb-4 flex items-center justify-center p-4 relative">
+                    <img
+                      src={res.url}
+                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
+                      alt="Result"
+                    />
 
-          {/* DOWNLOAD BUTTON OVERLAY */}
-          <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
-            <button 
-              onClick={() => window.open(res.url, '_blank')}
-              className="bg-white text-slate-700 px-5 py-2.5 rounded-2xl font-bold text-sm shadow-xl flex items-center space-x-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-slate-50 hover:scale-105 active:scale-95"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download</span>
-            </button>
-          </div>
-        </div>
+                    {/* DOWNLOAD BUTTON OVERLAY */}
+                    <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                      <button
+                        onClick={() => window.open(res.url, "_blank")}
+                        className="bg-white text-slate-700 px-5 py-2.5 rounded-2xl font-bold text-sm shadow-xl flex items-center space-x-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-slate-50 hover:scale-105 active:scale-95"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  </div>
 
-        <div className="px-1">
-          <h4 className="font-black text-slate-800 text-sm truncate mb-1">
-            {res.originalName}
-          </h4>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1 text-emerald-500">
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span className="text-[9px] font-black uppercase tracking-widest">
-                Done
-              </span>
+                  <div className="px-1">
+                    <h4 className="font-black text-slate-800 text-sm truncate mb-1">
+                      {res.originalName}
+                    </h4>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1 text-emerald-500">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">
+                          Done
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400">
+                        {selectedDestinations.length} Out
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <span className="text-[9px] font-bold text-slate-400">
-              {selectedDestinations.length} Out
-            </span>
-          </div>
+          )}
         </div>
-      </div>
-    ))}
-  </div>
-)}
+      )}
+      {showMeasurementTool && measurementImage && (
+        <MeasurementModal
+          imageUrl={measurementImage.preview || measurementImage.url}
+          imageName={measurementImage.name}
+          existingMeasurements={
+            lineDiagramResults.find((r) => r.imageId === measurementImage.id)
+              ?.measurements || []
+          }
+          onClose={() => {
+            setShowMeasurementTool(false);
+            setMeasurementImage(null);
+          }}
+          onSave={handleMeasurementSave}
+        />
+      )}
+
+      {recoloringImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4"
+          onClick={() => setRecoloringImage(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+              <h2 className="text-xl font-bold flex items-center gap-3">
+                <Palette className="w-6 h-6" />
+                Recolor Product
+              </h2>
+              <button
+                onClick={() => setRecoloringImage(null)}
+                className="p-2 hover:bg-white/20 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 grid md:grid-cols-2 gap-6 overflow-y-auto max-h-[70vh]">
+              <div>
+                <h3 className="text-sm font-bold mb-3">
+                  Original Image (click to pick color)
+                </h3>
+                <img
+                  src={recoloringImage.preview || recoloringImage.url}
+                  alt="Original"
+                  className="w-full rounded-xl border cursor-crosshair"
+                  onClick={handleImageColorPick}
+                />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold mb-3">Recolored Preview</h3>
+                <img
+                  src={getRecoloredPreviewUrl()}
+                  alt="Preview"
+                  className="w-full rounded-xl border"
+                />
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="text-center p-3 bg-slate-50 rounded-xl">
+                    <p className="text-xs font-medium mb-2">Color to Replace</p>
+                    <input
+                      type="color"
+                      value={pickedColor}
+                      onChange={(e) => setPickedColor(e.target.value)}
+                      className="w-full h-10 cursor-pointer"
+                    />
+                  </div>
+                  <div className="text-center p-3 bg-slate-50 rounded-xl">
+                    <p className="text-xs font-medium mb-2">Replacement</p>
+                    <input
+                      type="color"
+                      value={replaceColor}
+                      onChange={(e) => setReplaceColor(e.target.value)}
+                      className="w-full h-10 cursor-pointer"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={applyRecoloring}
+                  disabled={isApplyingRecolor}
+                  className="w-full mt-4 bg-purple-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isApplyingRecolor ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {isApplyingRecolor ? "Processing..." : "Apply Recoloring"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
