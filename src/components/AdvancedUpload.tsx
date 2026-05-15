@@ -7,7 +7,6 @@ import {
   Cloud,
   Loader2,
   CheckCircle,
-  XCircle,
   Wand2,
   Crop,
   Ruler,
@@ -20,18 +19,16 @@ import {
   ArrowRight,
   Search,
   Bell,
-  User,
   Filter,
   SortAsc,
   LayoutGrid,
   List as ListIcon,
   Plus,
-  Maximize2,
   Image as ImageIcon,
   Box,
   Minimize2,
   BarChart,
-  ShoppingBag,
+  Folder,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
@@ -209,6 +206,9 @@ type UploadSource = "files" | "urls" | "csv" | "page" | "cloud";
 export function AdvancedUpload() {
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [projectName, setProjectName] = useState("");
+  const [existingProjects, setExistingProjects] = useState<string[]>([]);
+  const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
+
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
   const [measurementImage, setMeasurementImage] = useState<any>(null);
   const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
@@ -216,6 +216,8 @@ export function AdvancedUpload() {
   const [recoloringImage, setRecoloringImage] = useState<any>(null);
   const [pickedColor, setPickedColor] = useState("#000000");
   const [replaceColor, setReplaceColor] = useState("#ff0000");
+  const [showFileList, setShowFileList] = useState(false);
+
   const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<any[]>([]);
@@ -250,7 +252,40 @@ export function AdvancedUpload() {
       setResizeDims({ width: w, height: h });
     }
   }, [activeResizeMode, selectedPreset]);
-
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const gallery = await assetApi.getGallery();
+        const projects = [
+          ...new Set(
+            gallery.map((s: any) => s.metadata?.project_name).filter(Boolean),
+          ),
+        ] as string[];
+        setExistingProjects(projects);
+      } catch (e) {
+        // Silent fail
+      }
+    };
+    loadProjects();
+  }, []);
+  const addMoreImages = (files: FileList) => {
+    const newFiles = Array.from(files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    setImages((prev) => [
+      ...prev,
+      ...newFiles.map((f) => ({
+        file: f,
+        name: f.name,
+        id: Math.random(),
+        preview: URL.createObjectURL(f),
+        url: URL.createObjectURL(f),
+      })),
+    ]);
+  };
+  const removeImage = (id: number) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  };
   const handleProcessBatch = async () => {
     setUploading(true);
     setProgress({ current: 0, total: images.length, phase: "Uploading" });
@@ -455,10 +490,16 @@ export function AdvancedUpload() {
       { id: "results", label: "Results" },
     ];
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
-const isValidImageFile = (file: File) => {
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/avif", "application/pdf"];
-    return validTypes.includes(file.type);
-};
+    const isValidImageFile = (file: File) => {
+      const validTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/avif",
+        "application/pdf",
+      ];
+      return validTypes.includes(file.type);
+    };
     return (
       <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between mb-8 shadow-sm">
         {steps.map((s, idx) => {
@@ -590,9 +631,7 @@ const isValidImageFile = (file: File) => {
                 <h3 className="text-2xl font-black text-slate-900 mb-2">
                   Drag and drop images here
                 </h3>
-                <p className="text-slate-400 text-sm font-medium mb-8">
-                  Supports JPG, PNG, WebP, AVIF — up to 50 MB each
-                </p>
+                <p className="text-slate-400 text-sm font-medium mb-8"></p>
                 <div className="flex items-center w-64 mb-8">
                   <div className="flex-grow h-px bg-slate-100"></div>
                   <span className="mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
@@ -610,38 +649,56 @@ const isValidImageFile = (file: File) => {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-    const files = Array.from(e.target.files || []);
-    
-    // Validate file types
-    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/avif", "application/pdf"];
-    const invalidFiles = files.filter(f => !validTypes.includes(f.type));
-    const validFiles = files.filter(f => validTypes.includes(f.type));
-    
-    if (invalidFiles.length > 0) {
-        const invalidNames = invalidFiles.map(f => f.name).join(", ");
-        toast.error(`Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`);
-    }
-    
-    if (validFiles.length === 0) {
-        toast.error("Please select valid image files");
-        return;
-    }
-    
-    setImages(
-        validFiles.map((f) => ({
-            file: f,
-            name: f.name,
-            id: Math.random(),
-        })),
-    );
-    setCurrentStep("destinations");
-    if (invalidFiles.length > 0) {
-        toast.warning(`${invalidFiles.length} file(s) skipped due to invalid type`);
-    }
-}}
+                        const files = Array.from(e.target.files || []);
+                        const validTypes = [
+                          "image/jpeg",
+                          "image/png",
+                          "image/webp",
+                          "image/avif",
+                          "application/pdf",
+                        ];
+                        const invalidFiles = files.filter(
+                          (f) => !validTypes.includes(f.type),
+                        );
+                        const validFiles = files.filter((f) =>
+                          validTypes.includes(f.type),
+                        );
+
+                        if (invalidFiles.length > 0) {
+                          const invalidNames = invalidFiles
+                            .map((f) => f.name)
+                            .join(", ");
+                          toast.error(
+                            `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
+                          );
+                        }
+
+                        if (validFiles.length === 0) {
+                          toast.error("Please select valid image files");
+                          return;
+                        }
+
+                        setImages(
+                          validFiles.map((f) => ({
+                            file: f,
+                            name: f.name,
+                            id: Math.random(),
+                            preview: URL.createObjectURL(f),
+                            url: URL.createObjectURL(f),
+                          })),
+                        );
+
+                        if (invalidFiles.length > 0) {
+                          toast.warning(
+                            `${invalidFiles.length} file(s) skipped due to invalid type`,
+                          );
+                        }
+                      }}
                     />
                   </label>
                 </div>
+                {/* Selected Files Grid - shows after files are added */}
+               
               </>
             ) : (
               <div className="flex flex-col items-center">
@@ -668,6 +725,53 @@ const isValidImageFile = (file: File) => {
               </div>
             )}
           </div>
+           {images.length > 0 && (
+                  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm mt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                        Selected Files ({images.length})
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setImages([])}
+                          className="text-xs font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
+                        >
+                          Remove all
+                        </button>
+                        <button
+                          onClick={() => setCurrentStep("destinations")}
+                          className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-100"
+                        >
+                          <span>Next: Destinations</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                      {images.map((image) => (
+                        <div key={image.id} className="relative group">
+                          <div className="aspect-square bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
+                            <img
+                              src={image.preview || image.url}
+                              alt={image.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeImage(image.id)}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
+                            {image.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
         </div>
       )}
 
@@ -731,17 +835,56 @@ const isValidImageFile = (file: File) => {
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">
                     📁
                   </span>
-                 <input
-    value={projectName}
-    onChange={(e) => setProjectName(e.target.value)}
-    placeholder="e.g. Summer Collection 2025"
-    className={`w-full bg-slate-50 border rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white ${!projectName.trim() ? 'border-amber-300' : 'border-slate-200'}`}
-/>
-{!projectName.trim() && (
-    <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1">
-        <span>⚠️</span> Project name is required to continue
-    </p>
-)}
+                  <input
+                    value={projectName}
+                    onChange={(e) => {
+                      setProjectName(e.target.value);
+                      setShowProjectSuggestions(true);
+                    }}
+                    onFocus={() => setShowProjectSuggestions(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowProjectSuggestions(false), 200)
+                    }
+                    placeholder="e.g. Summer Collection 2025"
+                    className={`w-full bg-slate-50 border rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white ${!projectName.trim() ? "border-amber-300" : "border-slate-200"}`}
+                  />
+
+                  {/* Project Suggestions Dropdown */}
+                  {showProjectSuggestions && projectName.trim() && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-40 overflow-y-auto">
+                      {existingProjects
+                        .filter((p) =>
+                          p.toLowerCase().includes(projectName.toLowerCase()),
+                        )
+                        .map((project) => (
+                          <button
+                            key={project}
+                            type="button"
+                            onClick={() => {
+                              setProjectName(project);
+                              setShowProjectSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 first:rounded-t-xl last:rounded-b-xl"
+                          >
+                            <Folder className="w-4 h-4 text-slate-400" />
+                            {project}
+                          </button>
+                        ))}
+                      {existingProjects.filter((p) =>
+                        p.toLowerCase().includes(projectName.toLowerCase()),
+                      ).length === 0 && (
+                        <div className="px-4 py-2.5 text-sm text-slate-400">
+                          New project: "{projectName}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!projectName.trim() && (
+                    <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1">
+                      <span>⚠️</span> Project name is required to continue
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -869,22 +1012,6 @@ const isValidImageFile = (file: File) => {
                         <div className="text-sm font-black text-slate-700 uppercase tracking-wide">
                           {group.countryCode} {group.countryName}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const allSelected = groupIds.every((id) =>
-                              selectedDestinations.includes(id),
-                            );
-                            setSelectedDestinations((prev) =>
-                              allSelected
-                                ? prev.filter((id) => !groupIds.includes(id))
-                                : Array.from(new Set([...prev, ...groupIds])),
-                            );
-                          }}
-                          className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline"
-                        >
-                          Select all
-                        </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {group.items.map((dest) => {
@@ -1013,21 +1140,25 @@ const isValidImageFile = (file: File) => {
                   })
                 )}
               </div>
-             <button
-    type="button"
-    onClick={() => {
-        if (!projectName.trim()) {
-            toast.error("Please enter a project name before proceeding");
-            return;
-        }
-        setCurrentStep("processing");
-    }}
-disabled={selectedDestinations.length === 0 || !projectName.trim()}
-    className="w-full bg-[#007BC7] hover:bg-[#0069ab] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 transition-all flex items-center justify-center space-x-2"
->
-    <span>Next: Processing Options</span>
-    <ArrowRight className="w-5 h-5" />
-</button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!projectName.trim()) {
+                    toast.error(
+                      "Please enter a project name before proceeding",
+                    );
+                    return;
+                  }
+                  setCurrentStep("processing");
+                }}
+                disabled={
+                  selectedDestinations.length === 0 || !projectName.trim()
+                }
+                className="w-full bg-[#007BC7] hover:bg-[#0069ab] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 transition-all flex items-center justify-center space-x-2"
+              >
+                <span>Next: Processing Options</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -1288,27 +1419,48 @@ disabled={selectedDestinations.length === 0 || !projectName.trim()}
                         </div>
                       )}
                       {active && op.id === "crop" && (
-    <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-        <p className="text-xs text-slate-500 mb-2">Select an image to crop</p>
-        <button
-            onClick={() => {
-                const img = images[0];
-                if (img) setEditingImage(img);
-            }}
-            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold"
-        >
-            Open Crop Tool
-        </button>
-        {editingImage && (
-            <ImageCropModal
-                imageSrc={editingImage.url}
-                fileName={editingImage.name}
-                onClose={() => setEditingImage(null)}
-                onSave={handleCropSave}
-            />
-        )}
-    </div>
-)}
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <p className="text-xs text-slate-500 mb-2">
+                            Select an image to crop
+                          </p>
+                          {images.map((img, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                // Create preview URL from file if needed
+                                const previewUrl =
+                                  img.preview ||
+                                  img.url ||
+                                  (img.file
+                                    ? URL.createObjectURL(img.file)
+                                    : "");
+                                console.log(
+                                  "Opening crop for:",
+                                  img.name,
+                                  "URL:",
+                                  previewUrl,
+                                );
+                                setEditingImage({
+                                  ...img,
+                                  url: previewUrl,
+                                  preview: previewUrl,
+                                });
+                              }}
+                              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate"
+                            >
+                              Crop: {img.name}
+                            </button>
+                          ))}
+                          {editingImage && editingImage.url && (
+                            <ImageCropModal
+                              imageSrc={editingImage.url}
+                              fileName={editingImage.name}
+                              onClose={() => setEditingImage(null)}
+                              onSave={handleCropSave}
+                            />
+                          )}
+                        </div>
+                      )}
 
                       {active && op.id === "line-diagram" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
