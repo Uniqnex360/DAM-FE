@@ -184,18 +184,24 @@ const MARKETPLACE_GROUPS = [
     id: "us",
     countryCode: "US",
     countryName: "United States",
-    items: MARKETPLACE_DESTINATIONS.filter(d => 
-      d.id === "amazon-us" || d.id === "walmart" || d.id === "wayfair-us" || 
-      d.id === "ebay-us" || d.id === "target-plus" || d.id === "tiktok-shop" || 
-      d.id === "homedepot"
+    items: MARKETPLACE_DESTINATIONS.filter(
+      (d) =>
+        d.id === "amazon-us" ||
+        d.id === "walmart" ||
+        d.id === "wayfair-us" ||
+        d.id === "ebay-us" ||
+        d.id === "target-plus" ||
+        d.id === "tiktok-shop" ||
+        d.id === "homedepot",
     ),
   },
   {
     id: "uk",
     countryCode: "UK",
     countryName: "United Kingdom",
-    items: MARKETPLACE_DESTINATIONS.filter(d => 
-      d.id === "amazon-uk" || d.id === "wayfair-uk" || d.id === "ebay-uk"
+    items: MARKETPLACE_DESTINATIONS.filter(
+      (d) =>
+        d.id === "amazon-uk" || d.id === "wayfair-uk" || d.id === "ebay-uk",
     ),
   },
 ];
@@ -1839,7 +1845,7 @@ export function AdvancedUpload() {
                     </div>
                   </div>
 
-                  {/* Multiple Outputs Grid */}
+                  {/* Multiple Outputs Grid (Resize) */}
                   {res.outputs && res.outputs.length > 0 ? (
                     <div className="border-t border-slate-100 pt-4">
                       <h5 className="text-sm font-black text-slate-700 mb-3">
@@ -1886,7 +1892,61 @@ export function AdvancedUpload() {
                         ))}
                       </div>
                     </div>
-                  ) : null}
+                  ) : res.url ? (
+  // ✅ SINGLE OUTPUT (Background Removal, Retouch, Crop, etc.)
+  <div className="border-t border-slate-100 pt-4">
+    <h5 className="text-sm font-black text-slate-700 mb-3">
+      Processed Image
+    </h5>
+    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-bold text-sm capitalize">
+          Result
+        </span>
+        <span className="text-xs text-slate-500">
+          {/* Show processed image dimensions if available */}
+          {res.processed_width && res.processed_height 
+            ? `${res.processed_width}×${res.processed_height}` 
+            : `${res.metadata?.width || "?"}×${res.metadata?.height || "?"}`}
+        </span>
+      </div>
+      <img
+        src={res.url}
+        alt="Processed"
+        className="w-full h-32 object-contain bg-white rounded-lg"
+        onError={(e) => {
+          console.error('Failed to load image:', res.url);
+          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">Load failed</text></svg>';
+        }}
+      />
+      <button
+        onClick={async () => {
+          try {
+            const response = await fetch(res.url);
+            if (!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+            toast.success("Downloaded successfully");
+          } catch (error) {
+            console.error('Download error:', error);
+            toast.error("Failed to download image");
+          }
+        }}
+        className="mt-2 w-full py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+      >
+        <Download className="w-3 h-3" />
+        Download Processed Image
+      </button>
+    </div>
+  </div>
+) : null} 
 
                   {/* Footer Stats */}
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
@@ -1910,6 +1970,7 @@ export function AdvancedUpload() {
     {processedResults.map((res, idx) => (
       <div key={idx} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all">
         {res.outputs && res.outputs.length > 0 ? (
+          // Multiple outputs (Resize)
           <div>
             <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
               <img
@@ -1951,15 +2012,16 @@ export function AdvancedUpload() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : res.url ? (
+          // ✅ Single output (BG Removal, Retouch, Crop, etc.)
           <div>
             <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
-              <img src={res.url} className="w-full h-full object-contain" alt={res.name} />
+              <img src={res.url} className="w-full h-full object-contain" alt="Processed" />
             </div>
             <div className="p-4">
               <h4 className="font-black text-slate-800 text-sm truncate">{res.originalName}</h4>
               <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-400">Ready</span>
+                <span className="text-[10px] font-bold text-slate-400">Processed</span>
                 <button
                   onClick={async () => {
                     const response = await fetch(res.url);
@@ -1967,7 +2029,7 @@ export function AdvancedUpload() {
                     const blobUrl = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = blobUrl;
-                    link.download = res.originalName;
+                    link.download = `${res.originalName.split('.')[0]}_processed.jpg`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -1981,7 +2043,7 @@ export function AdvancedUpload() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     ))}
   </div>
