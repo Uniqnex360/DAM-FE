@@ -13,8 +13,6 @@ import {
   Palette,
   X,
   Sparkles,
-  Download,
-  ChevronRight,
   ArrowLeft,
   ArrowRight,
   Search,
@@ -29,12 +27,17 @@ import {
   Minimize2,
   BarChart,
   Folder,
+  Download,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { MeasurementModal } from "./MeasurementModal";
 import { ImageCropModal } from "./ImageCropModal";
+import {
+  getResizeDimensionsForDestinations,
+  MARKETPLACE_RULES,
+} from "../utils/marketplaceRules";
 
 const ECOMMERCE_DESTINATIONS = [
   {
@@ -103,12 +106,36 @@ const MARKETPLACE_DESTINATIONS = [
     border: "border-orange-100",
   },
   {
+    id: "amazon-uk",
+    label: "Amazon UK",
+    initial: "Am",
+    bg: "bg-orange-50",
+    text: "text-orange-600",
+    border: "border-orange-100",
+  },
+  {
     id: "walmart",
     label: "Walmart",
     initial: "Wa",
     bg: "bg-blue-50",
     text: "text-blue-600",
     border: "border-blue-100",
+  },
+  {
+    id: "wayfair-us",
+    label: "Wayfair US",
+    initial: "Wa",
+    bg: "bg-purple-50",
+    text: "text-purple-600",
+    border: "border-purple-100",
+  },
+  {
+    id: "wayfair-uk",
+    label: "Wayfair UK",
+    initial: "Wa",
+    bg: "bg-purple-50",
+    text: "text-purple-600",
+    border: "border-purple-100",
   },
   {
     id: "ebay-us",
@@ -119,12 +146,36 @@ const MARKETPLACE_DESTINATIONS = [
     border: "border-rose-100",
   },
   {
-    id: "wayfair-us",
-    label: "Wayfair",
-    initial: "Wa",
-    bg: "bg-purple-50",
-    text: "text-purple-600",
-    border: "border-purple-100",
+    id: "ebay-uk",
+    label: "eBay UK",
+    initial: "eB",
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    border: "border-rose-100",
+  },
+  {
+    id: "target-plus",
+    label: "Target Plus",
+    initial: "Tg",
+    bg: "bg-red-50",
+    text: "text-red-600",
+    border: "border-red-100",
+  },
+  {
+    id: "tiktok-shop",
+    label: "TikTok Shop",
+    initial: "TT",
+    bg: "bg-black/5",
+    text: "text-black",
+    border: "border-slate-200",
+  },
+  {
+    id: "homedepot",
+    label: "Home Depot",
+    initial: "HD",
+    bg: "bg-orange-50",
+    text: "text-orange-700",
+    border: "border-orange-100",
   },
 ];
 
@@ -133,7 +184,19 @@ const MARKETPLACE_GROUPS = [
     id: "us",
     countryCode: "US",
     countryName: "United States",
-    items: MARKETPLACE_DESTINATIONS,
+    items: MARKETPLACE_DESTINATIONS.filter(d => 
+      d.id === "amazon-us" || d.id === "walmart" || d.id === "wayfair-us" || 
+      d.id === "ebay-us" || d.id === "target-plus" || d.id === "tiktok-shop" || 
+      d.id === "homedepot"
+    ),
+  },
+  {
+    id: "uk",
+    countryCode: "UK",
+    countryName: "United Kingdom",
+    items: MARKETPLACE_DESTINATIONS.filter(d => 
+      d.id === "amazon-uk" || d.id === "wayfair-uk" || d.id === "ebay-uk"
+    ),
   },
 ];
 
@@ -206,6 +269,11 @@ type UploadSource = "files" | "urls" | "csv" | "page" | "cloud";
 export function AdvancedUpload() {
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [projectName, setProjectName] = useState("");
+  const [useMarketplaceResize, setUseMarketplaceResize] = useState(true);
+  const [customResizeDims, setCustomResizeDims] = useState({
+    width: 800,
+    height: 800,
+  });
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
 
@@ -286,17 +354,28 @@ export function AdvancedUpload() {
   const removeImage = (id: number) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
+  const getAutoResizeDimensions = () => {
+    const allDimensions =
+      getResizeDimensionsForDestinations(selectedDestinations);
+
+    if (allDimensions.length === 0) return null;
+
+    return allDimensions;
+  };
   const handleProcessBatch = async () => {
-     const isCropSelected = selectedProcessing.includes('crop');
-      if (isCropSelected) {
-    const allImagesCropped = images.every(img => img.isCropped === true);
-    
-    if (!allImagesCropped) {
-      const uncroppedCount = images.filter(img => !img.isCropped).length;
-      toast.error(`Please crop ${uncroppedCount} image(s) before processing. Click the "Crop: image name" button for each image.`);
-      return;
+    // Validate crop requirement
+    const isCropSelected = selectedProcessing.includes("crop");
+    if (isCropSelected) {
+      const allImagesCropped = images.every((img) => img.isCropped === true);
+      if (!allImagesCropped) {
+        const uncroppedCount = images.filter((img) => !img.isCropped).length;
+        toast.error(
+          `Please crop ${uncroppedCount} image(s) before processing.`,
+        );
+        return;
+      }
     }
-  }
+
     setUploading(true);
     setProgress({ current: 0, total: images.length, phase: "Uploading" });
 
@@ -307,8 +386,8 @@ export function AdvancedUpload() {
       images.forEach(
         (img) => img.file && formData.append("files", img.file, img.name),
       );
-      const batchResult = await assetApi.upload(formData);
 
+      const batchResult = await assetApi.upload(formData);
       setProgress({
         current: 0,
         total: batchResult.images.length,
@@ -320,35 +399,50 @@ export function AdvancedUpload() {
           let operationsToSend = [...selectedProcessing];
           const processOptions: any = {};
 
+          // Handle resize operation
           if (selectedProcessing.includes("resize")) {
-            switch (activeResizeMode) {
-              case "original":
+            if (useMarketplaceResize) {
+              // Auto-resize based on marketplace rules
+              const dimensions =
+                getResizeDimensionsForDestinations(selectedDestinations);
+              if (dimensions && dimensions.length > 0) {
+                processOptions.resize = dimensions;
                 operationsToSend = operationsToSend.filter(
                   (op) => op !== "resize",
                 );
-                break;
-              case "preset":
-              case "custom":
-                processOptions.resize = {
-                  width: resizeDims.width,
-                  height: resizeDims.height,
-                };
-                break;
-              case "percentage":
-                const targetWidth = Math.round(
-                  (asset.width || 1000) * (resizePercentage / 100),
-                );
-                const targetHeight = Math.round(
-                  (asset.height || 1000) * (resizePercentage / 100),
-                );
-                processOptions.resize = {
-                  width: targetWidth,
-                  height: targetHeight,
-                };
-                break;
+              }
+            } else {
+              // Custom resize
+              switch (activeResizeMode) {
+                case "original":
+                  operationsToSend = operationsToSend.filter(
+                    (op) => op !== "resize",
+                  );
+                  break;
+                case "preset":
+                case "custom":
+                  processOptions.resize = {
+                    width: resizeDims.width,
+                    height: resizeDims.height,
+                  };
+                  break;
+                case "percentage":
+                  const targetWidth = Math.round(
+                    (asset.width || 1000) * (resizePercentage / 100),
+                  );
+                  const targetHeight = Math.round(
+                    (asset.height || 1000) * (resizePercentage / 100),
+                  );
+                  processOptions.resize = {
+                    width: targetWidth,
+                    height: targetHeight,
+                  };
+                  break;
+              }
             }
           }
 
+          // Handle compression
           if (selectedProcessing.includes("compress")) {
             processOptions.quality = compressionQuality;
           }
@@ -362,13 +456,22 @@ export function AdvancedUpload() {
           );
 
           setProgress((prev) => ({ ...prev, current: idx + 1 }));
-          return {
-            ...res,
-            originalName: asset.name,
-            metadata: asset,
-            appliedOps: res.telemetry?.steps || ops,
-            projectName: project,
-          };
+          if (res.outputs && res.outputs.length > 0) {
+            return {
+              outputs: res.outputs,
+              originalName: asset.name,
+              metadata: asset,
+              appliedOps: res.telemetry?.steps || ops,
+            };
+          } else {
+            return {
+              url: res.url,
+              name: res.name,
+              originalName: asset.name,
+              metadata: asset,
+              appliedOps: res.telemetry?.steps || ops,
+            };
+          }
         }),
       );
 
@@ -376,11 +479,12 @@ export function AdvancedUpload() {
       setCurrentStep("results");
       toast.success("Processing complete!");
     } catch (e: any) {
-      toast.error("Failed to process batch");
+      toast.error("Failed to process batch: " + e.message);
     } finally {
       setUploading(false);
     }
   };
+
   const handleCropSave = (newFile: File) => {
     if (!editingImage) return;
     const newUrl = URL.createObjectURL(newFile);
@@ -393,7 +497,7 @@ export function AdvancedUpload() {
             preview: newUrl,
             file: newFile,
             name: newFile.name,
-             isCropped: true,
+            isCropped: true,
           };
         }
         return img;
@@ -696,7 +800,7 @@ export function AdvancedUpload() {
                             id: Math.random(),
                             preview: URL.createObjectURL(f),
                             url: URL.createObjectURL(f),
-                            isCropped: false,  
+                            isCropped: false,
                           })),
                         );
 
@@ -710,7 +814,6 @@ export function AdvancedUpload() {
                   </label>
                 </div>
                 {/* Selected Files Grid - shows after files are added */}
-               
               </>
             ) : (
               <div className="flex flex-col items-center">
@@ -737,53 +840,53 @@ export function AdvancedUpload() {
               </div>
             )}
           </div>
-           {images.length > 0 && (
-                  <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm mt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
-                        Selected Files ({images.length})
-                      </h3>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setImages([])}
-                          className="text-xs font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
-                        >
-                          Remove all
-                        </button>
-                        <button
-                          onClick={() => setCurrentStep("destinations")}
-                          className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-100"
-                        >
-                          <span>Next: Destinations</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+          {images.length > 0 && (
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                  Selected Files ({images.length})
+                </h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setImages([])}
+                    className="text-xs font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
+                  >
+                    Remove all
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep("destinations")}
+                    className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-100"
+                  >
+                    <span>Next: Destinations</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {images.map((image) => (
-                        <div key={image.id} className="relative group">
-                          <div className="aspect-square bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
-                            <img
-                              src={image.preview || image.url}
-                              alt={image.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeImage(image.id)}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                          <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
-                            {image.name}
-                          </p>
-                        </div>
-                      ))}
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {images.map((image) => (
+                  <div key={image.id} className="relative group">
+                    <div className="aspect-square bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
+                      <img
+                        src={image.preview || image.url}
+                        alt={image.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
+                    <button
+                      onClick={() => removeImage(image.id)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
+                      {image.name}
+                    </p>
                   </div>
-                )}
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1307,108 +1410,180 @@ export function AdvancedUpload() {
 
                       {active && op.id === "resize" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
-                            {(
-                              [
-                                "original",
-                                "preset",
-                                "custom",
-                                "percentage",
-                              ] as const
-                            ).map((mode) => (
+                          {/* 🔥 ADD THIS TOGGLE */}
+                          <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-100">
+                            <span className="text-xs font-bold text-slate-700">
+                              Resize Mode
+                            </span>
+                            <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
                               <button
-                                key={mode}
-                                onClick={() => setActiveResizeMode(mode)}
+                                onClick={() => setUseMarketplaceResize(true)}
                                 className={cn(
-                                  "flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
-                                  activeResizeMode === mode
-                                    ? "bg-white text-blue-600 shadow-sm"
-                                    : "text-slate-400 hover:text-slate-600",
+                                  "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                                  useMarketplaceResize
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-slate-700",
                                 )}
                               >
-                                {mode}
+                                Auto (Platform)
                               </button>
-                            ))}
+                              <button
+                                onClick={() => setUseMarketplaceResize(false)}
+                                className={cn(
+                                  "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                                  !useMarketplaceResize
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-slate-700",
+                                )}
+                              >
+                                Custom
+                              </button>
+                            </div>
                           </div>
 
-                          {activeResizeMode === "preset" && (
-                            <div className="grid grid-cols-3 gap-2">
-                              {["500x500", "800x800", "1024x1024"].map(
-                                (preset) => (
-                                  <button
-                                    key={preset}
-                                    onClick={() => setSelectedPreset(preset)}
-                                    className={cn(
-                                      "py-2 text-xs font-bold rounded-lg border",
-                                      selectedPreset === preset
-                                        ? "bg-blue-100 border-blue-300 text-blue-700"
-                                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300",
-                                    )}
-                                  >
-                                    {preset}
-                                  </button>
-                                ),
+                          {useMarketplaceResize ? (
+                            // 🔥 AUTO MODE - Show marketplace dimensions
+                            <div className="space-y-2">
+                              <p className="text-xs text-slate-500">
+                                Will resize to platform specifications:
+                              </p>
+                              {selectedDestinations.length === 0 ? (
+                                <p className="text-xs text-amber-600">
+                                  ⚠️ Select destinations first to see dimensions
+                                </p>
+                              ) : (
+                                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                  {selectedDestinations.map((destId) => {
+                                    const rule = MARKETPLACE_RULES[destId];
+                                    if (!rule) return null;
+                                    return (
+                                      <div
+                                        key={destId}
+                                        className="flex items-center justify-between text-sm bg-white p-2 rounded-lg border border-slate-100"
+                                      >
+                                        <span className="font-medium text-slate-700">
+                                          {rule.label}
+                                        </span>
+                                        <span className="text-blue-600 font-mono text-xs">
+                                          {rule.resizeDimensions.width} ×{" "}
+                                          {rule.resizeDimensions.height}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
-                          )}
-
-                          {activeResizeMode === "custom" && (
-                            <div className="flex gap-4">
-                              <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
-                                Width{" "}
-                                <input
-                                  type="number"
-                                  value={resizeDims.width}
-                                  onChange={(e) =>
-                                    setResizeDims((p) => ({
-                                      ...p,
-                                      width: Number(e.target.value),
-                                    }))
-                                  }
-                                  className="w-full mt-1 px-3 py-2 border rounded-xl"
-                                />
-                              </label>
-                              <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
-                                Height{" "}
-                                <input
-                                  type="number"
-                                  value={resizeDims.height}
-                                  onChange={(e) =>
-                                    setResizeDims((p) => ({
-                                      ...p,
-                                      height: Number(e.target.value),
-                                    }))
-                                  }
-                                  className="w-full mt-1 px-3 py-2 border rounded-xl"
-                                />
-                              </label>
-                            </div>
-                          )}
-
-                          {activeResizeMode === "percentage" && (
-                            <div>
-                              <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
-                                <span>Scale Factor</span>
-                                <span className="text-blue-600">
-                                  {resizePercentage}%
-                                </span>
+                          ) : (
+                            // 🔥 CUSTOM MODE - Your existing resize UI
+                            <>
+                              <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
+                                {(
+                                  [
+                                    "original",
+                                    "preset",
+                                    "custom",
+                                    "percentage",
+                                  ] as const
+                                ).map((mode) => (
+                                  <button
+                                    key={mode}
+                                    onClick={() => setActiveResizeMode(mode)}
+                                    className={cn(
+                                      "flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
+                                      activeResizeMode === mode
+                                        ? "bg-white text-blue-600 shadow-sm"
+                                        : "text-slate-400 hover:text-slate-600",
+                                    )}
+                                  >
+                                    {mode}
+                                  </button>
+                                ))}
                               </div>
-                              <input
-                                type="range"
-                                min="10"
-                                max="200"
-                                step="10"
-                                value={resizePercentage}
-                                onChange={(e) =>
-                                  setResizePercentage(Number(e.target.value))
-                                }
-                                className="w-full accent-blue-600"
-                              />
-                            </div>
+
+                              {activeResizeMode === "preset" && (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {["500x500", "800x800", "1024x1024"].map(
+                                    (preset) => (
+                                      <button
+                                        key={preset}
+                                        onClick={() =>
+                                          setSelectedPreset(preset)
+                                        }
+                                        className={cn(
+                                          "py-2 text-xs font-bold rounded-lg border",
+                                          selectedPreset === preset
+                                            ? "bg-blue-100 border-blue-300 text-blue-700"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300",
+                                        )}
+                                      >
+                                        {preset}
+                                      </button>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+
+                              {activeResizeMode === "custom" && (
+                                <div className="flex gap-4">
+                                  <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                    Width{" "}
+                                    <input
+                                      type="number"
+                                      value={resizeDims.width}
+                                      onChange={(e) =>
+                                        setResizeDims((p) => ({
+                                          ...p,
+                                          width: Number(e.target.value),
+                                        }))
+                                      }
+                                      className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                    />
+                                  </label>
+                                  <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                    Height{" "}
+                                    <input
+                                      type="number"
+                                      value={resizeDims.height}
+                                      onChange={(e) =>
+                                        setResizeDims((p) => ({
+                                          ...p,
+                                          height: Number(e.target.value),
+                                        }))
+                                      }
+                                      className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                    />
+                                  </label>
+                                </div>
+                              )}
+
+                              {activeResizeMode === "percentage" && (
+                                <div>
+                                  <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
+                                    <span>Scale Factor</span>
+                                    <span className="text-blue-600">
+                                      {resizePercentage}%
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min="10"
+                                    max="200"
+                                    step="10"
+                                    value={resizePercentage}
+                                    onChange={(e) =>
+                                      setResizePercentage(
+                                        Number(e.target.value),
+                                      )
+                                    }
+                                    className="w-full accent-blue-600"
+                                  />
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
-
                       {active && op.id === "compress" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
                           <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
@@ -1431,46 +1606,58 @@ export function AdvancedUpload() {
                         </div>
                       )}
                       {active && op.id === "crop" && (
-  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-    <p className="text-xs text-slate-500 mb-2 flex items-center justify-between">
-      <span>Select an image to crop</span>
-      {images.filter(img => !img.isCropped).length > 0 && (
-        <span className="text-amber-600 font-bold">
-          ⚠️ {images.filter(img => !img.isCropped).length} image(s) need cropping
-        </span>
-      )}
-    </p>
-    {images.map((img, idx) => (
-      <button
-        key={idx}
-        onClick={() => {
-          const previewUrl = img.preview || img.url || (img.file ? URL.createObjectURL(img.file) : "");
-          setEditingImage({
-            ...img,
-            url: previewUrl,
-            preview: previewUrl,
-          });
-        }}
-        className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
-          img.isCropped 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-        }`}
-      >
-        <span>{img.isCropped ? '✓' : '✂️'} Crop: {img.name}</span>
-        {img.isCropped && <CheckCircle className="w-4 h-4 text-green-600" />}
-      </button>
-    ))}
-    {editingImage && editingImage.url && (
-      <ImageCropModal
-        imageSrc={editingImage.url}
-        fileName={editingImage.name}
-        onClose={() => setEditingImage(null)}
-        onSave={handleCropSave}
-      />
-    )}
-  </div>
-)}
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <p className="text-xs text-slate-500 mb-2 flex items-center justify-between">
+                            <span>Select an image to crop</span>
+                            {images.filter((img) => !img.isCropped).length >
+                              0 && (
+                              <span className="text-amber-600 font-bold">
+                                ⚠️{" "}
+                                {images.filter((img) => !img.isCropped).length}{" "}
+                                image(s) need cropping
+                              </span>
+                            )}
+                          </p>
+                          {images.map((img, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const previewUrl =
+                                  img.preview ||
+                                  img.url ||
+                                  (img.file
+                                    ? URL.createObjectURL(img.file)
+                                    : "");
+                                setEditingImage({
+                                  ...img,
+                                  url: previewUrl,
+                                  preview: previewUrl,
+                                });
+                              }}
+                              className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+                                img.isCropped
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                              }`}
+                            >
+                              <span>
+                                {img.isCropped ? "✓" : "✂️"} Crop: {img.name}
+                              </span>
+                              {img.isCropped && (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              )}
+                            </button>
+                          ))}
+                          {editingImage && editingImage.url && (
+                            <ImageCropModal
+                              imageSrc={editingImage.url}
+                              fileName={editingImage.name}
+                              onClose={() => setEditingImage(null)}
+                              onSave={handleCropSave}
+                            />
+                          )}
+                        </div>
+                      )}
 
                       {active && op.id === "line-diagram" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
@@ -1522,7 +1709,7 @@ export function AdvancedUpload() {
                 Total outputs per image
               </span>
               <div className="text-5xl font-black text-[#007BC7] my-3 leading-none">
-                 {images.length}
+                {images.length}
               </div>
               <p className="text-[11px] text-slate-400 font-bold leading-tight">
                 {images.length} files ×{" "}
@@ -1630,121 +1817,86 @@ export function AdvancedUpload() {
               {processedResults.map((res, idx) => (
                 <div
                   key={idx}
-                  className="bg-white rounded-[2rem] border border-slate-200 p-5 flex items-center justify-between hover:border-blue-400 shadow-sm transition-all group"
+                  className="bg-white rounded-[2rem] border border-slate-200 p-5 hover:border-blue-400 shadow-sm transition-all"
                 >
-                  <div className="flex items-center space-x-8">
-                    <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden shadow-inner flex items-center justify-center p-2 group-hover:bg-white transition-colors">
+                  {/* Original Image Info */}
+                  <div className="flex items-center space-x-8 mb-4">
+                    <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden shadow-inner flex items-center justify-center p-2">
                       <img
-                        src={res.url}
-                        className="w-full h-full object-contain drop-shadow-sm"
-                        alt="Result"
+                        src={res.metadata?.url}
+                        className="w-full h-full object-contain"
+                        alt={res.originalName}
                       />
                     </div>
-
                     <div>
                       <h4 className="font-black text-slate-800 text-base mb-1 tracking-tight">
                         {res.originalName}
                       </h4>
-                      <div className="flex items-center space-x-3 text-[10px] font-black text-slate-400 uppercase tracking-tight">
-                        <span>
-                          {res.metadata?.width || "1080"}×
-                          {res.metadata?.height || "1080"}
-                        </span>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                        <span>233.2 KB</span>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                        <span>
-                          {new Date().toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </span>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                        <span>01:29 PM</span>
+                      <div className="text-xs text-slate-400">
+                        Original: {res.metadata?.width || "?"} ×{" "}
+                        {res.metadata?.height || "?"}
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="flex items-center mt-3 space-x-2">
-                        {selectedDestinations.map((dId) => {
-                          const d = [
-                            ...ECOMMERCE_DESTINATIONS,
-                            ...MARKETPLACE_DESTINATIONS,
-                          ].find((i) => i.id === dId);
-                          return (
-                            <span
-                              key={dId}
-                              className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black border border-slate-100 uppercase tracking-widest shadow-sm"
+                  {/* Multiple Outputs Grid */}
+                  {res.outputs && res.outputs.length > 0 ? (
+                    <div className="border-t border-slate-100 pt-4">
+                      <h5 className="text-sm font-black text-slate-700 mb-3">
+                        Generated Images
+                      </h5>
+                      <div className="grid grid-cols-2 gap-4">
+                        {res.outputs.map((output, i) => (
+                          <div
+                            key={i}
+                            className="bg-slate-50 rounded-xl p-3 border border-slate-100"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-sm capitalize">
+                                {output.marketplace}
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                {output.width}×{output.height}
+                              </span>
+                            </div>
+                            <img
+                              src={output.url}
+                              alt={output.marketplace}
+                              className="w-full h-32 object-contain bg-white rounded-lg"
+                            />
+                            <button
+                              onClick={async () => {
+                                const response = await fetch(output.url);
+                                const blob = await response.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                const link = document.createElement("a");
+                                link.href = blobUrl;
+                                link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.jpg`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(blobUrl);
+                              }}
+                              className="mt-2 w-full py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
                             >
-                              {d?.label || dId}
-                            </span>
-                          );
-                        })}
+                              <Download className="w-3 h-3" />
+                              Download
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  ) : null}
 
-                  <div className="text-right flex items-center space-x-10 pr-4">
-                    <div>
-                      <div className="flex items-center space-x-1.5 text-emerald-500 mb-1 justify-end">
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Done
-                        </span>
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                        {selectedDestinations.length}/
-                        {selectedDestinations.length} outputs ready
-                      </div>
+                  {/* Footer Stats */}
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                    <div className="text-xs text-slate-400">
+                      Steps: {res.appliedOps?.join(", ") || "None"}
                     </div>
-                    <button className="p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors text-slate-300 group-hover:text-blue-500">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {viewMode === "grid" && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {processedResults.map((res, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all group p-4"
-                >
-                  {/* IMAGE CONTAINER WITH HOVER OVERLAY */}
-                  <div className="aspect-square bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden mb-4 flex items-center justify-center p-4 relative">
-                    <img
-                      src={res.url}
-                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-                      alt="Result"
-                    />
-
-                    {/* DOWNLOAD BUTTON OVERLAY */}
-                    <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                      <button
-                        onClick={() => window.open(res.url, "_blank")}
-                        className="bg-white text-slate-700 px-5 py-2.5 rounded-2xl font-bold text-sm shadow-xl flex items-center space-x-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-slate-50 hover:scale-105 active:scale-95"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="px-1">
-                    <h4 className="font-black text-slate-800 text-sm truncate mb-1">
-                      {res.originalName}
-                    </h4>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1 text-emerald-500">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">
-                          Done
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400">
-                        {selectedDestinations.length} Out
+                    <div className="flex items-center space-x-1.5 text-emerald-500">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Done
                       </span>
                     </div>
                   </div>
@@ -1752,6 +1904,88 @@ export function AdvancedUpload() {
               ))}
             </div>
           )}
+
+          {viewMode === "grid" && (
+  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+    {processedResults.map((res, idx) => (
+      <div key={idx} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all">
+        {res.outputs && res.outputs.length > 0 ? (
+          <div>
+            <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
+              <img
+                src={res.outputs[0].url}
+                className="w-full h-full object-contain"
+                alt={res.outputs[0].marketplace}
+              />
+            </div>
+            <div className="p-4">
+              <h4 className="font-black text-slate-800 text-sm truncate">{res.originalName}</h4>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] font-bold text-slate-400">
+                  {res.outputs.length} versions
+                </span>
+                <div className="flex gap-1">
+                  {res.outputs.map((output, i) => (
+                    <button
+                      key={i}
+                      onClick={async () => {
+                        const response = await fetch(output.url);
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = `${res.originalName.split('.')[0]}_${output.marketplace}.jpg`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(blobUrl);
+                        toast.success(`Downloaded ${output.marketplace}`);
+                      }}
+                      className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+                      title={`Download ${output.marketplace}`}
+                    >
+                      {output.marketplace === "amazon-us" ? "Amazon" : output.marketplace === "walmart" ? "Walmart" : output.marketplace}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
+              <img src={res.url} className="w-full h-full object-contain" alt={res.name} />
+            </div>
+            <div className="p-4">
+              <h4 className="font-black text-slate-800 text-sm truncate">{res.originalName}</h4>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] font-bold text-slate-400">Ready</span>
+                <button
+                  onClick={async () => {
+                    const response = await fetch(res.url);
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = res.originalName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(blobUrl);
+                    toast.success("Downloaded");
+                  }}
+                  className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+                >
+                  Download
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+)}
         </div>
       )}
       {showMeasurementTool && measurementImage && (
