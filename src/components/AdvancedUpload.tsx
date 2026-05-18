@@ -287,6 +287,16 @@ export function AdvancedUpload() {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
   const handleProcessBatch = async () => {
+     const isCropSelected = selectedProcessing.includes('crop');
+      if (isCropSelected) {
+    const allImagesCropped = images.every(img => img.isCropped === true);
+    
+    if (!allImagesCropped) {
+      const uncroppedCount = images.filter(img => !img.isCropped).length;
+      toast.error(`Please crop ${uncroppedCount} image(s) before processing. Click the "Crop: image name" button for each image.`);
+      return;
+    }
+  }
     setUploading(true);
     setProgress({ current: 0, total: images.length, phase: "Uploading" });
 
@@ -383,6 +393,7 @@ export function AdvancedUpload() {
             preview: newUrl,
             file: newFile,
             name: newFile.name,
+             isCropped: true,
           };
         }
         return img;
@@ -685,6 +696,7 @@ export function AdvancedUpload() {
                             id: Math.random(),
                             preview: URL.createObjectURL(f),
                             url: URL.createObjectURL(f),
+                            isCropped: false,  
                           })),
                         );
 
@@ -1419,48 +1431,46 @@ export function AdvancedUpload() {
                         </div>
                       )}
                       {active && op.id === "crop" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <p className="text-xs text-slate-500 mb-2">
-                            Select an image to crop
-                          </p>
-                          {images.map((img, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                // Create preview URL from file if needed
-                                const previewUrl =
-                                  img.preview ||
-                                  img.url ||
-                                  (img.file
-                                    ? URL.createObjectURL(img.file)
-                                    : "");
-                                console.log(
-                                  "Opening crop for:",
-                                  img.name,
-                                  "URL:",
-                                  previewUrl,
-                                );
-                                setEditingImage({
-                                  ...img,
-                                  url: previewUrl,
-                                  preview: previewUrl,
-                                });
-                              }}
-                              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate"
-                            >
-                              Crop: {img.name}
-                            </button>
-                          ))}
-                          {editingImage && editingImage.url && (
-                            <ImageCropModal
-                              imageSrc={editingImage.url}
-                              fileName={editingImage.name}
-                              onClose={() => setEditingImage(null)}
-                              onSave={handleCropSave}
-                            />
-                          )}
-                        </div>
-                      )}
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    <p className="text-xs text-slate-500 mb-2 flex items-center justify-between">
+      <span>Select an image to crop</span>
+      {images.filter(img => !img.isCropped).length > 0 && (
+        <span className="text-amber-600 font-bold">
+          ⚠️ {images.filter(img => !img.isCropped).length} image(s) need cropping
+        </span>
+      )}
+    </p>
+    {images.map((img, idx) => (
+      <button
+        key={idx}
+        onClick={() => {
+          const previewUrl = img.preview || img.url || (img.file ? URL.createObjectURL(img.file) : "");
+          setEditingImage({
+            ...img,
+            url: previewUrl,
+            preview: previewUrl,
+          });
+        }}
+        className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+          img.isCropped 
+            ? 'bg-green-100 text-green-700' 
+            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+        }`}
+      >
+        <span>{img.isCropped ? '✓' : '✂️'} Crop: {img.name}</span>
+        {img.isCropped && <CheckCircle className="w-4 h-4 text-green-600" />}
+      </button>
+    ))}
+    {editingImage && editingImage.url && (
+      <ImageCropModal
+        imageSrc={editingImage.url}
+        fileName={editingImage.name}
+        onClose={() => setEditingImage(null)}
+        onSave={handleCropSave}
+      />
+    )}
+  </div>
+)}
 
                       {active && op.id === "line-diagram" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
@@ -1512,9 +1522,7 @@ export function AdvancedUpload() {
                 Total outputs per image
               </span>
               <div className="text-5xl font-black text-[#007BC7] my-3 leading-none">
-                {autoDetect
-                  ? "~4"
-                  : selectedProcessing.length * selectedDestinations.length}
+                 {images.length}
               </div>
               <p className="text-[11px] text-slate-400 font-bold leading-tight">
                 {images.length} files ×{" "}
