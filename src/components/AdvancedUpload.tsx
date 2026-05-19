@@ -280,6 +280,8 @@ export function AdvancedUpload() {
     width: 800,
     height: 800,
   });
+  const [cropMode, setCropMode] = useState<"preset" | "free">("preset");
+
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
 
@@ -1612,58 +1614,129 @@ export function AdvancedUpload() {
                         </div>
                       )}
                       {active && op.id === "crop" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <p className="text-xs text-slate-500 mb-2 flex items-center justify-between">
-                            <span>Select an image to crop</span>
-                            {images.filter((img) => !img.isCropped).length >
-                              0 && (
-                              <span className="text-amber-600 font-bold">
-                                ⚠️{" "}
-                                {images.filter((img) => !img.isCropped).length}{" "}
-                                image(s) need cropping
-                              </span>
-                            )}
-                          </p>
-                          {images.map((img, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                const previewUrl =
-                                  img.preview ||
-                                  img.url ||
-                                  (img.file
-                                    ? URL.createObjectURL(img.file)
-                                    : "");
-                                setEditingImage({
-                                  ...img,
-                                  url: previewUrl,
-                                  preview: previewUrl,
-                                });
-                              }}
-                              className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
-                                img.isCropped
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                              }`}
-                            >
-                              <span>
-                                {img.isCropped ? "✓" : "✂️"} Crop: {img.name}
-                              </span>
-                              {img.isCropped && (
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                              )}
-                            </button>
-                          ))}
-                          {editingImage && editingImage.url && (
-                            <ImageCropModal
-                              imageSrc={editingImage.url}
-                              fileName={editingImage.name}
-                              onClose={() => setEditingImage(null)}
-                              onSave={handleCropSave}
-                            />
-                          )}
-                        </div>
-                      )}
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    
+    {/* Toggle between Preset and Free mode */}
+    <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+      <span className="text-xs font-bold text-slate-700">Crop Mode</span>
+      <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
+        <button
+          onClick={() => setCropMode("preset")}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-md transition-all",
+            cropMode === "preset"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          )}
+        >
+          Marketplace Presets
+        </button>
+        <button
+          onClick={() => setCropMode("free")}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-md transition-all",
+            cropMode === "free"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          )}
+        >
+          Free Crop
+        </button>
+      </div>
+    </div>
+
+    {cropMode === "preset" ? (
+      // PRESET MODE - Show aspect ratio buttons
+      <div>
+        <p className="text-xs text-slate-500 mb-2">Select aspect ratio:</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[...new Set(selectedDestinations.map(d => MARKETPLACE_RULES[d]?.aspectRatio?.default).filter(Boolean))].map(ratio => (
+            <button
+              key={ratio}
+              onClick={() => {
+                const uncropped = images.find(img => !img.isCropped);
+                if (uncropped) {
+                  setEditingImage({
+                    ...uncropped,
+                    aspectRatio: ratio,
+                    cropMode: "preset"
+                  });
+                }
+              }}
+              className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+            >
+              {ratio}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-400">
+          ⚡ Crops to exact marketplace requirements
+        </p>
+      </div>
+    ) : (
+      // FREE MODE - No aspect ratio lock
+      <div>
+        <p className="text-xs text-slate-500 mb-2">Free crop (any shape):</p>
+        <button
+          onClick={() => {
+            const uncropped = images.find(img => !img.isCropped);
+            if (uncropped) {
+              setEditingImage({
+                ...uncropped,
+                aspectRatio: undefined,  // No ratio lock
+                cropMode: "free"
+              });
+            }
+          }}
+          className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
+        >
+          Free Crop (any aspect ratio)
+        </button>
+        <p className="text-[10px] text-amber-600 mt-2">
+          ⚠️ Free cropping may not meet marketplace requirements
+        </p>
+      </div>
+    )}
+
+    {/* Existing crop buttons for each image */}
+    <div className="mt-3 max-h-40 overflow-y-auto">
+      {images.map((img, idx) => (
+        <button
+          key={idx}
+          onClick={() => {
+            const previewUrl = img.preview || img.url || 
+              (img.file ? URL.createObjectURL(img.file) : "");
+            setEditingImage({
+              ...img,
+              url: previewUrl,
+              preview: previewUrl,
+              aspectRatio: cropMode === "preset" ? "1:1" : undefined,
+              cropMode: cropMode
+            });
+          }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+            img.isCropped 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+          }`}
+        >
+          <span>{img.isCropped ? '✓' : '✂️'} Crop: {img.name}</span>
+          {img.isCropped && <CheckCircle className="w-4 h-4 text-green-600" />}
+        </button>
+      ))}
+    </div>
+
+    {editingImage && editingImage.url && (
+      <ImageCropModal
+        imageSrc={editingImage.url}
+        fileName={editingImage.name}
+        aspectRatio={editingImage.aspectRatio} 
+        onClose={() => setEditingImage(null)}
+        onSave={handleCropSave}
+      />
+    )}
+  </div>
+)}
 
                       {active && op.id === "line-diagram" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
@@ -1893,60 +1966,62 @@ export function AdvancedUpload() {
                       </div>
                     </div>
                   ) : res.url ? (
-  // ✅ SINGLE OUTPUT (Background Removal, Retouch, Crop, etc.)
-  <div className="border-t border-slate-100 pt-4">
-    <h5 className="text-sm font-black text-slate-700 mb-3">
-      Processed Image
-    </h5>
-    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-bold text-sm capitalize">
-          Result
-        </span>
-        <span className="text-xs text-slate-500">
-          {/* Show processed image dimensions if available */}
-          {res.processed_width && res.processed_height 
-            ? `${res.processed_width}×${res.processed_height}` 
-            : `${res.metadata?.width || "?"}×${res.metadata?.height || "?"}`}
-        </span>
-      </div>
-      <img
-        src={res.url}
-        alt="Processed"
-        className="w-full h-32 object-contain bg-white rounded-lg"
-        onError={(e) => {
-          console.error('Failed to load image:', res.url);
-          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">Load failed</text></svg>';
-        }}
-      />
-      <button
-        onClick={async () => {
-          try {
-            const response = await fetch(res.url);
-            if (!response.ok) throw new Error('Download failed');
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = blobUrl;
-            link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-            toast.success("Downloaded successfully");
-          } catch (error) {
-            console.error('Download error:', error);
-            toast.error("Failed to download image");
-          }
-        }}
-        className="mt-2 w-full py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-      >
-        <Download className="w-3 h-3" />
-        Download Processed Image
-      </button>
-    </div>
-  </div>
-) : null} 
+                    // ✅ SINGLE OUTPUT (Background Removal, Retouch, Crop, etc.)
+                    <div className="border-t border-slate-100 pt-4">
+                      <h5 className="text-sm font-black text-slate-700 mb-3">
+                        Processed Image
+                      </h5>
+                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-sm capitalize">
+                            Result
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {/* Show processed image dimensions if available */}
+                            {res.processed_width && res.processed_height
+                              ? `${res.processed_width}×${res.processed_height}`
+                              : `${res.metadata?.width || "?"}×${res.metadata?.height || "?"}`}
+                          </span>
+                        </div>
+                        <img
+                          src={res.url}
+                          alt="Processed"
+                          className="w-full h-32 object-contain bg-white rounded-lg"
+                          onError={(e) => {
+                            console.error("Failed to load image:", res.url);
+                            e.currentTarget.src =
+                              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">Load failed</text></svg>';
+                          }}
+                        />
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(res.url);
+                              if (!response.ok)
+                                throw new Error("Download failed");
+                              const blob = await response.blob();
+                              const blobUrl = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = blobUrl;
+                              link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(blobUrl);
+                              toast.success("Downloaded successfully");
+                            } catch (error) {
+                              console.error("Download error:", error);
+                              toast.error("Failed to download image");
+                            }
+                          }}
+                          className="mt-2 w-full py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download Processed Image
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Footer Stats */}
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
@@ -1966,88 +2041,107 @@ export function AdvancedUpload() {
           )}
 
           {viewMode === "grid" && (
-  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-    {processedResults.map((res, idx) => (
-      <div key={idx} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all">
-        {res.outputs && res.outputs.length > 0 ? (
-          // Multiple outputs (Resize)
-          <div>
-            <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
-              <img
-                src={res.outputs[0].url}
-                className="w-full h-full object-contain"
-                alt={res.outputs[0].marketplace}
-              />
-            </div>
-            <div className="p-4">
-              <h4 className="font-black text-slate-800 text-sm truncate">{res.originalName}</h4>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-400">
-                  {res.outputs.length} versions
-                </span>
-                <div className="flex gap-1">
-                  {res.outputs.map((output, i) => (
-                    <button
-                      key={i}
-                      onClick={async () => {
-                        const response = await fetch(output.url);
-                        const blob = await response.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = blobUrl;
-                        link.download = `${res.originalName.split('.')[0]}_${output.marketplace}.jpg`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(blobUrl);
-                        toast.success(`Downloaded ${output.marketplace}`);
-                      }}
-                      className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
-                      title={`Download ${output.marketplace}`}
-                    >
-                      {output.marketplace === "amazon-us" ? "Amazon" : output.marketplace === "walmart" ? "Walmart" : output.marketplace}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : res.url ? (
-          // ✅ Single output (BG Removal, Retouch, Crop, etc.)
-          <div>
-            <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
-              <img src={res.url} className="w-full h-full object-contain" alt="Processed" />
-            </div>
-            <div className="p-4">
-              <h4 className="font-black text-slate-800 text-sm truncate">{res.originalName}</h4>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] font-bold text-slate-400">Processed</span>
-                <button
-                  onClick={async () => {
-                    const response = await fetch(res.url);
-                    const blob = await response.blob();
-                    const blobUrl = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = blobUrl;
-                    link.download = `${res.originalName.split('.')[0]}_processed.jpg`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(blobUrl);
-                    toast.success("Downloaded");
-                  }}
-                  className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {processedResults.map((res, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all"
                 >
-                  Download
-                </button>
-              </div>
+                  {res.outputs && res.outputs.length > 0 ? (
+                    // Multiple outputs (Resize)
+                    <div>
+                      <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
+                        <img
+                          src={res.outputs[0].url}
+                          className="w-full h-full object-contain"
+                          alt={res.outputs[0].marketplace}
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-black text-slate-800 text-sm truncate">
+                          {res.originalName}
+                        </h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {res.outputs.length} versions
+                          </span>
+                          <div className="flex gap-1">
+                            {res.outputs.map((output, i) => (
+                              <button
+                                key={i}
+                                onClick={async () => {
+                                  const response = await fetch(output.url);
+                                  const blob = await response.blob();
+                                  const blobUrl = URL.createObjectURL(blob);
+                                  const link = document.createElement("a");
+                                  link.href = blobUrl;
+                                  link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.jpg`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  URL.revokeObjectURL(blobUrl);
+                                  toast.success(
+                                    `Downloaded ${output.marketplace}`,
+                                  );
+                                }}
+                                className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+                                title={`Download ${output.marketplace}`}
+                              >
+                                {output.marketplace === "amazon-us"
+                                  ? "Amazon"
+                                  : output.marketplace === "walmart"
+                                    ? "Walmart"
+                                    : output.marketplace}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : res.url ? (
+                    // ✅ Single output (BG Removal, Retouch, Crop, etc.)
+                    <div>
+                      <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
+                        <img
+                          src={res.url}
+                          className="w-full h-full object-contain"
+                          alt="Processed"
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-black text-slate-800 text-sm truncate">
+                          {res.originalName}
+                        </h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] font-bold text-slate-400">
+                            Processed
+                          </span>
+                          <button
+                            onClick={async () => {
+                              const response = await fetch(res.url);
+                              const blob = await response.blob();
+                              const blobUrl = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = blobUrl;
+                              link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(blobUrl);
+                              toast.success("Downloaded");
+                            }}
+                            className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
-          </div>
-        ) : null}
-      </div>
-    ))}
-  </div>
-)}
+          )}
         </div>
       )}
       {showMeasurementTool && measurementImage && (

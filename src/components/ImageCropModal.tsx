@@ -7,6 +7,7 @@ interface ImageCropModalProps {
   imageSrc: string;
   fileName: string;
   onClose: () => void;
+  aspectRatio?: string; 
   onSave: (newFile: File) => void;
 }
 
@@ -14,11 +15,19 @@ export function ImageCropModal({
   imageSrc,
   fileName,
   onClose,
+  aspectRatio,
   onSave,
 }: ImageCropModalProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+
+  // Parse aspect ratio string to number
+  const getAspectValue = useCallback(() => {
+    if (!aspectRatio) return undefined;
+    const [w, h] = aspectRatio.split(":").map(Number);
+    return w / h;
+  }, [aspectRatio]);
 
   const onCropComplete = useCallback((_: any, areaPixels: any) => {
     setCroppedAreaPixels(areaPixels);
@@ -38,11 +47,24 @@ export function ImageCropModal({
     }
   };
 
+  // Get display text for aspect ratio
+  const getAspectDisplayText = () => {
+    if (!aspectRatio) return "Free";
+    return `${aspectRatio} (Locked)`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl overflow-hidden w-full max-w-2xl shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold text-lg">Crop Image</h3>
+          <div>
+            <h3 className="font-semibold text-lg">Crop Image</h3>
+            {aspectRatio && (
+              <p className="text-xs text-blue-600 mt-0.5">
+                Aspect ratio: {aspectRatio} (locked)
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-slate-100 rounded-full"
@@ -53,19 +75,27 @@ export function ImageCropModal({
 
         <div className="relative h-[400px] bg-slate-900">
           <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            aspect={1}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
-          />
+  image={imageSrc}
+  crop={crop}
+  zoom={zoom}
+  aspect={aspectRatio ? getAspectValue() : undefined}  
+  onCropChange={setCrop}
+  onZoomChange={setZoom}
+  onCropComplete={onCropComplete}
+/>
         </div>
 
         <div className="p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <ZoomIn className="w-4 h-4 text-slate-500" />
+              <span className="text-xs text-slate-500">Zoom</span>
+            </div>
+            <span className="text-xs text-slate-400">
+              Aspect: {getAspectDisplayText()}
+            </span>
+          </div>
           <div className="flex items-center space-x-2">
-            <ZoomIn className="w-4 h-4 text-slate-500" />
             <input
               type="range"
               value={zoom}
