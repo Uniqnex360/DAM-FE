@@ -214,6 +214,12 @@ const PROCESSING_OPTIONS = [
     icon: Ruler,
   },
   {
+  id: "shadow-remove",
+  label: "Shadow Removal",
+  description: "Remove harsh shadows while preserving natural lighting",
+  icon: Sparkles,
+},
+  {
     id: "bg-remove",
     label: "Background Removal",
     description: "Remove background automatically",
@@ -321,7 +327,14 @@ export function AdvancedUpload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
   const [processedResults, setProcessedResults] = useState<any[]>([]);
-
+  useEffect(() => {
+  return () => {
+    images.forEach((img) => {
+      if (img.preview) URL.revokeObjectURL(img.preview);
+      if (img.url) URL.revokeObjectURL(img.url);
+    });
+  };
+}, [images]);
   useEffect(() => {
     if (activeResizeMode === "preset") {
       const [w, h] = selectedPreset.split("x").map(Number);
@@ -362,16 +375,17 @@ export function AdvancedUpload() {
   const removeImage = (id: number) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
-  const getAutoResizeDimensions = () => {
-    const allDimensions =
-      getResizeDimensionsForDestinations(selectedDestinations);
-
-    if (allDimensions.length === 0) return null;
-
-    return allDimensions;
-  };
+  
   const handleProcessBatch = async () => {
-    // Validate crop requirement
+    if (
+  selectedProcessing.includes("shadow-remove") &&
+  selectedProcessing.includes("bg-remove")
+) {
+  toast.error(
+    "Shadow removal cannot be combined with background removal."
+  );
+  return;
+}
     const isCropSelected = selectedProcessing.includes("crop");
     if (isCropSelected) {
       const allImagesCropped = images.every((img) => img.isCropped === true);
@@ -1592,6 +1606,7 @@ export function AdvancedUpload() {
                           )}
                         </div>
                       )}
+
                       {active && op.id === "compress" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
                           <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">

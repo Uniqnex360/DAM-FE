@@ -29,6 +29,8 @@ interface ProcessedImage {
   destinations: string[];
   outputs_count: number;
   outputs_ready: number;
+  original_url: string;
+  processed_url?: string;
   operations: string[];
   created_at: string;
   thumbnail_url?: string;
@@ -142,8 +144,10 @@ export function ReportsDashboard() {
                 session.status === "completed" ? session.images.length : 0,
               operations: img.processedOperations || [],
               created_at: session.created_at,
-              thumbnail_url: img.processed_url || img.url,
-              output_urls: allUrls, // Assign the array here
+              thumbnail_url: img.url, // ✅ Always show ORIGINAL in grid/list
+              original_url: img.url, // ✅ Store original explicitly
+              processed_url: img.processed_url, // ✅ Store processed
+              output_urls: img.processed_url ? [img.processed_url] : [],
             }));
           },
         );
@@ -343,106 +347,119 @@ export function ReportsDashboard() {
         </button>
       </div>
       {activeTab === "results" && (
-        <>{/* Filters Bar */}
-<div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between shadow-sm">
-  <div className="flex items-center space-x-3">
-    {/* Sort Filter */}
-    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
-      <SortAsc className="w-4 h-4 text-slate-400" />
-      <div className="relative">
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="appearance-none bg-transparent pr-6 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-      </div>
-    </div>
+        <>
+          {/* Filters Bar */}
+          <div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-3">
+              {/* Sort Filter */}
+              <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
+                <SortAsc className="w-4 h-4 text-slate-400" />
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="appearance-none bg-transparent pr-6 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                  </select>
+                  <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
 
-    {/* Projects Filter */}
-    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
-      <Folder className="w-4 h-4 text-slate-400" />
-      <div className="relative">
-        <select
-          value={filterProject}
-          onChange={(e) => setFilterProject(e.target.value)}
-          className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-        >
-          <option value="all">All projects</option>
-          {/* Automatically generates project list from your sessions */}
-          {[...new Set(sessions.map(s => s.metadata?.project_name).filter(Boolean))].map(name => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-      </div>
-    </div>
+              {/* Projects Filter */}
+              <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
+                <Folder className="w-4 h-4 text-slate-400" />
+                <div className="relative">
+                  <select
+                    value={filterProject}
+                    onChange={(e) => setFilterProject(e.target.value)}
+                    className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All projects</option>
+                    {/* Automatically generates project list from your sessions */}
+                    {[
+                      ...new Set(
+                        sessions
+                          .map((s) => s.metadata?.project_name)
+                          .filter(Boolean),
+                      ),
+                    ].map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
 
-    {/* Destinations Filter */}
-    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
-      <Filter className="w-4 h-4 text-slate-400" />
-      <div className="relative">
-        <select
-          value={filterDestination}
-          onChange={(e) => setFilterDestination(e.target.value)}
-          className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-        >
-          <option value="all">All destinations</option>
-          <option value="Shopify">Shopify</option>
-          <option value="Walmart">Walmart</option>
-          <option value="Amazon">Amazon</option>
-        </select>
-        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-      </div>
-    </div>
+              {/* Destinations Filter */}
+              <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <div className="relative">
+                  <select
+                    value={filterDestination}
+                    onChange={(e) => setFilterDestination(e.target.value)}
+                    className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All destinations</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Walmart">Walmart</option>
+                    <option value="Amazon">Amazon</option>
+                  </select>
+                  <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
 
-    {/* Status Filter */}
-    <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
-      <Activity className="w-4 h-4 text-slate-400" />
-      <div className="relative">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-        >
-          <option value="all">All statuses</option>
-          <option value="done">Done</option>
-          <option value="processing">Processing</option>
-          <option value="failed">Failed</option>
-        </select>
-        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-      </div>
-    </div>
-  </div>
+              {/* Status Filter */}
+              <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
+                <Activity className="w-4 h-4 text-slate-400" />
+                <div className="relative">
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="done">Done</option>
+                    <option value="processing">Processing</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                  <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
 
-  <div className="flex items-center space-x-4">
-    {/* View Mode Toggle (Grid/List) */}
-    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-      <button
-        onClick={() => setViewMode("list")}
-        className={`p-2 rounded-lg transition-all ${
-          viewMode === "list" ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"
-        }`}
-      >
-        <List className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => setViewMode("grid")}
-        className={`p-2 rounded-lg transition-all ${
-          viewMode === "grid" ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"
-        }`}
-      >
-        <Grid3x3 className="w-4 h-4" />
-      </button>
-    </div>
-    <span className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-      {images.length} images
-    </span>
-  </div>
-</div>
+            <div className="flex items-center space-x-4">
+              {/* View Mode Toggle (Grid/List) */}
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === "list"
+                      ? "bg-white shadow-sm text-blue-600"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === "grid"
+                      ? "bg-white shadow-sm text-blue-600"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  <Grid3x3 className="w-4 h-4" />
+                </button>
+              </div>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                {images.length} images
+              </span>
+            </div>
+          </div>
           {viewMode === "list" ? (
             /* LIST VIEW: Grouped by Project (Session) */
             <div className="space-y-4">
@@ -511,7 +528,7 @@ export function ReportsDashboard() {
                           >
                             <div className="flex items-center space-x-4">
                               <img
-                                src={img.processed_url || img.url}
+                                src={img.url}
                                 className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-100"
                               />
                               <div>
@@ -538,22 +555,28 @@ export function ReportsDashboard() {
                               </div>
                               {/* Eye Button: Re-decorated to fix "ALL OUTPUTS" grid */}
                               <button
-                                onClick={() =>
-                                  setSelectedImage({
-                                    ...img,
-                                    filename: img.name,
-                                    output_urls: session.images.map(
-                                      (i: any) => i.processed_url || i.url,
-                                    ),
-                                    destinations: session.metadata
-                                      ?.destinations || ["Shopify"],
-                                    created_at: session.created_at,
-                                  })
-                                }
-                                className="text-slate-300 hover:text-blue-500"
-                              >
-                                <Eye className="w-5 h-5" />
-                              </button>
+  onClick={() =>
+    setSelectedImage({
+      id: img.id,
+      filename: img.name,
+      file_size: img.size || 0,
+      dimensions: `${img.width}×${img.height}`,
+      status: "done",
+      destinations: session.metadata?.destinations || [],
+      outputs_count: 1,
+      outputs_ready: img.processed_url ? 1 : 0,
+      original_url: img.url,
+      processed_url: img.processed_url,
+      operations: img.processedOperations || [],
+      created_at: session.created_at,
+      thumbnail_url: img.url,
+      output_urls: img.processed_url ? [img.processed_url] : [],
+    })
+  }
+  className="text-slate-300 hover:text-blue-500"
+>
+  <Eye className="w-5 h-5" />
+</button>
                             </div>
                           </div>
                         ))}
@@ -879,7 +902,7 @@ export function ReportsDashboard() {
                   <div className="w-16 h-16 bg-slate-100 rounded-lg">
                     {selectedImage.thumbnail_url && (
                       <img
-                        src={selectedImage.thumbnail_url}
+                        src={selectedImage.original_url}
                         alt={selectedImage.filename}
                         className="w-full h-full object-cover"
                       />
@@ -948,7 +971,10 @@ export function ReportsDashboard() {
                   ALL OUTPUTS
                 </h3>
                 <div className="grid grid-cols-4 gap-4">
-                  {selectedImage.output_urls?.map((url, idx) => (
+                  {[
+                    selectedImage.original_url,
+                    ...selectedImage.output_urls,
+                  ].map((url, idx) => (
                     <div
                       key={idx}
                       className="aspect-square bg-slate-100 rounded-lg border border-slate-200 p-3 flex flex-col"

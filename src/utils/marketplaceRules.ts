@@ -10,6 +10,7 @@ export interface MarketplaceRule {
     allowed: string[]; 
     default: string;   
   }
+  watermarkPolicy: "reject" | "review" | "allowed";
   recommended: boolean;
 }
 
@@ -18,12 +19,14 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
     id: "amazon-us",
     label: "Amazon US",
     resizeDimensions: { width: 2000, height: 2000 },
+    watermarkPolicy: "reject",
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
     recommended: true,
   },
   "amazon-uk": {
     id: "amazon-uk",
     label: "Amazon UK",
+    watermarkPolicy: "reject",
     resizeDimensions: { width: 2000, height: 2000 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
     recommended: true,
@@ -31,12 +34,14 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
   "walmart": {
     id: "walmart",
     label: "Walmart",
+      watermarkPolicy: "reject",
     resizeDimensions: { width: 2200, height: 2200 },
     aspectRatio: { allowed: ["1:1", "3:4"], default: "1:1" },
     recommended: true,
   },
   "wayfair-us": {
     id: "wayfair-us",
+     watermarkPolicy: "review",
     label: "Wayfair US",
     resizeDimensions: { width: 2500, height: 2500 },
     aspectRatio: { allowed: ["1:1", "4:5"], default: "1:1" },
@@ -45,12 +50,14 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
   "wayfair-uk": {
     id: "wayfair-uk",
     label: "Wayfair UK",
+     watermarkPolicy: "review",
     resizeDimensions: { width: 2500, height: 2500 },
     aspectRatio: { allowed: ["1:1", "4:5"], default: "1:1" },
     recommended: true,
   },
   "ebay-us": {
     id: "ebay-us",
+      watermarkPolicy: "allowed",
     label: "eBay US",
     resizeDimensions: { width: 1600, height: 1600 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
@@ -59,12 +66,14 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
   "ebay-uk": {
     id: "ebay-uk",
     label: "eBay UK",
+    watermarkPolicy: "allowed",
     resizeDimensions: { width: 1600, height: 1600 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
     recommended: true,
   },
   "target-plus": {
     id: "target-plus",
+watermarkPolicy: "reject",
     label: "Target Plus",
     resizeDimensions: { width: 2400, height: 2400 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
@@ -72,6 +81,7 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
   },
   "tiktok-shop": {
     id: "tiktok-shop",
+     watermarkPolicy: "reject",
     label: "TikTok Shop",
     resizeDimensions: { width: 800, height: 800 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
@@ -80,6 +90,7 @@ export const MARKETPLACE_RULES: Record<string, MarketplaceRule> = {
   "homedepot": {
     id: "homedepot",
     label: "Home Depot",
+    watermarkPolicy: "reject",
     resizeDimensions: { width: 1000, height: 1000 },
     aspectRatio: { allowed: ["1:1"], default: "1:1" },
     recommended: true,

@@ -5,7 +5,18 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
-
+export type ProcessingOperation =
+  | "resize"
+  | "bg-remove"
+  | "retouch"
+  | "crop"
+  | "compress"
+  | "lifestyle"
+  | "infographic"
+  | "line-diagram"
+  | "swatch"
+  | "3d-model"
+  | "shadow-remove";
 export interface Database {
   public: {
     Tables: {

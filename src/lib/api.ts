@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { ProcessingOperation } from './database.types';
 const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:8002';
 export const api = axios.create({
   baseURL: `${baseURL}/api/v1`,
@@ -93,12 +94,22 @@ export const assetApi = {
     return data.analysis;
   },
 
-process: async (id: string, operations?: string[], options: any = {},autoDetect: boolean = false  ) => {
+process: async (
+  id: string,
+  operations: ProcessingOperation[] = [],
+  options: Record<string, unknown> = {},
+  autoDetect: boolean = false
+) => {
+  if (!id) {
+    throw new Error("Asset ID is required for processing.");
+  }
+
   const { data } = await api.post(`/assets/${id}/process`, {
-    operations: operations || [],
+    operations,
     options,
-    autoDetect
+    autoDetect,
   });
+
   return data;
 },
   
