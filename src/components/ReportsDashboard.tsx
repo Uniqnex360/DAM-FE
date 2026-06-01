@@ -108,55 +108,53 @@ export function ReportsDashboard() {
   useEffect(() => {
     loadData();
   }, []);
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [galleryData, report] = await Promise.all([
-        assetApi.getGallery(),
-        assetApi.getReport(),
-      ]);
-      if (galleryData) {
-        setSessions(galleryData);
-        const flatImages: ProcessedImage[] = galleryData.flatMap(
-          (session: any) => {
-            const allUrls = session.images.map(
-              (img: any) => img.processed_url || img.url,
-            );
+ const  loadData = async () => {
+  try {
+    setLoading(true);
+    const [galleryData, report] = await Promise.all([
+      assetApi.getGallery(),
+      assetApi.getReport(),
+    ]);
 
-            return session.images.map((img: any) => ({
-              id: img.id,
-              filename: img.name,
-              file_size: img.size || 0,
-              dimensions:
-                img.width && img.height
-                  ? `${img.width}×${img.height}`
-                  : "1080×1080",
-              status: (function () {
-                const s = session.status?.toLowerCase();
-                if (s === "completed" || s === "success") return "done";
-                if (s === "pending") return "queued";
-                if (s === "failed" || s === "error") return "failed";
-                return "processing";
-              })(),
-              destinations: session.metadata?.destinations || ["Shopify"],
-              outputs_count: session.images.length,
-              outputs_ready:
-                session.status === "completed" ? session.images.length : 0,
-              operations: img.processedOperations || [],
-              created_at: session.created_at,
-              thumbnail_url: img.url, // ✅ Always show ORIGINAL in grid/list
-              original_url: img.url, // ✅ Store original explicitly
-              processed_url: img.processed_url, // ✅ Store processed
-              output_urls: img.processed_url ? [img.processed_url] : [],
-            }));
-          },
-        );
-        setImages(flatImages);
-        calculateStats(flatImages);
-        calculateProcessingStatus(flatImages);
-        calculateTopDestinations(flatImages);
-        generateRecentSessions(flatImages);
-      }
+    if (galleryData) {
+      setSessions(galleryData);
+
+      const flatImages: ProcessedImage[] = galleryData.flatMap((session: any) => {
+        return session.images.map((img: any) => ({
+          id: img.id,
+          filename: img.name,
+          file_size: img.size || 0,
+          dimensions: img.width && img.height 
+            ? `${img.width}×${img.height}` 
+            : "1080×1080",
+          status: (function () {
+            const s = session.status?.toLowerCase();
+            if (s === "completed" || s === "success" || s === "done") return "done";
+            if (s === "uploaded" || s === "pending") return "queued";
+            if (s === "failed" || s === "error") return "failed";
+            if (s === "processing") return "processing";
+            return "queued";
+          })(),
+          destinations: session.metadata?.destinations || ["Shopify"],
+          outputs_count: session.images.length,
+          outputs_ready: session.images.filter((i: any) => i.processed_url).length,
+          operations: img.processedOperations || [],
+          created_at: session.created_at,
+          thumbnail_url: img.url,
+          original_url: img.url,
+          processed_url: img.processed_url,
+          output_urls: img.processed_url ? [img.processed_url] : [],
+          project_name: session.metadata?.project_name || "Untitled Project", // ← Added
+        }));
+      });
+
+      setImages(flatImages);
+      calculateStats(flatImages);
+      calculateProcessingStatus(flatImages);
+      calculateTopDestinations(flatImages);
+      generateRecentSessions(flatImages);
+    }
+
       if (report) {
         if (report.daily_breakdown) {
           const chartData = report.daily_breakdown.slice(-7).map((d: any) => ({
@@ -267,14 +265,26 @@ export function ReportsDashboard() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const filteredImages = images.filter((img) => {
-    if (filterStatus !== "all" && img.status !== filterStatus) return false;
-    if (
-      filterDestination !== "all" &&
-      !img.destinations?.includes(filterDestination)
-    )
-      return false;
-    return true;
-  });
+  // Project filter
+  if (filterProject !== "all" && img.project_name !== filterProject) {
+    return false;
+  }
+
+  // Status filter
+  if (filterStatus !== "all" && img.status !== filterStatus) {
+    return false;
+  }
+
+  // Destination filter
+  if (
+    filterDestination !== "all" &&
+    !img.destinations?.includes(filterDestination)
+  ) {
+    return false;
+  }
+
+  return true;
+});
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -464,13 +474,11 @@ export function ReportsDashboard() {
             /* LIST VIEW: Grouped by Project (Session) */
             <div className="space-y-4">
               {sessions
-                .filter(
-                  (s) =>
-                    filterProject === "all" ||
-                    (s.metadata?.project_name || "Untitled Project") ===
-                      filterProject,
-                )
-                .map((session) => (
+  .filter((s) => {
+    const projectName = s.metadata?.project_name || "Untitled Project";
+    return filterProject === "all" || projectName === filterProject;
+  })
+  .map((session) => (
                   <div key={session.id} className="space-y-2">
                     {/* Project Header Row - same as your screenshot */}
                     <div

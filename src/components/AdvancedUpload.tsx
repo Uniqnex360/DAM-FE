@@ -214,11 +214,11 @@ const PROCESSING_OPTIONS = [
     icon: Ruler,
   },
   {
-  id: "shadow-remove",
-  label: "Shadow Removal",
-  description: "Remove harsh shadows while preserving natural lighting",
-  icon: Sparkles,
-},
+    id: "shadow-remove",
+    label: "Shadow Removal",
+    description: "Remove harsh shadows while preserving natural lighting",
+    icon: Sparkles,
+  },
   {
     id: "bg-remove",
     label: "Background Removal",
@@ -328,13 +328,13 @@ export function AdvancedUpload() {
   const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
   const [processedResults, setProcessedResults] = useState<any[]>([]);
   useEffect(() => {
-  return () => {
-    images.forEach((img) => {
-      if (img.preview) URL.revokeObjectURL(img.preview);
-      if (img.url) URL.revokeObjectURL(img.url);
-    });
-  };
-}, [images]);
+    return () => {
+      images.forEach((img) => {
+        if (img.preview) URL.revokeObjectURL(img.preview);
+        if (img.url) URL.revokeObjectURL(img.url);
+      });
+    };
+  }, [images]);
   useEffect(() => {
     if (activeResizeMode === "preset") {
       const [w, h] = selectedPreset.split("x").map(Number);
@@ -375,17 +375,15 @@ export function AdvancedUpload() {
   const removeImage = (id: number) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
-  
+
   const handleProcessBatch = async () => {
     if (
-  selectedProcessing.includes("shadow-remove") &&
-  selectedProcessing.includes("bg-remove")
-) {
-  toast.error(
-    "Shadow removal cannot be combined with background removal."
-  );
-  return;
-}
+      selectedProcessing.includes("shadow-remove") &&
+      selectedProcessing.includes("bg-remove")
+    ) {
+      toast.error("Shadow removal cannot be combined with background removal.");
+      return;
+    }
     const isCropSelected = selectedProcessing.includes("crop");
     if (isCropSelected) {
       const allImagesCropped = images.every((img) => img.isCropped === true);
@@ -405,9 +403,21 @@ export function AdvancedUpload() {
       const project = projectName.trim();
       const formData = new FormData();
       if (project) formData.append("project_name", project);
-      images.forEach(
-        (img) => img.file && formData.append("files", img.file, img.name),
-      );
+const dimensionsMap: Record<string, { width: number; height: number }> = {};
+
+images.forEach((img) => {
+  if (img.file) {
+    formData.append("files", img.file, img.name);
+    
+    if (img.isCropped && img.originalDimensions) {
+      dimensionsMap[img.name] = img.originalDimensions;
+    }
+  }
+});
+
+if (Object.keys(dimensionsMap).length > 0) {
+  formData.append("original_dimensions", JSON.stringify(dimensionsMap));
+}
 
       const batchResult = await assetApi.upload(formData);
       setProgress({
@@ -520,6 +530,11 @@ export function AdvancedUpload() {
             file: newFile,
             name: newFile.name,
             isCropped: true,
+
+            originalDimensions: editingImage.originalDimensions || {
+              width: img.originalDimensions?.width || 0,
+              height: img.originalDimensions?.height || 0,
+            },
           };
         }
         return img;
@@ -786,52 +801,78 @@ export function AdvancedUpload() {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        const validTypes = [
-                          "image/jpeg",
-                          "image/png",
-                          "image/webp",
-                          "image/avif",
-                          "application/pdf",
-                        ];
-                        const invalidFiles = files.filter(
-                          (f) => !validTypes.includes(f.type),
-                        );
-                        const validFiles = files.filter((f) =>
-                          validTypes.includes(f.type),
-                        );
+  const files = Array.from(e.target.files || []);
+  const validTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/avif",
+    "application/pdf",
+  ];
+  const invalidFiles = files.filter((f) => !validTypes.includes(f.type));
+  const validFiles = files.filter((f) => validTypes.includes(f.type));
 
-                        if (invalidFiles.length > 0) {
-                          const invalidNames = invalidFiles
-                            .map((f) => f.name)
-                            .join(", ");
-                          toast.error(
-                            `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
-                          );
-                        }
+  if (invalidFiles.length > 0) {
+    const invalidNames = invalidFiles.map((f) => f.name).join(", ");
+    toast.error(
+      `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`
+    );
+  }
 
-                        if (validFiles.length === 0) {
-                          toast.error("Please select valid image files");
-                          return;
-                        }
+  if (validFiles.length === 0) {
+    toast.error("Please select valid image files");
+    return;
+  }
 
-                        setImages(
-                          validFiles.map((f) => ({
-                            file: f,
-                            name: f.name,
-                            id: Math.random(),
-                            preview: URL.createObjectURL(f),
-                            url: URL.createObjectURL(f),
-                            isCropped: false,
-                          })),
-                        );
+  // ────────────────────────────────────────
+  // Read dimensions of each file BEFORE setting state
+  // ────────────────────────────────────────
+  const filePromises = validFiles.map((f) => {
+    return new Promise<any>((resolve) => {
+      const previewUrl = URL.createObjectURL(f);
+      const img = new Image();
+      img.onload = () => {
+        resolve({
+          file: f,
+          name: f.name,
+          id: Math.random(),
+          preview: previewUrl,
+          url: previewUrl,
+          isCropped: false,
+          originalDimensions: {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          },
+        });
+      };
+      img.onerror = () => {
+        // Fallback if image fails to load
+        resolve({
+          file: f,
+          name: f.name,
+          id: Math.random(),
+          preview: previewUrl,
+          url: previewUrl,
+          isCropped: false,
+          originalDimensions: null,
+        });
+      };
+      img.src = previewUrl;
+    });
+  });
 
-                        if (invalidFiles.length > 0) {
-                          toast.warning(
-                            `${invalidFiles.length} file(s) skipped due to invalid type`,
-                          );
-                        }
-                      }}
+  // Set images ONCE all dimensions are read
+  Promise.all(filePromises).then((newImages) => {
+    setImages(newImages);
+    console.log("Images loaded with dimensions:", newImages);
+  });
+
+  if (invalidFiles.length > 0) {
+    toast.warning(
+      `${invalidFiles.length} file(s) skipped due to invalid type`
+    );
+  }
+}}
                     />
                   </label>
                 </div>
@@ -1629,129 +1670,158 @@ export function AdvancedUpload() {
                         </div>
                       )}
                       {active && op.id === "crop" && (
-  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-    
-    {/* Toggle between Preset and Free mode */}
-    <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
-      <span className="text-xs font-bold text-slate-700">Crop Mode</span>
-      <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
-        <button
-          onClick={() => setCropMode("preset")}
-          className={cn(
-            "px-3 py-1 text-xs font-medium rounded-md transition-all",
-            cropMode === "preset"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          )}
-        >
-          Marketplace Presets
-        </button>
-        <button
-          onClick={() => setCropMode("free")}
-          className={cn(
-            "px-3 py-1 text-xs font-medium rounded-md transition-all",
-            cropMode === "free"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          )}
-        >
-          Free Crop
-        </button>
-      </div>
-    </div>
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          {/* Toggle between Preset and Free mode */}
+                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+                            <span className="text-xs font-bold text-slate-700">
+                              Crop Mode
+                            </span>
+                            <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
+                              <button
+                                onClick={() => setCropMode("preset")}
+                                className={cn(
+                                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                                  cropMode === "preset"
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-slate-700",
+                                )}
+                              >
+                                Marketplace Presets
+                              </button>
+                              <button
+                                onClick={() => setCropMode("free")}
+                                className={cn(
+                                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                                  cropMode === "free"
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-slate-700",
+                                )}
+                              >
+                                Free Crop
+                              </button>
+                            </div>
+                          </div>
 
-    {cropMode === "preset" ? (
-      // PRESET MODE - Show aspect ratio buttons
-      <div>
-        <p className="text-xs text-slate-500 mb-2">Select aspect ratio:</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {[...new Set(selectedDestinations.map(d => MARKETPLACE_RULES[d]?.aspectRatio?.default).filter(Boolean))].map(ratio => (
-            <button
-              key={ratio}
-              onClick={() => {
-                const uncropped = images.find(img => !img.isCropped);
-                if (uncropped) {
-                  setEditingImage({
-                    ...uncropped,
-                    aspectRatio: ratio,
-                    cropMode: "preset"
-                  });
-                }
-              }}
-              className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
-            >
-              {ratio}
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-slate-400">
-          ⚡ Crops to exact marketplace requirements
-        </p>
-      </div>
-    ) : (
-      // FREE MODE - No aspect ratio lock
-      <div>
-        <p className="text-xs text-slate-500 mb-2">Free crop (any shape):</p>
-        <button
-          onClick={() => {
-            const uncropped = images.find(img => !img.isCropped);
-            if (uncropped) {
-              setEditingImage({
-                ...uncropped,
-                aspectRatio: undefined,  // No ratio lock
-                cropMode: "free"
-              });
-            }
-          }}
-          className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
-        >
-          Free Crop (any aspect ratio)
-        </button>
-        <p className="text-[10px] text-amber-600 mt-2">
-          ⚠️ Free cropping may not meet marketplace requirements
-        </p>
-      </div>
-    )}
+                          {cropMode === "preset" ? (
+                            // PRESET MODE - Show aspect ratio buttons
+                            <div>
+                              <p className="text-xs text-slate-500 mb-2">
+                                Select aspect ratio:
+                              </p>
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {[
+                                  ...new Set(
+                                    selectedDestinations
+                                      .map(
+                                        (d) =>
+                                          MARKETPLACE_RULES[d]?.aspectRatio
+                                            ?.default,
+                                      )
+                                      .filter(Boolean),
+                                  ),
+                                ].map((ratio) => (
+                                  <button
+                                    key={ratio}
+                                    onClick={() => {
+                                      const uncropped = images.find(
+                                        (img) => !img.isCropped,
+                                      );
+                                      if (uncropped) {
+                                        setEditingImage({
+                                          ...uncropped,
+                                          aspectRatio: ratio,
+                                          cropMode: "preset",
+                                        });
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                                  >
+                                    {ratio}
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-slate-400">
+                                ⚡ Crops to exact marketplace requirements
+                              </p>
+                            </div>
+                          ) : (
+                            // FREE MODE - No aspect ratio lock
+                            <div>
+                              <p className="text-xs text-slate-500 mb-2">
+                                Free crop (any shape):
+                              </p>
+                              <button
+                                onClick={() => {
+                                  const uncropped = images.find(
+                                    (img) => !img.isCropped,
+                                  );
+                                  if (uncropped) {
+                                    setEditingImage({
+                                      ...uncropped,
+                                      aspectRatio: undefined, // No ratio lock
+                                      cropMode: "free",
+                                    });
+                                  }
+                                }}
+                                className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
+                              >
+                                Free Crop (any aspect ratio)
+                              </button>
+                              <p className="text-[10px] text-amber-600 mt-2">
+                                ⚠️ Free cropping may not meet marketplace
+                                requirements
+                              </p>
+                            </div>
+                          )}
 
-    {/* Existing crop buttons for each image */}
-    <div className="mt-3 max-h-40 overflow-y-auto">
-      {images.map((img, idx) => (
-        <button
-          key={idx}
-          onClick={() => {
-            const previewUrl = img.preview || img.url || 
-              (img.file ? URL.createObjectURL(img.file) : "");
-            setEditingImage({
-              ...img,
-              url: previewUrl,
-              preview: previewUrl,
-              aspectRatio: cropMode === "preset" ? "1:1" : undefined,
-              cropMode: cropMode
-            });
-          }}
-          className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
-            img.isCropped 
-              ? 'bg-green-100 text-green-700' 
-              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-          }`}
-        >
-          <span>{img.isCropped ? '✓' : '✂️'} Crop: {img.name}</span>
-          {img.isCropped && <CheckCircle className="w-4 h-4 text-green-600" />}
-        </button>
-      ))}
-    </div>
+                          {/* Existing crop buttons for each image */}
+                          <div className="mt-3 max-h-40 overflow-y-auto">
+                            {images.map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  const previewUrl =
+                                    img.preview ||
+                                    img.url ||
+                                    (img.file
+                                      ? URL.createObjectURL(img.file)
+                                      : "");
+                                  setEditingImage({
+                                    ...img,
+                                    url: previewUrl,
+                                    preview: previewUrl,
+                                    aspectRatio:
+                                      cropMode === "preset" ? "1:1" : undefined,
+                                    cropMode: cropMode,
+                                  });
+                                }}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+                                  img.isCropped
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                }`}
+                              >
+                                <span>
+                                  {img.isCropped ? "✓" : "✂️"} Crop: {img.name}
+                                </span>
+                                {img.isCropped && (
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
 
-    {editingImage && editingImage.url && (
-      <ImageCropModal
-        imageSrc={editingImage.url}
-        fileName={editingImage.name}
-        aspectRatio={editingImage.aspectRatio} 
-        onClose={() => setEditingImage(null)}
-        onSave={handleCropSave}
-      />
-    )}
-  </div>
-)}
+                          {editingImage && editingImage.url && (
+                            <ImageCropModal
+                              imageSrc={editingImage.url}
+                              fileName={editingImage.name}
+                              aspectRatio={editingImage.aspectRatio}
+                              onClose={() => setEditingImage(null)}
+                              onSave={handleCropSave}
+                            />
+                          )}
+                        </div>
+                      )}
 
                       {active && op.id === "line-diagram" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
