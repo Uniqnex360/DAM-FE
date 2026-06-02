@@ -101,7 +101,7 @@ export function ReportsDashboard() {
   const [expandedSessions, setExpandedSessions] = useState<
     Record<string, boolean>
   >({});
-  const [sessions, setSessions] = useState<any[]>([]); // To keep grouped data
+  const [sessions, setSessions] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("newest");
   const [filterDestination, setFilterDestination] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -144,7 +144,7 @@ export function ReportsDashboard() {
           original_url: img.url,
           processed_url: img.processed_url,
           output_urls: img.processed_url ? [img.processed_url] : [],
-          project_name: session.metadata?.project_name || "Untitled Project", // ← Added
+          project_name: session.metadata?.project_name || "Untitled Project", 
         }));
       });
 
@@ -193,19 +193,7 @@ export function ReportsDashboard() {
     };
     setStats(stats);
   };
-  const calculateDailyImports = (data: ProcessedImage[]) => {
-    const last7Days: DailyImport[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
-      const count = data.filter(
-        (img) => img.created_at.split("T")[0] === dateStr,
-      ).length;
-      last7Days.push({ date: dateStr, count });
-    }
-    setDailyImports(last7Days);
-  };
+  
   const calculateProcessingStatus = (data: ProcessedImage[]) => {
     setProcessingStatus({
       processing: data.filter((img) => img.status === "processing").length,
@@ -213,19 +201,7 @@ export function ReportsDashboard() {
       failed: data.filter((img) => img.status === "failed").length,
     });
   };
-  const calculateTopOperations = (data: ProcessedImage[]) => {
-    const opCounts: Record<string, number> = {};
-    data.forEach((img) => {
-      img.operations?.forEach((op) => {
-        opCounts[op] = (opCounts[op] || 0) + 1;
-      });
-    });
-    const sorted = Object.entries(opCounts)
-      .map(([name, count]) => ({ name, count, color: getOperationColor(name) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-    setTopOperations(sorted);
-  };
+  
   const calculateTopDestinations = (data: ProcessedImage[]) => {
     const destCounts: Record<string, number> = {};
     data.forEach((img) => {
@@ -265,17 +241,14 @@ export function ReportsDashboard() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const filteredImages = images.filter((img) => {
-  // Project filter
   if (filterProject !== "all" && img.project_name !== filterProject) {
     return false;
   }
 
-  // Status filter
   if (filterStatus !== "all" && img.status !== filterStatus) {
     return false;
   }
 
-  // Destination filter
   if (
     filterDestination !== "all" &&
     !img.destinations?.includes(filterDestination)
@@ -294,7 +267,6 @@ export function ReportsDashboard() {
   }
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
@@ -322,7 +294,6 @@ export function ReportsDashboard() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <button
@@ -358,10 +329,8 @@ export function ReportsDashboard() {
       </div>
       {activeTab === "results" && (
         <>
-          {/* Filters Bar */}
           <div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
-              {/* Sort Filter */}
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <SortAsc className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -377,7 +346,6 @@ export function ReportsDashboard() {
                 </div>
               </div>
 
-              {/* Projects Filter */}
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Folder className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -387,7 +355,6 @@ export function ReportsDashboard() {
                     className="appearance-none bg-transparent pr-8 text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
                   >
                     <option value="all">All projects</option>
-                    {/* Automatically generates project list from your sessions */}
                     {[
                       ...new Set(
                         sessions
@@ -404,7 +371,6 @@ export function ReportsDashboard() {
                 </div>
               </div>
 
-              {/* Destinations Filter */}
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Filter className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -422,7 +388,6 @@ export function ReportsDashboard() {
                 </div>
               </div>
 
-              {/* Status Filter */}
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Activity className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -442,7 +407,6 @@ export function ReportsDashboard() {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* View Mode Toggle (Grid/List) */}
               <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
                   onClick={() => setViewMode("list")}
@@ -471,7 +435,6 @@ export function ReportsDashboard() {
             </div>
           </div>
           {viewMode === "list" ? (
-            /* LIST VIEW: Grouped by Project (Session) */
             <div className="space-y-4">
               {sessions
   .filter((s) => {
@@ -480,7 +443,6 @@ export function ReportsDashboard() {
   })
   .map((session) => (
                   <div key={session.id} className="space-y-2">
-                    {/* Project Header Row - same as your screenshot */}
                     <div
                       onClick={() =>
                         setExpandedSessions((prev) => ({
@@ -514,7 +476,6 @@ export function ReportsDashboard() {
                             images complete
                           </p>
                         </div>
-                        {/* Progress Bar */}
                         <div className="w-40 px-4">
                           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                             <div className="bg-emerald-400 h-full w-full" />
@@ -526,7 +487,6 @@ export function ReportsDashboard() {
                       />
                     </div>
 
-                    {/* Expandable Content */}
                     {expandedSessions[session.id] && (
                       <div className="pl-12 space-y-3">
                         {session.images.slice(0, 5).map((img: any) => (
@@ -561,7 +521,6 @@ export function ReportsDashboard() {
                                   2/2 outputs
                                 </p>
                               </div>
-                              {/* Eye Button: Re-decorated to fix "ALL OUTPUTS" grid */}
                               <button
   onClick={() =>
     setSelectedImage({
@@ -594,7 +553,6 @@ export function ReportsDashboard() {
                 ))}
             </div>
           ) : (
-            /* GRID VIEW: Flat grid of all images */
             <div className="grid grid-cols-4 gap-4">
               {filteredImages.map((img) => (
                 <button
@@ -629,10 +587,8 @@ export function ReportsDashboard() {
           )}
         </>
       )}
-      {/* Reports Tab */}
       {activeTab === "reports" && stats && (
         <div className="space-y-6">
-          {/* Stats Grid */}
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -674,9 +630,7 @@ export function ReportsDashboard() {
               <p className="text-xs text-slate-500 mt-1">Total File Size</p>
             </div>
           </div>
-          {/* Charts Row */}
           <div className="grid grid-cols-2 gap-6">
-            {/* Imports Chart */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
                 Imports — Last 7 Days
@@ -710,7 +664,6 @@ export function ReportsDashboard() {
                 })}
               </div>
             </div>
-            {/* Processing Status */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
                 Processing Status
@@ -778,9 +731,7 @@ export function ReportsDashboard() {
               </div>
             </div>
           </div>
-          {/* Bottom Row */}
           <div className="grid grid-cols-2 gap-6">
-            {/* Top Operations */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
                 Top Operations Used
@@ -806,7 +757,6 @@ export function ReportsDashboard() {
                 ))}
               </div>
             </div>
-            {/* Top Destinations */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">
                 Top Destinations
@@ -828,7 +778,6 @@ export function ReportsDashboard() {
               </div>
             </div>
           </div>
-          {/* Recent Sessions */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Recent Import Sessions
@@ -893,7 +842,6 @@ export function ReportsDashboard() {
           </div>
         </div>
       )}
-      {/* Image Detail Modal */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6"
@@ -903,7 +851,6 @@ export function ReportsDashboard() {
             className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal content - image outputs grid */}
             <div className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center space-x-4">
@@ -945,7 +892,6 @@ export function ReportsDashboard() {
                   ✕
                 </button>
               </div>
-              {/* Stats */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 bg-slate-50 rounded-lg">
                   <p className="text-2xl font-bold text-slate-900">
@@ -972,8 +918,7 @@ export function ReportsDashboard() {
                   <p className="text-sm text-slate-600">Operations</p>
                 </div>
               </div>
-              {/* Output images grid */}
-              {/* Output images grid */}
+             
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">
                   ALL OUTPUTS
@@ -987,7 +932,6 @@ export function ReportsDashboard() {
                       key={idx}
                       className="aspect-square bg-slate-100 rounded-lg border border-slate-200 p-3 flex flex-col"
                     >
-                      {/* Replace the empty div with this img tag */}
                       <div className="flex-1 bg-white rounded overflow-hidden">
                         <img
                           src={url}

@@ -28,6 +28,7 @@ import {
   BarChart,
   Folder,
   Download,
+  Type,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
@@ -213,6 +214,13 @@ const PROCESSING_OPTIONS = [
     description: "Resize to specific dimensions",
     icon: Ruler,
   },
+  {
+    id: "text-remove",
+    label: "Text Removal",
+    description: "Auto-detect and remove embedded text or watermarks",
+    icon: Type,
+  },
+
   {
     id: "shadow-remove",
     label: "Shadow Removal",
