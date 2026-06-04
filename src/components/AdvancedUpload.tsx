@@ -360,7 +360,6 @@ export function AdvancedUpload() {
         ] as string[];
         setExistingProjects(projects);
       } catch (e) {
-        // Silent fail
       }
     };
     loadProjects();
@@ -439,10 +438,8 @@ if (Object.keys(dimensionsMap).length > 0) {
           let operationsToSend = [...selectedProcessing];
           const processOptions: any = {};
 
-          // Handle resize operation
           if (selectedProcessing.includes("resize")) {
             if (useMarketplaceResize) {
-              // Auto-resize based on marketplace rules
               const dimensions =
                 getResizeDimensionsForDestinations(selectedDestinations);
               if (dimensions && dimensions.length > 0) {
@@ -452,7 +449,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                 );
               }
             } else {
-              // Custom resize
               switch (activeResizeMode) {
                 case "original":
                   operationsToSend = operationsToSend.filter(
@@ -482,7 +478,6 @@ if (Object.keys(dimensionsMap).length > 0) {
             }
           }
 
-          // Handle compression
           if (selectedProcessing.includes("compress")) {
             processOptions.quality = compressionQuality;
           }
@@ -519,7 +514,15 @@ if (Object.keys(dimensionsMap).length > 0) {
       setCurrentStep("results");
       toast.success("Processing complete!");
     } catch (e: any) {
-      toast.error("Failed to process batch: " + e.message);
+       console.error("Process error:", e);
+
+  const backendMessage =
+    e?.response?.data?.detail ||
+    e?.response?.data?.message ||
+    e?.message ||
+    "Failed to process batch";
+
+  toast.error(backendMessage);
     } finally {
       setUploading(false);
     }
@@ -832,9 +835,7 @@ if (Object.keys(dimensionsMap).length > 0) {
     return;
   }
 
-  // ────────────────────────────────────────
-  // Read dimensions of each file BEFORE setting state
-  // ────────────────────────────────────────
+  
   const filePromises = validFiles.map((f) => {
     return new Promise<any>((resolve) => {
       const previewUrl = URL.createObjectURL(f);
@@ -854,7 +855,6 @@ if (Object.keys(dimensionsMap).length > 0) {
         });
       };
       img.onerror = () => {
-        // Fallback if image fails to load
         resolve({
           file: f,
           name: f.name,
@@ -869,7 +869,6 @@ if (Object.keys(dimensionsMap).length > 0) {
     });
   });
 
-  // Set images ONCE all dimensions are read
   Promise.all(filePromises).then((newImages) => {
     setImages(newImages);
     console.log("Images loaded with dimensions:", newImages);
@@ -884,12 +883,10 @@ if (Object.keys(dimensionsMap).length > 0) {
                     />
                   </label>
                 </div>
-                {/* Selected Files Grid - shows after files are added */}
               </>
             ) : (
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
-                  {/* Dynamically show the icon for the active source */}
                   {(() => {
                     const activeSource = SOURCES.find(
                       (s) => s.id === uploadSource,
@@ -1513,14 +1510,13 @@ if (Object.keys(dimensionsMap).length > 0) {
                           </div>
 
                           {useMarketplaceResize ? (
-                            // 🔥 AUTO MODE - Show marketplace dimensions
                             <div className="space-y-2">
                               <p className="text-xs text-slate-500">
                                 Will resize to platform specifications:
                               </p>
                               {selectedDestinations.length === 0 ? (
                                 <p className="text-xs text-amber-600">
-                                  ⚠️ Select destinations first to see dimensions
+                                   Select destinations first to see dimensions
                                 </p>
                               ) : (
                                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
@@ -1546,7 +1542,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                               )}
                             </div>
                           ) : (
-                            // 🔥 CUSTOM MODE - Your existing resize UI
                             <>
                               <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
                                 {(
@@ -1711,7 +1706,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                           </div>
 
                           {cropMode === "preset" ? (
-                            // PRESET MODE - Show aspect ratio buttons
                             <div>
                               <p className="text-xs text-slate-500 mb-2">
                                 Select aspect ratio:
@@ -1753,7 +1747,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                               </p>
                             </div>
                           ) : (
-                            // FREE MODE - No aspect ratio lock
                             <div>
                               <p className="text-xs text-slate-500 mb-2">
                                 Free crop (any shape):
@@ -1766,7 +1759,7 @@ if (Object.keys(dimensionsMap).length > 0) {
                                   if (uncropped) {
                                     setEditingImage({
                                       ...uncropped,
-                                      aspectRatio: undefined, // No ratio lock
+                                      aspectRatio: undefined,
                                       cropMode: "free",
                                     });
                                   }
@@ -1776,13 +1769,12 @@ if (Object.keys(dimensionsMap).length > 0) {
                                 Free Crop (any aspect ratio)
                               </button>
                               <p className="text-[10px] text-amber-600 mt-2">
-                                ⚠️ Free cropping may not meet marketplace
+                                 Free cropping may not meet marketplace
                                 requirements
                               </p>
                             </div>
                           )}
 
-                          {/* Existing crop buttons for each image */}
                           <div className="mt-3 max-h-40 overflow-y-auto">
                             {images.map((img, idx) => (
                               <button
@@ -2059,7 +2051,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                       </div>
                     </div>
                   ) : res.url ? (
-                    // ✅ SINGLE OUTPUT (Background Removal, Retouch, Crop, etc.)
                     <div className="border-t border-slate-100 pt-4">
                       <h5 className="text-sm font-black text-slate-700 mb-3">
                         Processed Image
@@ -2070,7 +2061,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                             Result
                           </span>
                           <span className="text-xs text-slate-500">
-                            {/* Show processed image dimensions if available */}
                             {res.processed_width && res.processed_height
                               ? `${res.processed_width}×${res.processed_height}`
                               : `${res.metadata?.width || "?"}×${res.metadata?.height || "?"}`}
@@ -2083,7 +2073,7 @@ if (Object.keys(dimensionsMap).length > 0) {
                           onError={(e) => {
                             console.error("Failed to load image:", res.url);
                             e.currentTarget.src =
-                              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">Load failed</text></svg>';
+                              'data:image/svg+xml,<svg xmlns="http: www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">Load failed</text></svg>';
                           }}
                         />
                         <button
@@ -2141,7 +2131,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                   className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:border-blue-400 shadow-sm transition-all"
                 >
                   {res.outputs && res.outputs.length > 0 ? (
-                    // Multiple outputs (Resize)
                     <div>
                       <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
                         <img
@@ -2192,7 +2181,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                       </div>
                     </div>
                   ) : res.url ? (
-                    // ✅ Single output (BG Removal, Retouch, Crop, etc.)
                     <div>
                       <div className="aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-4">
                         <img
