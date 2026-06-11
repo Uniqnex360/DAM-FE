@@ -19,7 +19,7 @@ function extractErrorMessage(error: unknown, fallback: string): Error {
 export const userService = {
   async getAll(): Promise<User[]> {
     try {
-      const { data } = await api.get<User[]>("/users");
+      const { data } = await api.get<User[]>("/users/");
       return data;
     } catch (error: unknown) {
       console.error("[userService.getAll]", error);
@@ -29,7 +29,7 @@ export const userService = {
 
   async create(user: UserCreate): Promise<User> {
     try {
-      const { data } = await api.post<User>("/users", user);
+      const { data } = await api.post<User>("/users/", user);
       return data;
     } catch (error: unknown) {
       console.error("[userService.create]", error);
@@ -39,7 +39,7 @@ export const userService = {
 
   async update(id: string, user: UserUpdate): Promise<User> {
     try {
-      const { data } = await api.patch<User>(`/users/${id}`, user);
+      const { data } = await api.patch<User>(`/users//${id}`, user);
       return data;
     } catch (error: unknown) {
       console.error("[userService.update]", error);
@@ -49,7 +49,7 @@ export const userService = {
 
   async delete(id: string): Promise<void> {
     try {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users//${id}`);
     } catch (error: unknown) {
       console.error("[userService.delete]", error);
       throw extractErrorMessage(error, "Failed to delete user");
