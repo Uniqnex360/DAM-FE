@@ -37,6 +37,10 @@ export function ImageCropModal({
   }, []);
 
   const handleSave = async () => {
+     if (!croppedAreaPixels) {
+    alert("Please adjust the crop area first.");
+    return;
+  }
     try {
       const croppedFile = await getCroppedImg(
         imageSrc,
@@ -55,10 +59,7 @@ onSave(croppedFile, cropMode, aspectRatio);
     if (!aspectRatio) return "Free";
     return `${aspectRatio} (Locked)`;
   };
-if (!croppedAreaPixels) {
-  alert("Please adjust the crop area first.");
-  return;
-}
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl overflow-hidden w-full max-w-2xl shadow-2xl">
