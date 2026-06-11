@@ -61,7 +61,6 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-slate-900 text-slate-300">
-      {/* Logo */}
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
@@ -74,7 +73,6 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         </div>
       </div>
 
-      {/* Nav Sections */}
       <nav className="flex-1 overflow-y-auto py-6">
         {navSections.map((section) => (
           <div key={section.title} className="mb-6">
@@ -106,7 +104,6 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         ))}
       </nav>
 
-      {/* Sign Out */}
       <div className="p-6 border-t border-slate-800">
         <button
           onClick={() => signOut()}
@@ -121,12 +118,10 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
 
   return (
     <div className="flex h-screen bg-slate-50">
-      {/* Desktop Sidebar */}
       <aside className="hidden md:block w-64 border-r border-slate-200">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <>
           <div
@@ -139,9 +134,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         </>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar - Mobile Only */}
         <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => setMobileOpen(true)}
@@ -155,10 +148,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             </div>
             <span className="font-semibold">AssetLynx</span>
           </div>
-          <div className="w-10" /> {/* Spacer */}
+          <div className="w-10" />
         </header>
 
-        {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

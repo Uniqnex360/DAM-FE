@@ -49,7 +49,7 @@ export const userService = {
 
   async delete(id: string): Promise<void> {
     try {
-      await api.delete(`/users//${id}`);
+      await api.delete(`/users/${id}`);
     } catch (error: unknown) {
       console.error("[userService.delete]", error);
       throw extractErrorMessage(error, "Failed to delete user");
