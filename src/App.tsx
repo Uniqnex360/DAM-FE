@@ -13,7 +13,7 @@ import { MarketplaceSyndication } from './components/MarketplaceSyndication';
 import { AugmentedReality } from './components/AugmentedReality';
 import { PromotionalTags } from './components/PromotionalTags';
 import { AIPromptOptimization } from './components/AIPromptOptimization';
-import { ClientManagement } from './components/ClientManagement';
+import { UserManagement } from './components/UserManagement';
 import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';

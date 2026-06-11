@@ -29,6 +29,8 @@ import {
   Folder,
   Download,
   Type,
+  Shield,
+  Maximize,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
@@ -215,9 +217,22 @@ const PROCESSING_OPTIONS = [
     icon: Ruler,
   },
   {
+    id: "image-refill",
+    label: "Image Refill / Reconstruction",
+    description: "AI-powered completion of cut-off product parts (Outpainting)",
+    icon: Maximize,
+  },
+
+  {
+  id: "watermark-remove",
+  label: "Watermark Removal",
+  description: "Remove watermarks without affecting product",
+  icon: Shield,
+},
+  {
     id: "text-remove",
     label: "Text Removal",
-    description: "Auto-detect and remove embedded text or watermarks",
+    description: "Auto-detect and remove embedded text",
     icon: Type,
   },
 
