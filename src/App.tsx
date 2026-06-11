@@ -67,7 +67,7 @@ function AppContent() {
 
         {currentView === 'ai-optimize' && <AIPromptOptimization />}
 
-        {currentView === 'clients' && <ClientManagement />}
+        {currentView === 'clients' && <UserManagement />}
 
         {currentView === 'configurator' && (
           <div className="grid lg:grid-cols-2 gap-6">
