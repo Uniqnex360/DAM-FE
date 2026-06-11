@@ -39,7 +39,7 @@ export const userService = {
 
   async update(id: string, user: UserUpdate): Promise<User> {
     try {
-      const { data } = await api.patch<User>(`/users//${id}`, user);
+      const { data } = await api.patch<User>(`/users/${id}`, user);
       return data;
     } catch (error: unknown) {
       console.error("[userService.update]", error);
