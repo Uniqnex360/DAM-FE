@@ -224,11 +224,11 @@ const PROCESSING_OPTIONS = [
   },
 
   {
-    id: "watermark-remove",
-    label: "Watermark Removal",
-    description: "Remove watermarks without affecting product",
-    icon: Shield,
-  },
+  id: "watermark-remove",
+  label: "Watermark Removal",
+  description: "Remove watermarks without affecting product",
+  icon: Shield,
+},
   {
     id: "text-remove",
     label: "Text Removal",
@@ -374,7 +374,8 @@ export function AdvancedUpload() {
           ),
         ] as string[];
         setExistingProjects(projects);
-      } catch (e) {}
+      } catch (e) {
+      }
     };
     loadProjects();
   }, []);
@@ -405,6 +406,7 @@ export function AdvancedUpload() {
       toast.error("Shadow removal cannot be combined with background removal.");
       return;
     }
+    
     const isCropSelected = selectedProcessing.includes("crop");
     if (isCropSelected) {
       const allImagesCropped = images.every((img) => img.isCropped === true);
@@ -424,22 +426,30 @@ export function AdvancedUpload() {
       const project = projectName.trim();
       const formData = new FormData();
       if (project) formData.append("project_name", project);
-      const dimensionsMap: Record<string, { width: number; height: number }> =
-        {};
+const dimensionsMap: Record<string, { width: number; height: number }> = {};
 
-      images.forEach((img) => {
-        if (img.file) {
-          formData.append("files", img.file, img.name);
-
-          if (img.isCropped && img.originalDimensions) {
-            dimensionsMap[img.name] = img.originalDimensions;
-          }
-        }
-      });
-
-      if (Object.keys(dimensionsMap).length > 0) {
-        formData.append("original_dimensions", JSON.stringify(dimensionsMap));
-      }
+images.forEach((img) => {
+  if (img.file) {
+    formData.append("files", img.file, img.name);
+    
+    if (img.isCropped && img.originalDimensions) {
+      dimensionsMap[img.name] = img.originalDimensions;
+    }
+  }
+});
+const cropSettings = images
+  .filter(img => img.isCropped)
+  .map(img => ({
+    filename: img.name,
+    cropMode: img.cropMode,
+    targetAspectRatio: img.targetAspectRatio,
+  }));
+if (cropSettings.length) {
+  formData.append("crop_settings", JSON.stringify(cropSettings));
+}
+if (Object.keys(dimensionsMap).length > 0) {
+  formData.append("original_dimensions", JSON.stringify(dimensionsMap));
+}
 
       const batchResult = await assetApi.upload(formData);
       setProgress({
@@ -448,139 +458,55 @@ export function AdvancedUpload() {
         phase: "Processing",
       });
 
-    //   const results = await Promise.all(
-    //     batchResult.images.map(async (asset: any, idx: number) => {
-    //       const processOptions: any = {}; 
-    //       let operationsToSend = [...selectedProcessing];
-    //       if (useMarketplaceResize && selectedDestinations.length > 0) {
-    //   const dimensions = getResizeDimensionsForDestinations(selectedDestinations);
-    //   if (dimensions && dimensions.length > 0) {
-    //     processOptions.resize = dimensions;
-        
-    //     if (!operationsToSend.includes("resize")) {
-    //       operationsToSend.push("resize");
-    //     }
-    //   }
-    // } 
-
-    //     else  if (selectedProcessing.includes("resize")) {
-    //         if (useMarketplaceResize) {
-    //           const dimensions =
-    //             getResizeDimensionsForDestinations(selectedDestinations);
-    //           if (dimensions && dimensions.length > 0) {
-    //             processOptions.resize = dimensions;
-    //             operationsToSend = operationsToSend.filter(
-    //               (op) => op !== "resize",
-    //             );
-    //           }
-    //         } else {
-    //           switch (activeResizeMode) {
-    //             case "original":
-    //               operationsToSend = operationsToSend.filter(
-    //                 (op) => op !== "resize",
-    //               );
-    //               break;
-    //             case "preset":
-    //             case "custom":
-    //               processOptions.resize = {
-    //                 width: resizeDims.width,
-    //                 height: resizeDims.height,
-    //               };
-    //               break;
-    //             case "percentage":
-    //               const targetWidth = Math.round(
-    //                 (asset.width || 1000) * (resizePercentage / 100),
-    //               );
-    //               const targetHeight = Math.round(
-    //                 (asset.height || 1000) * (resizePercentage / 100),
-    //               );
-    //               processOptions.resize = {
-    //                 width: targetWidth,
-    //                 height: targetHeight,
-    //               };
-    //               break;
-    //           }
-    //         }
-    //       }
-
-    //       if (selectedProcessing.includes("compress")) {
-    //         processOptions.quality = compressionQuality;
-    //       }
-
-    //       const ops = autoDetect ? [] : operationsToSend;
-    //       const res = await assetApi.process(
-    //         asset.id,
-    //         ops,
-    //         processOptions,
-    //         autoDetect,
-    //       );
-
-    //       setProgress((prev) => ({ ...prev, current: idx + 1 }));
-    //       if (res.outputs && res.outputs.length > 0) {
-    //         return {
-    //           outputs: res.outputs,
-    //           originalName: asset.name,
-    //           metadata: asset,
-    //           appliedOps: res.telemetry?.steps || ops,
-    //         };
-    //       } else {
-    //         return {
-    //           url: res.url,
-    //           name: res.name,
-    //           originalName: asset.name,
-    //           metadata: asset,
-    //           appliedOps: res.telemetry?.steps || ops,
-    //         };
-    //       }
-    //     }),
-    //   );
-        const results = await Promise.all(
+      const results = await Promise.all(
         batchResult.images.map(async (asset: any, idx: number) => {
-          // 1. Initialize logic variables correctly
-          const processOptions: any = {};
           let operationsToSend = [...selectedProcessing];
+          const processOptions: any = {};
 
-          // 2. Logic for Resizing (Marketplace vs. Manual)
-          if (useMarketplaceResize && selectedDestinations.length > 0) {
-            // Priority: Marketplace Auto-Mode
-            const dimensions = getResizeDimensionsForDestinations(selectedDestinations);
-            if (dimensions && dimensions.length > 0) {
-              processOptions.resize = dimensions;
-              // Ensure "resize" is in the ops list to trigger marketplace multi-output logic
-              if (!operationsToSend.includes("resize")) {
-                operationsToSend.push("resize");
+          if (selectedProcessing.includes("resize")) {
+            if (useMarketplaceResize) {
+              const dimensions =
+                getResizeDimensionsForDestinations(selectedDestinations);
+              if (dimensions && dimensions.length > 0) {
+                processOptions.resize = dimensions;
+                operationsToSend = operationsToSend.filter(
+                  (op) => op !== "resize",
+                );
               }
-            }
-          } 
-          else if (operationsToSend.includes("resize")) {
-            // Fallback: Manual Mode (Preset, Custom, Percentage, or Original)
-            switch (activeResizeMode) {
-              case "preset":
-              case "custom":
-                processOptions.resize = {
-                  width: resizeDims.width,
-                  height: resizeDims.height,
-                };
-                break;
-              case "percentage":
-                processOptions.resize = {
-                  width: Math.round((asset.width || 1000) * (resizePercentage / 100)),
-                  height: Math.round((asset.height || 1000) * (resizePercentage / 100)),
-                };
-                break;
-              case "original":
-                // If user selected "original", we don't send resize op
-                operationsToSend = operationsToSend.filter((op) => op !== "resize");
-                break;
+            } else {
+              switch (activeResizeMode) {
+                case "original":
+                  operationsToSend = operationsToSend.filter(
+                    (op) => op !== "resize",
+                  );
+                  break;
+                case "preset":
+                case "custom":
+                  processOptions.resize = {
+                    width: resizeDims.width,
+                    height: resizeDims.height,
+                  };
+                  break;
+                case "percentage":
+                  const targetWidth = Math.round(
+                    (asset.width || 1000) * (resizePercentage / 100),
+                  );
+                  const targetHeight = Math.round(
+                    (asset.height || 1000) * (resizePercentage / 100),
+                  );
+                  processOptions.resize = {
+                    width: targetWidth,
+                    height: targetHeight,
+                  };
+                  break;
+              }
             }
           }
 
-          // 3. Compression Logic
-          if (operationsToSend.includes("compress")) {
+          if (selectedProcessing.includes("compress")) {
             processOptions.quality = compressionQuality;
           }
 
-          // 4. API Execution
           const ops = autoDetect ? [] : operationsToSend;
           const res = await assetApi.process(
             asset.id,
@@ -590,8 +516,6 @@ export function AdvancedUpload() {
           );
 
           setProgress((prev) => ({ ...prev, current: idx + 1 }));
-
-          // 5. Response Mapping (Correctly handles multi-marketplace or single output)
           if (res.outputs && res.outputs.length > 0) {
             return {
               outputs: res.outputs,
@@ -610,25 +534,26 @@ export function AdvancedUpload() {
           }
         }),
       );
+
       setProcessedResults(results);
       setCurrentStep("results");
       toast.success("Processing complete!");
     } catch (e: any) {
-      console.error("Process error:", e);
+       console.error("Process error:", e);
 
-      const backendMessage =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
-        e?.message ||
-        "Failed to process batch";
+  const backendMessage =
+    e?.response?.data?.detail ||
+    e?.response?.data?.message ||
+    e?.message ||
+    "Failed to process batch";
 
-      toast.error(backendMessage);
+  toast.error(backendMessage);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleCropSave = (newFile: File) => {
+  const handleCropSave = (newFile: File,mode: string, ratio?: string) => {
     if (!editingImage) return;
     const newUrl = URL.createObjectURL(newFile);
     setImages((prev) =>
@@ -641,7 +566,8 @@ export function AdvancedUpload() {
             file: newFile,
             name: newFile.name,
             isCropped: true,
-
+            cropMode: mode,
+            targetAspectRatio: ratio,
             originalDimensions: editingImage.originalDimensions || {
               width: img.originalDimensions?.width || 0,
               height: img.originalDimensions?.height || 0,
@@ -912,82 +838,74 @@ export function AdvancedUpload() {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        const validTypes = [
-                          "image/jpeg",
-                          "image/png",
-                          "image/webp",
-                          "image/avif",
-                          "application/pdf",
-                        ];
-                        const invalidFiles = files.filter(
-                          (f) => !validTypes.includes(f.type),
-                        );
-                        const validFiles = files.filter((f) =>
-                          validTypes.includes(f.type),
-                        );
+  const files = Array.from(e.target.files || []);
+  const validTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/avif",
+    "application/pdf",
+  ];
+  const invalidFiles = files.filter((f) => !validTypes.includes(f.type));
+  const validFiles = files.filter((f) => validTypes.includes(f.type));
 
-                        if (invalidFiles.length > 0) {
-                          const invalidNames = invalidFiles
-                            .map((f) => f.name)
-                            .join(", ");
-                          toast.error(
-                            `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
-                          );
-                        }
+  if (invalidFiles.length > 0) {
+    const invalidNames = invalidFiles.map((f) => f.name).join(", ");
+    toast.error(
+      `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`
+    );
+  }
 
-                        if (validFiles.length === 0) {
-                          toast.error("Please select valid image files");
-                          return;
-                        }
+  if (validFiles.length === 0) {
+    toast.error("Please select valid image files");
+    return;
+  }
 
-                        const filePromises = validFiles.map((f) => {
-                          return new Promise<any>((resolve) => {
-                            const previewUrl = URL.createObjectURL(f);
-                            const img = new Image();
-                            img.onload = () => {
-                              resolve({
-                                file: f,
-                                name: f.name,
-                                id: Math.random(),
-                                preview: previewUrl,
-                                url: previewUrl,
-                                isCropped: false,
-                                originalDimensions: {
-                                  width: img.naturalWidth,
-                                  height: img.naturalHeight,
-                                },
-                              });
-                            };
-                            img.onerror = () => {
-                              resolve({
-                                file: f,
-                                name: f.name,
-                                id: Math.random(),
-                                preview: previewUrl,
-                                url: previewUrl,
-                                isCropped: false,
-                                originalDimensions: null,
-                              });
-                            };
-                            img.src = previewUrl;
-                          });
-                        });
+  
+  const filePromises = validFiles.map((f) => {
+    return new Promise<any>((resolve) => {
+      const previewUrl = URL.createObjectURL(f);
+      const img = new Image();
+      img.onload = () => {
+        resolve({
+          file: f,
+          name: f.name,
+          id: Math.random(),
+          preview: previewUrl,
+          url: previewUrl,
+          isCropped: false,
+          originalDimensions: {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          },
+        });
+      };
+      img.onerror = () => {
+        resolve({
+          file: f,
+          name: f.name,
+          id: Math.random(),
+          preview: previewUrl,
+          url: previewUrl,
+          isCropped: false,
+          originalDimensions: null,
+        });
+      };
+      img.src = previewUrl;
+    });
+  });
 
-                        Promise.all(filePromises).then((newImages) => {
-                          setImages(newImages);
-                          console.log(
-                            "Images loaded with dimensions:",
-                            newImages,
-                          );
-                        });
+  Promise.all(filePromises).then((newImages) => {
+    setImages(newImages);
+    console.log("Images loaded with dimensions:", newImages);
+  });
 
-                        if (invalidFiles.length > 0) {
-                          toast.warning(
-                            `${invalidFiles.length} file(s) skipped due to invalid type`,
-                          );
-                        }
-                      }}
+  if (invalidFiles.length > 0) {
+    toast.warning(
+      `${invalidFiles.length} file(s) skipped due to invalid type`
+    );
+  }
+}}
                     />
                   </label>
                 </div>
@@ -1624,7 +1542,7 @@ export function AdvancedUpload() {
                               </p>
                               {selectedDestinations.length === 0 ? (
                                 <p className="text-xs text-amber-600">
-                                  Select destinations first to see dimensions
+                                   Select destinations first to see dimensions
                                 </p>
                               ) : (
                                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
@@ -1877,7 +1795,7 @@ export function AdvancedUpload() {
                                 Free Crop (any aspect ratio)
                               </button>
                               <p className="text-[10px] text-amber-600 mt-2">
-                                Free cropping may not meet marketplace
+                                 Free cropping may not meet marketplace
                                 requirements
                               </p>
                             </div>
@@ -1924,6 +1842,7 @@ export function AdvancedUpload() {
                               imageSrc={editingImage.url}
                               fileName={editingImage.name}
                               aspectRatio={editingImage.aspectRatio}
+                              cropMode={editingImage.cropMode} 
                               onClose={() => setEditingImage(null)}
                               onSave={handleCropSave}
                             />
