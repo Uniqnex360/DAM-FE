@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { UserPlus, Edit, Trash2, X, Check } from "lucide-react";
+import { UserPlus, Edit, Trash2, X, Check, Loader2 } from "lucide-react";
 import { userService } from "../services/userService";
 import { User, UserCreate } from "../types/interface";
-import { toast } from "sonner"; // Use your existing notification library
+import { toast } from "sonner";
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false); // ADD THIS
+  const [deleting, setDeleting] = useState<string | null>(null); // ADD THIS
   const [showForm, setShowForm] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -35,6 +37,7 @@ export function UserManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true); // ADD THIS
     try {
       if (editingId) {
         await userService.update(editingId, formData);
@@ -47,6 +50,8 @@ export function UserManagement() {
       loadUsers();
     } catch (err: any) {
       toast.error(err.message || "Action failed");
+    } finally {
+      setSaving(false); // ADD THIS
     }
   };
 
@@ -75,16 +80,28 @@ export function UserManagement() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Permanently delete this user?")) return;
+    setDeleting(id); // ADD THIS
     try {
       await userService.delete(id);
       toast.success("User deleted successfully");
       loadUsers();
     } catch (err: any) {
       toast.error(err.message || "Delete failed");
+    } finally {
+      setDeleting(null); // ADD THIS
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 font-medium">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -112,7 +129,8 @@ export function UserManagement() {
                 setFormData({ ...formData, email: e.target.value })
               }
               required
-              className="border p-2 rounded"
+              disabled={saving}
+              className="border p-2 rounded disabled:opacity-50"
             />
             <input
               type="text"
@@ -121,7 +139,8 @@ export function UserManagement() {
               onChange={(e) =>
                 setFormData({ ...formData, full_name: e.target.value })
               }
-              className="border p-2 rounded"
+              disabled={saving}
+              className="border p-2 rounded disabled:opacity-50"
             />
             <input
               type="password"
@@ -132,14 +151,16 @@ export function UserManagement() {
                 setFormData({ ...formData, password: e.target.value })
               }
               required={!editingId}
-              className="border p-2 rounded"
+              disabled={saving}
+              className="border p-2 rounded disabled:opacity-50"
             />
             <select
               value={formData.role}
               onChange={(e) =>
                 setFormData({ ...formData, role: e.target.value })
               }
-              className="border p-2 rounded"
+              disabled={saving}
+              className="border p-2 rounded disabled:opacity-50"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
@@ -149,15 +170,27 @@ export function UserManagement() {
             <button
               type="button"
               onClick={resetForm}
-              className="px-4 py-2 text-gray-600"
+              disabled={saving}
+              className="px-4 py-2 text-gray-600 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              disabled={saving}
+              className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50"
             >
-              Save User
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {editingId ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  {editingId ? "Update User" : "Create User"}
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -193,23 +226,29 @@ export function UserManagement() {
                 </td>
                 <td className="p-4">
                   {u.is_active ? (
-                    <Check className="text-green-500" />
+                    <Check className="text-green-500" size={18} />
                   ) : (
-                    <X className="text-red-500" />
+                    <X className="text-red-500" size={18} />
                   )}
                 </td>
                 <td className="p-4 text-right flex justify-end gap-2">
                   <button
                     onClick={() => handleEdit(u)}
-                    className="p-2 hover:bg-blue-50 text-blue-600 rounded"
+                    disabled={deleting === u.id}
+                    className="p-2 hover:bg-blue-50 text-blue-600 rounded disabled:opacity-50"
                   >
                     <Edit size={16} />
                   </button>
                   <button
                     onClick={() => handleDelete(u.id)}
-                    className="p-2 hover:bg-red-50 text-red-600 rounded"
+                    disabled={deleting === u.id}
+                    className="p-2 hover:bg-red-50 text-red-600 rounded disabled:opacity-50"
                   >
-                    <Trash2 size={16} />
+                    {deleting === u.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
                   </button>
                 </td>
               </tr>
