@@ -119,6 +119,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const response = await api.post(`/auth/impersonate/${userId}`);
       const { access_token, impersonated_user } = response.data;
+      console.log('Full response:', response.data);
+    console.log('impersonated_user:', impersonated_user);
+    console.log('full_name:', impersonated_user?.full_name);
       localStorage.setItem(STORAGE_KEYS.token, access_token);
       localStorage.setItem(STORAGE_KEYS.email, userEmail);
       localStorage.setItem(STORAGE_KEYS.role, impersonated_user?.role || 'user');
@@ -128,7 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(impersonated_user?.role || 'user');
       setIsImpersonating(true);
       setImpersonatedUser({ email: userEmail, full_name: impersonated_user?.full_name });
-      toast.success(`Now impersonating ${userEmail}`);
+      toast.success(`Now impersonating ${impersonated_user?.full_name}`);
       navigate('/dashboard');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -178,6 +181,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await api.post(`/auth/impersonate/${userId}`);
       const { access_token, impersonated_user } = response.data;
+      console.log('Full response:', response.data);
+    console.log('impersonated_user:', impersonated_user);
+    console.log('full_name:', impersonated_user?.full_name);
       localStorage.setItem(STORAGE_KEYS.token, access_token);
       localStorage.setItem(STORAGE_KEYS.email, userEmail);
       localStorage.setItem(STORAGE_KEYS.role, impersonated_user?.role || 'user');

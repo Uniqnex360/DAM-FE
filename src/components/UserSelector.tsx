@@ -37,7 +37,8 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
 
   if (!shouldShowSelector) return null;
 
-  const selectedUser = users.find((u) => u.id === selectedUserId);
+    const selectedUser = users.find((u) => u.id === selectedUserId);
+    console.log("selecteduser",selectedUser)
 
   return (
     <div className={`relative ${className}`}>
@@ -47,7 +48,7 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
       >
         <Users size={18} className="text-slate-500" />
         <span className="text-sm font-medium text-slate-700">
-          {selectedUser ? (selectedUser.full_name || selectedUser.email) : "All Users"}
+          {selectedUser ? (selectedUser.full_name || "User") : "All Users"}
         </span>
         <ChevronDown size={16} className="text-slate-400" />
       </button>
@@ -79,10 +80,7 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
                   selectedUserId === user.id ? "bg-blue-50 text-blue-600" : "text-slate-700"
                 }`}
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{user.full_name || "No name"}</span>
-                 
-                </div>
+                <span>{user.full_name || "Unnamed User"}</span>
                 {selectedUserId === user.id && <Check size={16} />}
               </button>
             ))}
