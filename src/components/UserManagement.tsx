@@ -87,7 +87,6 @@ export function UserManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate email and full_name are not the same
     if (!validateUserData(formData.email || "", formData.full_name || "")) {
       return;
     }
@@ -164,7 +163,7 @@ export function UserManagement() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 ">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">User Management</h1>
         <button
@@ -203,7 +202,6 @@ export function UserManagement() {
               placeholder="Email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
               disabled={saving}
               className="border p-2 rounded disabled:opacity-50"
             />

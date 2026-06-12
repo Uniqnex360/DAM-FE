@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Users, ChevronDown, Check } from "lucide-react";
 import { userService } from "../services/userService";
 import { User } from "../types/interface";
-import { useAuth } from "../contexts/AuthContext";
 import { useUserSelection } from "../contexts/UserSelectionContext";
+import { useAuth } from "../contexts/AuthContext";
 
 interface UserSelectorProps {
   className?: string;
@@ -23,9 +23,8 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
       const loadUsers = async () => {
         setLoading(true);
         try {
-            const data = await userService.getAll();
-                const nonAdminUsers = data.filter(u => u.role !== 'admin');
-          setUsers(nonAdminUsers);
+          const data = await userService.getAll();
+          setUsers(data);
         } catch (error) {
           console.error("Failed to load users:", error);
         } finally {
@@ -48,7 +47,7 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
       >
         <Users size={18} className="text-slate-500" />
         <span className="text-sm font-medium text-slate-700">
-          {selectedUser ? selectedUser.email : "All Users"}
+          {selectedUser ? (selectedUser.full_name || selectedUser.email) : "All Users"}
         </span>
         <ChevronDown size={16} className="text-slate-400" />
       </button>
@@ -80,7 +79,10 @@ export const UserSelector: React.FC<UserSelectorProps> = ({ className = "" }) =>
                   selectedUserId === user.id ? "bg-blue-50 text-blue-600" : "text-slate-700"
                 }`}
               >
-                <span className="truncate">{user.email}</span>
+                <div className="flex flex-col">
+                  <span className="font-medium">{user.full_name || "No name"}</span>
+                 
+                </div>
                 {selectedUserId === user.id && <Check size={16} />}
               </button>
             ))}
