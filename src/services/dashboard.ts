@@ -20,7 +20,12 @@ export interface DashboardData {
   }[];
 }
 
-export const fetchDashboardStats = async (): Promise<DashboardData> => {
-  const response = await api.get("/dashboard/overview");
+export const fetchDashboardStats = async (userId?: string, allUsers?: boolean): Promise<DashboardData> => {
+  let url = '/dashboard/overview';
+  const params = new URLSearchParams();
+  if (userId) params.append('user_id', userId);
+  if (allUsers) params.append('all', 'true');
+  if (params.toString()) url += `?${params.toString()}`;
+  const response = await api.get(url);
   return response.data;
 };

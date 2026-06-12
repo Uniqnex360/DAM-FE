@@ -518,3 +518,51 @@ export interface Database {
     }
   }
 }
+export interface ProcessedImage {
+  id: string;
+  filename: string;
+  file_size: number;
+  dimensions: string;
+  status: "done" | "processing" | "queued" | "failed";
+  destinations: string[];
+  outputs_count: number;
+  outputs_ready: number;
+  original_url: string;
+  processed_url?: string;
+  operations: string[];
+  created_at: string;
+  thumbnail_url?: string;
+  output_urls: string[];
+}
+export  interface DashboardStats {
+  total_images: number;
+  total_outputs: number;
+  completed: number;
+  total_file_size: number;
+}
+export  interface DailyImport {
+  date: string;
+  count: number;
+}
+export  interface ProcessingStatus {
+  processing: number;
+  queued: number;
+  failed: number;
+}
+export interface TopOperation {
+  name: string;
+  count: number;
+  color: string;
+}
+ export interface TopDestination {
+  name: string;
+  count: number;
+}
+export  interface RecentSession {
+  id: string;
+  filename: string;
+  timestamp: string;
+  destinations: string[];
+  outputs: string;
+  status: string;
+}

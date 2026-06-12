@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3,
   Image as ImageIcon,
@@ -15,6 +15,9 @@ import {
   Layers
 } from "lucide-react";
 import { fetchDashboardStats, DashboardData } from "../services/dashboard";
+import { UserSelector } from "./UserSelector";
+import { useAuth } from "../contexts/AuthContext";
+import { useUserSelection } from "../contexts/UserSelectionContext";
 
 const OPERATION_ICONS: Record<string, any> = {
   "resize": Minimize2,
@@ -25,25 +28,18 @@ const OPERATION_ICONS: Record<string, any> = {
   "default": FileImage
 };
 
-// const OPERATION_LABELS: Record<string, string> = {
-//   "resize": "Smart Resizing",
-//   "bg_removal": "Background Removal",
-//   "shadow_fix": "Shadow Correction",
-//   "smart_crop": "AI Smart Crop",
-//   "watermark_removal": "Watermark Removal",
-// };
 const OPERATION_LABELS: Record<string, string> = {
-  // Existing
   resize: "Image Resizing",
   "bg-remove": "Background Removal",
-  
-  "bg_removal": "AI Background Removal",
-  "shadow_fix": "Shadow Correction",
-  "smart_crop": "Smart Object Cropping",
-  "watermark_removal": "Watermark Inpainting",
-  "resize": "Standardization (2000px)",
+  bg_removal: "AI Background Removal",
+  shadow_fix: "Shadow Correction",
+  smart_crop: "Smart Object Cropping",
+  watermark_removal: "Watermark Inpainting",
 };
+
 export function Dashboard() {
+  const { userRole, isImpersonating } = useAuth();
+  const { selectedUserId } = useUserSelection();
   const [stats, setStats] = useState<DashboardData>({
     summary: {
       totalImagesUploaded: 0,
@@ -54,13 +50,23 @@ export function Dashboard() {
     operationCounts: {},
     recentOperations: [],
   });
-  
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const data = await fetchDashboardStats();
+      let userId = undefined;
+      let allUsers = false;
+      
+      if (userRole === "admin" && !isImpersonating) {
+        if (selectedUserId === null) {
+          allUsers = true;
+        } else if (selectedUserId) {
+          userId = selectedUserId;
+        }
+      }
+      
+      const data = await fetchDashboardStats(userId, allUsers);
       setStats(data);
     } catch (error) {
       console.error("Error fetching statistics:", error);
@@ -68,16 +74,12 @@ export function Dashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [selectedUserId, userRole, isImpersonating]);
 
   useEffect(() => {
     loadData();
-  }, []);
-useEffect(() => {
-  console.log('Dashboard mounted');
-  console.log('Token in localStorage:', localStorage.getItem('token'));
-  loadData();
-}, []);
+  }, [loadData]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     loadData();
@@ -105,22 +107,28 @@ useEffect(() => {
   );
 
   return (
-<div className="w-full space-y-6 ">
-      <div className="flex items-center justify-between">
+    <div className="w-full space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-600 mt-1">Overview of your image processing activities</p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          <span className="font-medium text-slate-700">Refresh</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <UserSelector
+           
+          />
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            <span className="font-medium text-slate-700">Refresh</span>
+          </button>
+        </div>
       </div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="flex items-center justify-between mb-4">
@@ -148,6 +156,7 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Operations */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Enhancements Applied</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -167,12 +176,12 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Recent Activity */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6">Recent Activity</h2>
         <div className="space-y-3">
           {stats.recentOperations.map((op) => (
             <div key={op.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-              
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="h-12 w-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 flex-shrink-0">
                   <img 
@@ -182,15 +191,13 @@ useEffect(() => {
                     onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48?text=IMG' }} 
                   />
                 </div>
-                
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900 truncate">{op.fileName}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate" title={op.operationType.replace(/_/g, ' ')}>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
                     {op.operationType.replace(/_/g, ' ')}
                   </p>
                 </div>
               </div>
-
               <div className="flex items-center space-x-4">
                 <div className="text-right hidden sm:block">
                   <p className="text-xs text-slate-500">{new Date(op.createdAt).toLocaleString()}</p>
@@ -198,7 +205,6 @@ useEffect(() => {
                     <p className="text-xs font-medium text-slate-600">{(op.processingTimeMs / 1000).toFixed(2)}s</p>
                   )}
                 </div>
-                
                 <span className={`px-3 py-1 rounded-full text-xs font-medium border capitalize ${getStatusColor(op.status)}`}>
                   {op.status}
                 </span>

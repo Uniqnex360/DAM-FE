@@ -1,16 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { UserPlus, Edit, Trash2, X, Check, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { UserPlus, Edit, Trash2, X, Check, Loader2, UserCog, Users } from "lucide-react";
 import { userService } from "../services/userService";
 import { User, UserCreate } from "../types/interface";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
+import { SwitchUserModal } from "./SwitchUserModal";
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [saving, setSaving] = useState<boolean>(false); // ADD THIS
-  const [deleting, setDeleting] = useState<string | null>(null); // ADD THIS
+  const [saving, setSaving] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  
+  const { 
+    impersonate, 
+    isImpersonating, 
+    user, 
+    switchToAnotherUser,
+    impersonationState 
+  } = useAuth();
 
   const [formData, setFormData] = useState<Partial<UserCreate>>({
     email: "",
@@ -20,11 +31,7 @@ export function UserManagement() {
     is_active: true,
   });
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const data = await userService.getAll();
       setUsers(data);
@@ -33,29 +40,13 @@ export function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true); // ADD THIS
-    try {
-      if (editingId) {
-        await userService.update(editingId, formData);
-        toast.success("User updated successfully");
-      } else {
-        await userService.create(formData as UserCreate);
-        toast.success("User created successfully");
-      }
-      resetForm();
-      loadUsers();
-    } catch (err: any) {
-      toast.error(err.message || "Action failed");
-    } finally {
-      setSaving(false); // ADD THIS
-    }
-  };
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setShowForm(false);
     setEditingId(null);
     setFormData({
@@ -65,9 +56,61 @@ export function UserManagement() {
       role: "user",
       is_active: true,
     });
+  }, []);
+
+  // ✅ Validation function
+  const validateUserData = useCallback((email: string, fullName: string): boolean => {
+    if (!fullName || fullName.trim() === "") {
+      toast.error("Full name is required");
+      return false;
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedFullName = fullName.toLowerCase().trim();
+    
+    // Check if email and full_name are the same
+    if (normalizedEmail === normalizedFullName) {
+      toast.error("Email and full name cannot be the same");
+      return false;
+    }
+    
+    // Check if full_name is an email format (contains @)
+    if (normalizedFullName.includes("@")) {
+      toast.error("Full name cannot contain '@' symbol");
+      return false;
+    }
+    
+    return true;
+  }, []);
+
+  // ✅ Updated handleSubmit with validation
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate email and full_name are not the same
+    if (!validateUserData(formData.email || "", formData.full_name || "")) {
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      if (editingId) {
+        await userService.update(editingId, formData);
+        toast.success("User updated successfully");
+      } else {
+        await userService.create(formData as UserCreate);
+        toast.success("User created successfully");
+      }
+      resetForm();
+      await loadUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Action failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = (user: User) => {
+  const handleEdit = useCallback((user: User) => {
     setFormData({
       email: user.email,
       full_name: user.full_name || "",
@@ -76,21 +119,38 @@ export function UserManagement() {
     });
     setEditingId(user.id);
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm("Permanently delete this user?")) return;
-    setDeleting(id); // ADD THIS
+    setDeleting(id);
     try {
       await userService.delete(id);
       toast.success("User deleted successfully");
-      loadUsers();
+      await loadUsers();
     } catch (err: any) {
       toast.error(err.message || "Delete failed");
     } finally {
-      setDeleting(null); // ADD THIS
+      setDeleting(null);
     }
-  };
+  }, [loadUsers]);
+
+  const handleImpersonate = useCallback(async (userId: string, userEmail: string) => {
+    try {
+      await impersonate(userId, userEmail);
+    } catch (err: any) {
+      // Error already handled in AuthContext
+    }
+  }, [impersonate]);
+
+  const handleSwitchUser = useCallback(async (userId: string, userEmail: string) => {
+    try {
+      await switchToAnotherUser(userId, userEmail);
+      setShowSwitchModal(false);
+    } catch (err: any) {
+      // Error already handled in AuthContext
+    }
+  }, [switchToAnotherUser]);
 
   if (loading) {
     return (
@@ -109,13 +169,30 @@ export function UserManagement() {
         <h1 className="text-2xl font-bold">User Management</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          disabled={impersonationState?.isActive}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50"
         >
           <UserPlus size={18} /> Add User
         </button>
       </div>
 
-      {showForm && (
+      {impersonationState?.isActive && (
+        <button
+          onClick={() => setShowSwitchModal(true)}
+          className="mb-4 bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 transition-colors"
+        >
+          <Users size={18} />
+          Switch to Another User
+        </button>
+      )}
+
+      <SwitchUserModal
+        isOpen={showSwitchModal}
+        onClose={() => setShowSwitchModal(false)}
+        onSelectUser={handleSwitchUser}
+      />
+
+      {showForm && !impersonationState?.isActive && (
         <form
           onSubmit={handleSubmit}
           className="bg-white p-6 rounded-xl shadow-md mb-8 border border-gray-200"
@@ -125,9 +202,7 @@ export function UserManagement() {
               type="email"
               placeholder="Email"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
               disabled={saving}
               className="border p-2 rounded disabled:opacity-50"
@@ -136,29 +211,22 @@ export function UserManagement() {
               type="text"
               placeholder="Full Name"
               value={formData.full_name}
-              onChange={(e) =>
-                setFormData({ ...formData, full_name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
               disabled={saving}
+              required
               className="border p-2 rounded disabled:opacity-50"
             />
             <input
               type="password"
-              placeholder={
-                editingId ? "Leave blank to keep same" : "Password"
-              }
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
+              placeholder={editingId ? "Leave blank to keep same" : "Password"}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required={!editingId}
               disabled={saving}
               className="border p-2 rounded disabled:opacity-50"
             />
             <select
               value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               disabled={saving}
               className="border p-2 rounded disabled:opacity-50"
             >
@@ -196,7 +264,7 @@ export function UserManagement() {
         </form>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b">
             <tr>
@@ -231,25 +299,37 @@ export function UserManagement() {
                     <X className="text-red-500" size={18} />
                   )}
                 </td>
-                <td className="p-4 text-right flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(u)}
-                    disabled={deleting === u.id}
-                    className="p-2 hover:bg-blue-50 text-blue-600 rounded disabled:opacity-50"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(u.id)}
-                    disabled={deleting === u.id}
-                    className="p-2 hover:bg-red-50 text-red-600 rounded disabled:opacity-50"
-                  >
-                    {deleting === u.id ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={16} />
+                <td className="p-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    {u.role !== "admin" && (
+                      <button
+                        onClick={() => handleImpersonate(u.id, u.email)}
+                        disabled={isImpersonating || u.email === user?.email}
+                        className="p-2 hover:bg-purple-50 text-purple-600 rounded disabled:opacity-50 transition-colors"
+                        title="Impersonate User"
+                      >
+                        <UserCog size={16} />
+                      </button>
                     )}
-                  </button>
+                    <button
+                      onClick={() => handleEdit(u)}
+                      disabled={deleting === u.id || impersonationState?.isActive}
+                      className="p-2 hover:bg-blue-50 text-blue-600 rounded disabled:opacity-50 transition-colors"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      disabled={deleting === u.id || impersonationState?.isActive}
+                      className="p-2 hover:bg-red-50 text-red-600 rounded disabled:opacity-50 transition-colors"
+                    >
+                      {deleting === u.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

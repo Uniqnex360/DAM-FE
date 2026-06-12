@@ -13,8 +13,12 @@ import {
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { assetApi } from "../lib/api";
+interface UploadGalleryProps {
+  userId?: string;  // ✅ Add userId prop
+  allUsers?: boolean;  // ✅ Add allUsers flag
+}
 
-export function UploadGallery() {
+export function UploadGallery({ userId, allUsers }: UploadGalleryProps) {
   // Use the GalleryUpload type from your API service
   const [uploads, setUploads] = useState<GalleryUpload[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,11 +37,12 @@ export function UploadGallery() {
       clearInterval(interval);
       window.removeEventListener("upload-complete", handleUploadComplete);
     };
-  }, []);
+  }, [userId, allUsers]); 
 
-  const loadUploads = async () => {
+   const loadUploads = async () => {
     try {
-      const data = await assetApi.getGallery();
+      // ✅ Pass userId and allUsers to API
+      const data = await assetApi.getGallery(userId, allUsers);
       setUploads(data);
 
       if (data.length > 0 && !expandedUpload) {
@@ -154,7 +159,13 @@ export function UploadGallery() {
       </div>
     );
   }
-
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 flex items-center justify-center min-h-64">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">

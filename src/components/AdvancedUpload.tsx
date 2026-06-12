@@ -41,6 +41,8 @@ import {
   getResizeDimensionsForDestinations,
   MARKETPLACE_RULES,
 } from "../utils/marketplaceRules";
+import { useAuth } from "../contexts/AuthContext";
+import { useUserSelection } from "../contexts/UserSelectionContext";
 
 const ECOMMERCE_DESTINATIONS = [
   {
@@ -322,7 +324,8 @@ export function AdvancedUpload() {
   const [pickedColor, setPickedColor] = useState("#000000");
   const [replaceColor, setReplaceColor] = useState("#ff0000");
   const [showFileList, setShowFileList] = useState(false);
-
+  const { userRole, isImpersonating } = useAuth();
+const { selectedUserId } = useUserSelection();
   const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<any[]>([]);
@@ -365,20 +368,30 @@ export function AdvancedUpload() {
     }
   }, [activeResizeMode, selectedPreset]);
   useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const gallery = await assetApi.getGallery();
-        const projects = [
-          ...new Set(
-            gallery.map((s: any) => s.metadata?.project_name).filter(Boolean),
-          ),
-        ] as string[];
-        setExistingProjects(projects);
-      } catch (e) {
-      }
-    };
-    loadProjects();
-  }, []);
+const loadProjects = async () => {
+  try {
+    let allUsers = false;
+    let userId = undefined;
+    
+    if (selectedUserId === null) {
+      allUsers = true;  
+    } else {
+      userId = selectedUserId;
+    }
+    
+    const gallery = await assetApi.getGallery(userId, allUsers);
+    const projects = [
+      ...new Set(
+        gallery.map((s: any) => s.metadata?.project_name).filter(Boolean),
+      ),
+    ] as string[];
+    setExistingProjects(projects);
+  } catch (e) {
+    console.error("Failed to load projects:", e);
+  }
+};
+  loadProjects();
+}, [selectedUserId]);
   const addMoreImages = (files: FileList) => {
     const newFiles = Array.from(files).filter((f) =>
       f.type.startsWith("image/"),
@@ -451,7 +464,7 @@ if (Object.keys(dimensionsMap).length > 0) {
   formData.append("original_dimensions", JSON.stringify(dimensionsMap));
 }
 
-      const batchResult = await assetApi.upload(formData);
+      const batchResult = await assetApi.upload(formData,selectedUserId);
       setProgress({
         current: 0,
         total: batchResult.images.length,

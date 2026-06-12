@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -20,11 +20,20 @@ import { BrowserRouter, Routes,Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdvancedUpload } from './components/AdvancedUpload';
 import { ReportsDashboard } from './components/ReportsDashboard';
+import { UserSelectionProvider, useUserSelection } from './contexts/UserSelectionContext';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
-
-
+  const {loading}=useAuth()
+  const { selectedUserId } = useUserSelection();
+  const userId = selectedUserId === null ? undefined : selectedUserId;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
@@ -48,11 +57,19 @@ function AppContent() {
         {currentView === 'upload' && (
           <>
             <AdvancedUpload />
-            <UploadGallery />
+            <UploadGallery 
+              userId={userId} 
+              allUsers={selectedUserId === null}
+            />
             <JobTracker />
           </>
         )}
-        {currentView === "reports" && <ReportsDashboard />}
+       {currentView === "reports" && (
+          <ReportsDashboard 
+            userId={userId} 
+            allUsers={selectedUserId === null}
+          />
+        )}
 
 
         {currentView === 'search' && <SearchImages />}
@@ -94,7 +111,8 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-    <AuthProvider>
+      <AuthProvider>
+         <UserSelectionProvider> 
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route
@@ -105,7 +123,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-      </Routes>
+          </Routes>
+          </UserSelectionProvider>
     </AuthProvider>
     </BrowserRouter>
 

@@ -20,54 +20,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
-interface ProcessedImage {
-  id: string;
-  filename: string;
-  file_size: number;
-  dimensions: string;
-  status: "done" | "processing" | "queued" | "failed";
-  destinations: string[];
-  outputs_count: number;
-  outputs_ready: number;
-  original_url: string;
-  processed_url?: string;
-  operations: string[];
-  created_at: string;
-  thumbnail_url?: string;
-  output_urls: string[];
-}
-interface DashboardStats {
-  total_images: number;
-  total_outputs: number;
-  completed: number;
-  total_file_size: number;
-}
-interface DailyImport {
-  date: string;
-  count: number;
-}
-interface ProcessingStatus {
-  processing: number;
-  queued: number;
-  failed: number;
-}
-interface TopOperation {
-  name: string;
-  count: number;
-  color: string;
-}
-interface TopDestination {
-  name: string;
-  count: number;
-}
-interface RecentSession {
-  id: string;
-  filename: string;
-  timestamp: string;
-  destinations: string[];
-  outputs: string;
-  status: string;
-}
+import { DailyImport, DashboardStats, ProcessedImage, ProcessingStatus, RecentSession, TopDestination, TopOperation } from "../lib/database.types";
+
 type ViewMode = "grid" | "list";
 type Tab = "results" | "reports";
 const STATUS_CONFIG = {
@@ -82,7 +36,11 @@ const STATUS_CONFIG = {
   },
   failed: { label: "Failed", color: "text-red-600 bg-red-50 border-red-200" },
 };
-export function ReportsDashboard() {
+interface ReportsDashboardProps {
+  userId?: string;
+  allUsers?: boolean;
+}
+export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>("results");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [images, setImages] = useState<ProcessedImage[]>([]);
@@ -111,10 +69,10 @@ export function ReportsDashboard() {
  const  loadData = async () => {
   try {
     setLoading(true);
-    const [galleryData, report] = await Promise.all([
-      assetApi.getGallery(),
-      assetApi.getReport(),
-    ]);
+   const [galleryData, report] = await Promise.all([
+        assetApi.getGallery(userId, allUsers),
+        assetApi.getReport(),
+      ]);
 
     if (galleryData) {
       setSessions(galleryData);

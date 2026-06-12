@@ -1,15 +1,19 @@
 import axios from 'axios';
 import { ProcessingOperation } from './database.types';
+
 const baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:8002';
+
 export const api = axios.create({
   baseURL: `${baseURL}/api/v1`,
 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
+  console.log('Token being sent:', token ? 'exists' : 'missing'); 
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -46,30 +50,40 @@ export interface AnalysisResponse {
 }
 
 export const assetApi = {
-  upload: async (files: File[]|FormData) => {
-     const formData = files instanceof FormData ? files : (() => {
+  upload: async (files: File[] | FormData, userId?: string) => {
+    const formData = files instanceof FormData ? files : (() => {
       const fd = new FormData();
       (files as File[]).forEach((file) => fd.append('files', file));
       return fd;
     })();
-    const { data } = await api.post('/assets/upload', formData, {
+    
+    const params = userId ? `?user_id=${userId}` : '';
+    const { data } = await api.post(`/assets/upload${params}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data;
   },
-   getReport: async () => {
+  
+  getReport: async (userId?: string) => {
     try {
-         const { data } = await api.get('/reports/processing');   
-        return data;
+      const params = userId ? `?user_id=${userId}` : '';
+      const { data } = await api.get(`/reports/processing${params}`);   
+      return data;
     } catch (error) {
-        console.error("Failed to fetch processing report:", error);
-        throw error;
+      console.error("Failed to fetch processing report:", error);
+      throw error;
     }
-},
- getGallery: async () => {
-    const response = await api.get('/assets/gallery');
-    return response.data;
   },
+  
+  getGallery: async (userId?: string, allUsers?: boolean) => {
+  const params = new URLSearchParams();
+  if (userId) params.append('user_id', userId);
+  if (allUsers) params.append('all', 'true');
+  const url = `/assets/gallery${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await api.get(url);
+  return response.data;
+},
+  
   analyze: async (file: File): Promise<AnalysisResponse> => {
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
@@ -78,9 +92,9 @@ export const assetApi = {
     });
 
     const img = new Image();
-    const dims = await new Promise<{w:number, h:number}>((resolve) => {
-        img.onload = () => resolve({ w: img.width, h: img.height });
-        img.src = URL.createObjectURL(file);
+    const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+      img.onload = () => resolve({ w: img.width, h: img.height });
+      img.src = URL.createObjectURL(file);
     });
 
     const { data } = await api.post('/assets/analyze', {
@@ -94,24 +108,24 @@ export const assetApi = {
     return data.analysis;
   },
 
-process: async (
-  id: string,
-  operations: ProcessingOperation[] = [],
-  options: Record<string, unknown> = {},
-  autoDetect: boolean = false
-) => {
-  if (!id) {
-    throw new Error("Asset ID is required for processing.");
-  }
+  process: async (
+    id: string,
+    operations: ProcessingOperation[] = [],
+    options: Record<string, unknown> = {},
+    autoDetect: boolean = false
+  ) => {
+    if (!id) {
+      throw new Error("Asset ID is required for processing.");
+    }
 
-  const { data } = await api.post(`/assets/${id}/process`, {
-    operations,
-    options,
-    autoDetect,
-  });
+    const { data } = await api.post(`/assets/${id}/process`, {
+      operations,
+      options,
+      autoDetect,
+    });
 
-  return data;
-},
+    return data;
+  },
   
   proxyUrlToFile: async (url: string, filename: string): Promise<File> => {
     const response = await fetch(url, { mode: "cors" });

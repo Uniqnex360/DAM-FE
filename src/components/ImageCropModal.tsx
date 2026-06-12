@@ -25,7 +25,6 @@ export function ImageCropModal({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
 
-  // Parse aspect ratio string to number
   const getAspectValue = useCallback(() => {
     if (!aspectRatio) return undefined;
     const [w, h] = aspectRatio.split(":").map(Number);
@@ -54,7 +53,6 @@ onSave(croppedFile, cropMode, aspectRatio);
     }
   };
 
-  // Get display text for aspect ratio
   const getAspectDisplayText = () => {
     if (!aspectRatio) return "Free";
     return `${aspectRatio} (Locked)`;
