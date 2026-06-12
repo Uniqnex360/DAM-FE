@@ -14,7 +14,6 @@ import {
   Sparkles,
   Users,
   Menu,
-  X,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -24,7 +23,13 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentView, onNavigate }: LayoutProps) {
-  const { user, signOut, isImpersonating, impersonatedUser, stopImpersonation } = useAuth();
+  const {
+    user,
+    signOut,
+    isImpersonating,
+    impersonatedUser,
+    stopImpersonation,
+  } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navSections = [
@@ -73,16 +78,22 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         </div>
       </div>
 
-      {/* ✅ ADD THESE 7 LINES HERE */}
       {isImpersonating && (
-  <div className="mx-4 mt-4 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between gap-2">
-    <div className="flex items-center gap-1.5">
-      <span className="text-amber-400 text-xs">👁</span>
-      <span className="text-xs text-slate-300 truncate max-w-[120px]">{impersonatedUser?.full_name}</span>
-    </div>
-    <button onClick={() => stopImpersonation(() => window.location.reload())} className="text-xs text-amber-400 hover:text-amber-300">Exit</button>
-  </div>
-)}
+        <div className="mx-4 mt-4 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-amber-400 text-xs">👁</span>
+            <span className="text-xs text-slate-300 truncate max-w-[120px]">
+              {impersonatedUser?.full_name}
+            </span>
+          </div>
+          <button
+            onClick={() => stopImpersonation(() => window.location.reload())}
+            className="text-xs text-amber-400 hover:text-amber-300"
+          >
+            Exit
+          </button>
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto py-6">
         {navSections.map((section) => (
