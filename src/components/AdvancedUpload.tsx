@@ -226,11 +226,11 @@ const PROCESSING_OPTIONS = [
   },
 
   {
-  id: "watermark-remove",
-  label: "Watermark Removal",
-  description: "Remove watermarks without affecting product",
-  icon: Shield,
-},
+    id: "watermark-remove",
+    label: "Watermark Removal",
+    description: "Remove watermarks without affecting product",
+    icon: Shield,
+  },
   {
     id: "text-remove",
     label: "Text Removal",
@@ -315,7 +315,29 @@ export function AdvancedUpload() {
 
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
+  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [customHexColor, setCustomHexColor] = useState("#FFFFFF");
 
+  const BG_COLOR_PRESETS = [
+    { label: "White", value: "#FFFFFF", preview: "bg-white border-slate-200" },
+    {
+      label: "Light Gray",
+      value: "#F5F5F5",
+      preview: "bg-[#F5F5F5] border-slate-200",
+    },
+    {
+      label: "Dark Gray",
+      value: "#E0E0E0",
+      preview: "bg-[#E0E0E0] border-slate-300",
+    },
+    { label: "Black", value: "#000000", preview: "bg-black border-slate-700" },
+    {
+      label: "Transparent",
+      value: "transparent",
+      preview: "bg-slate-100 border-slate-200",
+    },
+  ];
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
   const [measurementImage, setMeasurementImage] = useState<any>(null);
   const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
@@ -325,7 +347,7 @@ export function AdvancedUpload() {
   const [replaceColor, setReplaceColor] = useState("#ff0000");
   const [showFileList, setShowFileList] = useState(false);
   const { userRole, isImpersonating } = useAuth();
-const { selectedUserId } = useUserSelection();
+  const { selectedUserId } = useUserSelection();
   const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<any[]>([]);
@@ -368,30 +390,30 @@ const { selectedUserId } = useUserSelection();
     }
   }, [activeResizeMode, selectedPreset]);
   useEffect(() => {
-const loadProjects = async () => {
-  try {
-    let allUsers = false;
-    let userId = undefined;
-    
-    if (selectedUserId === null) {
-      allUsers = true;  
-    } else {
-      userId = selectedUserId;
-    }
-    
-    const gallery = await assetApi.getGallery(userId, allUsers);
-    const projects = [
-      ...new Set(
-        gallery.map((s: any) => s.metadata?.project_name).filter(Boolean),
-      ),
-    ] as string[];
-    setExistingProjects(projects);
-  } catch (e) {
-    console.error("Failed to load projects:", e);
-  }
-};
-  loadProjects();
-}, [selectedUserId]);
+    const loadProjects = async () => {
+      try {
+        let allUsers = false;
+        let userId = undefined;
+
+        if (selectedUserId === null) {
+          allUsers = true;
+        } else {
+          userId = selectedUserId;
+        }
+
+        const gallery = await assetApi.getGallery(userId, allUsers);
+        const projects = [
+          ...new Set(
+            gallery.map((s: any) => s.metadata?.project_name).filter(Boolean),
+          ),
+        ] as string[];
+        setExistingProjects(projects);
+      } catch (e) {
+        console.error("Failed to load projects:", e);
+      }
+    };
+    loadProjects();
+  }, [selectedUserId]);
   const addMoreImages = (files: FileList) => {
     const newFiles = Array.from(files).filter((f) =>
       f.type.startsWith("image/"),
@@ -412,14 +434,6 @@ const loadProjects = async () => {
   };
 
   const handleProcessBatch = async () => {
-    if (
-      selectedProcessing.includes("shadow-remove") &&
-      selectedProcessing.includes("bg-remove")
-    ) {
-      toast.error("Shadow removal cannot be combined with background removal.");
-      return;
-    }
-    
     const isCropSelected = selectedProcessing.includes("crop");
     if (isCropSelected) {
       const allImagesCropped = images.every((img) => img.isCropped === true);
@@ -439,43 +453,47 @@ const loadProjects = async () => {
       const project = projectName.trim();
       const formData = new FormData();
       if (project) formData.append("project_name", project);
-const dimensionsMap: Record<string, { width: number; height: number }> = {};
+      const dimensionsMap: Record<string, { width: number; height: number }> =
+        {};
 
-images.forEach((img) => {
-  if (img.file) {
-    formData.append("files", img.file, img.name);
-    
-    if (img.isCropped && img.originalDimensions) {
-      dimensionsMap[img.name] = img.originalDimensions;
-    }
-  }
-});
-const cropSettings = images
-  .filter(img => img.isCropped)
-  .map(img => ({
-    filename: img.name,
-    cropMode: img.cropMode,
-    targetAspectRatio: img.targetAspectRatio,
-  }));
-if (cropSettings.length) {
-  formData.append("crop_settings", JSON.stringify(cropSettings));
-}
-if (Object.keys(dimensionsMap).length > 0) {
-  formData.append("original_dimensions", JSON.stringify(dimensionsMap));
-}
+      images.forEach((img) => {
+        if (img.file) {
+          formData.append("files", img.file, img.name);
 
-      const batchResult = await assetApi.upload(formData,selectedUserId);
+          if (img.isCropped && img.originalDimensions) {
+            dimensionsMap[img.name] = img.originalDimensions;
+          }
+        }
+      });
+      const cropSettings = images
+        .filter((img) => img.isCropped)
+        .map((img) => ({
+          filename: img.name,
+          cropMode: img.cropMode,
+          targetAspectRatio: img.targetAspectRatio,
+        }));
+      if (cropSettings.length) {
+        formData.append("crop_settings", JSON.stringify(cropSettings));
+      }
+      if (Object.keys(dimensionsMap).length > 0) {
+        formData.append("original_dimensions", JSON.stringify(dimensionsMap));
+      }
+
+      const batchResult = await assetApi.upload(formData, selectedUserId);
       setProgress({
         current: 0,
         total: batchResult.images.length,
         phase: "Processing",
       });
-
+      const willRemoveBackground = selectedProcessing.includes("bg-remove");
+      const willRemoveShadow = selectedProcessing.includes("shadow-remove");
       const results = await Promise.all(
         batchResult.images.map(async (asset: any, idx: number) => {
           let operationsToSend = [...selectedProcessing];
           const processOptions: any = {};
-
+          if (willRemoveBackground) {
+            processOptions.background_color = backgroundColor;
+          }
           if (selectedProcessing.includes("resize")) {
             if (useMarketplaceResize) {
               const dimensions =
@@ -552,21 +570,21 @@ if (Object.keys(dimensionsMap).length > 0) {
       setCurrentStep("results");
       toast.success("Processing complete!");
     } catch (e: any) {
-       console.error("Process error:", e);
+      console.error("Process error:", e);
 
-  const backendMessage =
-    e?.response?.data?.detail ||
-    e?.response?.data?.message ||
-    e?.message ||
-    "Failed to process batch";
+      const backendMessage =
+        e?.response?.data?.detail ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to process batch";
 
-  toast.error(backendMessage);
+      toast.error(backendMessage);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleCropSave = (newFile: File,mode: string, ratio?: string) => {
+  const handleCropSave = (newFile: File, mode: string, ratio?: string) => {
     if (!editingImage) return;
     const newUrl = URL.createObjectURL(newFile);
     setImages((prev) =>
@@ -787,7 +805,6 @@ if (Object.keys(dimensionsMap).length > 0) {
 
       {currentStep === "upload" && (
         <div className="space-y-6 animate-in fade-in duration-500">
-          {/* NEW: Import Source Selector Container */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">
               Import Source
@@ -823,7 +840,6 @@ if (Object.keys(dimensionsMap).length > 0) {
             </div>
           </div>
 
-          {/* Main Content Area based on selected source */}
           <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-24 text-center flex flex-col items-center group hover:border-blue-400 transition-colors relative">
             {uploadSource === "files" ? (
               <>
@@ -851,74 +867,82 @@ if (Object.keys(dimensionsMap).length > 0) {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-  const files = Array.from(e.target.files || []);
-  const validTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/avif",
-    "application/pdf",
-  ];
-  const invalidFiles = files.filter((f) => !validTypes.includes(f.type));
-  const validFiles = files.filter((f) => validTypes.includes(f.type));
+                        const files = Array.from(e.target.files || []);
+                        const validTypes = [
+                          "image/jpeg",
+                          "image/png",
+                          "image/webp",
+                          "image/avif",
+                          "application/pdf",
+                        ];
+                        const invalidFiles = files.filter(
+                          (f) => !validTypes.includes(f.type),
+                        );
+                        const validFiles = files.filter((f) =>
+                          validTypes.includes(f.type),
+                        );
 
-  if (invalidFiles.length > 0) {
-    const invalidNames = invalidFiles.map((f) => f.name).join(", ");
-    toast.error(
-      `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`
-    );
-  }
+                        if (invalidFiles.length > 0) {
+                          const invalidNames = invalidFiles
+                            .map((f) => f.name)
+                            .join(", ");
+                          toast.error(
+                            `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
+                          );
+                        }
 
-  if (validFiles.length === 0) {
-    toast.error("Please select valid image files");
-    return;
-  }
+                        if (validFiles.length === 0) {
+                          toast.error("Please select valid image files");
+                          return;
+                        }
 
-  
-  const filePromises = validFiles.map((f) => {
-    return new Promise<any>((resolve) => {
-      const previewUrl = URL.createObjectURL(f);
-      const img = new Image();
-      img.onload = () => {
-        resolve({
-          file: f,
-          name: f.name,
-          id: Math.random(),
-          preview: previewUrl,
-          url: previewUrl,
-          isCropped: false,
-          originalDimensions: {
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          },
-        });
-      };
-      img.onerror = () => {
-        resolve({
-          file: f,
-          name: f.name,
-          id: Math.random(),
-          preview: previewUrl,
-          url: previewUrl,
-          isCropped: false,
-          originalDimensions: null,
-        });
-      };
-      img.src = previewUrl;
-    });
-  });
+                        const filePromises = validFiles.map((f) => {
+                          return new Promise<any>((resolve) => {
+                            const previewUrl = URL.createObjectURL(f);
+                            const img = new Image();
+                            img.onload = () => {
+                              resolve({
+                                file: f,
+                                name: f.name,
+                                id: Math.random(),
+                                preview: previewUrl,
+                                url: previewUrl,
+                                isCropped: false,
+                                originalDimensions: {
+                                  width: img.naturalWidth,
+                                  height: img.naturalHeight,
+                                },
+                              });
+                            };
+                            img.onerror = () => {
+                              resolve({
+                                file: f,
+                                name: f.name,
+                                id: Math.random(),
+                                preview: previewUrl,
+                                url: previewUrl,
+                                isCropped: false,
+                                originalDimensions: null,
+                              });
+                            };
+                            img.src = previewUrl;
+                          });
+                        });
 
-  Promise.all(filePromises).then((newImages) => {
-    setImages(newImages);
-    console.log("Images loaded with dimensions:", newImages);
-  });
+                        Promise.all(filePromises).then((newImages) => {
+                          setImages(newImages);
+                          console.log(
+                            "Images loaded with dimensions:",
+                            newImages,
+                          );
+                        });
 
-  if (invalidFiles.length > 0) {
-    toast.warning(
-      `${invalidFiles.length} file(s) skipped due to invalid type`
-    );
-  }
-}}
+                        if (invalidFiles.length > 0) {
+                          toast.warning(
+                            `${invalidFiles.length} file(s) skipped due to invalid type`,
+                          );
+                        }
+                      }}
                     />
                   </label>
                 </div>
@@ -1001,7 +1025,6 @@ if (Object.keys(dimensionsMap).length > 0) {
         <div className="flex gap-6 animate-in slide-in-from-right-4 duration-500 items-start">
           <div className="flex-1 space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-              {/* 1. Imported Files - Now on Top */}
               <div className="mb-8">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">
                   Imported Files ({images.length})
@@ -1042,7 +1065,6 @@ if (Object.keys(dimensionsMap).length > 0) {
 
               <div className="h-px bg-slate-100 w-full mb-8" />
 
-              {/* 2. Project Name - Now Below */}
               <div>
                 <div className="mb-4">
                   <h3 className="text-lg font-black text-slate-900">
@@ -1071,7 +1093,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                     className={`w-full bg-slate-50 border rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white ${!projectName.trim() ? "border-amber-300" : "border-slate-200"}`}
                   />
 
-                  {/* Project Suggestions Dropdown */}
                   {showProjectSuggestions && projectName.trim() && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-40 overflow-y-auto">
                       {existingProjects
@@ -1104,14 +1125,13 @@ if (Object.keys(dimensionsMap).length > 0) {
 
                   {!projectName.trim() && (
                     <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1">
-                      <span>⚠️</span> Project name is required to continue
+                       Project name is required to continue
                     </p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* E-Commerce Platforms */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -1194,7 +1214,6 @@ if (Object.keys(dimensionsMap).length > 0) {
               </div>
             </div>
 
-            {/* Marketplaces */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -1475,11 +1494,17 @@ if (Object.keys(dimensionsMap).length > 0) {
                     >
                       <button
                         onClick={() =>
-                          setSelectedProcessing((prev) =>
-                            active
+                          setSelectedProcessing((prev) => {
+                            if (op.id === "bg-remove" && !active) {
+                              return [
+                                ...prev.filter((x) => x !== "shadow-remove"),
+                                op.id,
+                              ];
+                            }
+                            return active
                               ? prev.filter((x) => x !== op.id)
-                              : [...prev, op.id],
-                          )
+                              : [...prev, op.id];
+                          })
                         }
                         className="w-full p-6 flex items-center space-x-5 text-left"
                       >
@@ -1514,10 +1539,158 @@ if (Object.keys(dimensionsMap).length > 0) {
                           )}
                         </div>
                       </button>
+                      {active && op.id === "bg-remove" && (
+                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                          <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <div className="flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 text-blue-600 mt-0.5" />
+                              <div>
+                                <p className="text-[10px] text-blue-600 mt-0.5">
+                                  Select Shadow Removal to enable background
+                                  color options.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
 
+                          {selectedProcessing.includes("shadow-remove") && (
+                            <>
+                              <div className="mb-3">
+                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                                  Background Color
+                                </label>
+                              </div>
+
+                              <div className="grid grid-cols-5 gap-2 mb-3">
+                                {BG_COLOR_PRESETS.map((preset) => (
+                                  <button
+                                    key={preset.value}
+                                    onClick={() => {
+                                      setBackgroundColor(preset.value);
+                                      setCustomHexColor(preset.value);
+                                    }}
+                                    className={`relative aspect-square rounded-xl border-2 transition-all ${
+                                      backgroundColor === preset.value
+                                        ? "border-blue-500 ring-2 ring-blue-100"
+                                        : "border-slate-200 hover:border-slate-300"
+                                    }`}
+                                    title={preset.label}
+                                  >
+                                    <div
+                                      className={`absolute inset-1 rounded-lg ${preset.preview}`}
+                                    />
+                                    {backgroundColor === preset.value && (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <CheckCircle className="w-4 h-4 text-blue-600 drop-shadow-sm" />
+                                      </div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 relative">
+                                  <input
+                                    type="text"
+                                    value={customHexColor}
+                                    onChange={(e) => {
+                                      let value = e.target.value;
+
+                                      if (!value.startsWith("#")) {
+                                        value = "#" + value.replace(/#/g, "");
+                                      }
+
+                                      const hexPart = value
+                                        .slice(1)
+                                        .replace(/[^0-9A-Fa-f]/g, "");
+                                      value = "#" + hexPart;
+
+                                      value = value.slice(0, 7);
+
+                                      setCustomHexColor(value);
+
+                                      if (value.length === 7) {
+                                        setBackgroundColor(value);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      
+                                      if (
+                                        e.key === "Backspace" &&
+                                        customHexColor === "#"
+                                      ) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                    placeholder="#FFFFFF"
+                                    className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                                  />
+                                  <div
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded border border-slate-200"
+                                    style={{ backgroundColor: customHexColor }}
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (
+                                      /^#[0-9A-Fa-f]{6}$/.test(customHexColor)
+                                    ) {
+                                      setBackgroundColor(customHexColor);
+                                      toast.success(
+                                        `Background color set to ${customHexColor}`,
+                                      );
+                                    } else {
+                                      toast.error(
+                                        "Please enter a full 6-digit hex color (e.g., #FF5733)",
+                                      );
+                                    }
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                >
+                                  Apply
+                                </button>
+                              </div>
+
+                              <button
+                                onClick={() =>
+                                  setShowColorPicker(!showColorPicker)
+                                }
+                                className="mt-2 text-[10px] text-slate-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                              >
+                                <Palette className="w-3 h-3" />
+                                {showColorPicker ? "Hide" : "Show"} Advanced
+                                Color Picker
+                              </button>
+
+                              {showColorPicker && (
+                                <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="color"
+                                      value={customHexColor}
+                                      onChange={(e) => {
+                                        const value =
+                                          e.target.value.toUpperCase();
+                                        setCustomHexColor(value);
+                                        setBackgroundColor(value);
+                                      }}
+                                      className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-slate-600">
+                                      Pick any color:{" "}
+                                      <span className="font-mono font-bold">
+                                        {customHexColor}
+                                      </span>
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
                       {active && op.id === "resize" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          {/* 🔥 ADD THIS TOGGLE */}
                           <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-100">
                             <span className="text-xs font-bold text-slate-700">
                               Resize Mode
@@ -1555,7 +1728,7 @@ if (Object.keys(dimensionsMap).length > 0) {
                               </p>
                               {selectedDestinations.length === 0 ? (
                                 <p className="text-xs text-amber-600">
-                                   Select destinations first to see dimensions
+                                  Select destinations first to see dimensions
                                 </p>
                               ) : (
                                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
@@ -1713,7 +1886,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                       )}
                       {active && op.id === "crop" && (
                         <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          {/* Toggle between Preset and Free mode */}
                           <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
                             <span className="text-xs font-bold text-slate-700">
                               Crop Mode
@@ -1808,7 +1980,7 @@ if (Object.keys(dimensionsMap).length > 0) {
                                 Free Crop (any aspect ratio)
                               </button>
                               <p className="text-[10px] text-amber-600 mt-2">
-                                 Free cropping may not meet marketplace
+                                Free cropping may not meet marketplace
                                 requirements
                               </p>
                             </div>
@@ -1855,7 +2027,7 @@ if (Object.keys(dimensionsMap).length > 0) {
                               imageSrc={editingImage.url}
                               fileName={editingImage.name}
                               aspectRatio={editingImage.aspectRatio}
-                              cropMode={editingImage.cropMode} 
+                              cropMode={editingImage.cropMode}
                               onClose={() => setEditingImage(null)}
                               onSave={handleCropSave}
                             />
@@ -1912,6 +2084,7 @@ if (Object.keys(dimensionsMap).length > 0) {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 Total outputs per image
               </span>
+
               <div className="text-5xl font-black text-[#007BC7] my-3 leading-none">
                 {images.length}
               </div>
@@ -1921,7 +2094,23 @@ if (Object.keys(dimensionsMap).length > 0) {
                 {selectedDestinations.length} dests
               </p>
             </div>
-
+            {selectedProcessing.includes("bg-remove") &&
+              selectedProcessing.includes("shadow-remove") && (
+                <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Background Color
+                  </span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div
+                      className="w-6 h-6 rounded border border-slate-200"
+                      style={{ backgroundColor: backgroundColor }}
+                    />
+                    <span className="text-xs font-mono font-bold text-slate-700">
+                      {backgroundColor}
+                    </span>
+                  </div>
+                </div>
+              )}
             <button
               onClick={handleProcessBatch}
               disabled={
@@ -2023,7 +2212,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                   key={idx}
                   className="bg-white rounded-[2rem] border border-slate-200 p-5 hover:border-blue-400 shadow-sm transition-all"
                 >
-                  {/* Original Image Info */}
                   <div className="flex items-center space-x-8 mb-4">
                     <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden shadow-inner flex items-center justify-center p-2">
                       <img
@@ -2043,7 +2231,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                     </div>
                   </div>
 
-                  {/* Multiple Outputs Grid (Resize) */}
                   {res.outputs && res.outputs.length > 0 ? (
                     <div className="border-t border-slate-100 pt-4">
                       <h5 className="text-sm font-black text-slate-700 mb-3">
@@ -2146,7 +2333,6 @@ if (Object.keys(dimensionsMap).length > 0) {
                     </div>
                   ) : null}
 
-                  {/* Footer Stats */}
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
                     <div className="text-xs text-slate-400">
                       Steps: {res.appliedOps?.join(", ") || "None"}
