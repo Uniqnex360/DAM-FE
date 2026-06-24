@@ -32,7 +32,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.src = src;
   });
 }
-
+const BACKEND_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8002';
+const API = `${BACKEND_URL}/api/v1/room-visualizer`;
 export function RoomVisualizer() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -211,7 +212,7 @@ useEffect(() => {
   if (!selectedRoom) return;
 
   // 1. Determine the URL (Recolored Base64 takes priority over raw image)
-  const url = roomDisplayUrl || `/api/v1/room-visualizer/room-image/${selectedRoom.id}`;
+  const url = roomDisplayUrl || `${BACKEND_URL}/api/v1/room-visualizer/room-image/${selectedRoom.id}`;
 
   // 2. Only reset placement if it's a NEW room (not just a color change)
   // We check if roomDisplayUrl is empty to know it's a fresh room load
