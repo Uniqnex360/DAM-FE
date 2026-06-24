@@ -10,7 +10,7 @@ import { JobTracker } from './components/JobTracker';
 import { UploadGallery } from './components/UploadGallery';
 import { SearchImages } from './components/SearchImages';
 import { MarketplaceSyndication } from './components/MarketplaceSyndication';
-import { AugmentedReality } from './components/AugmentedReality';
+import { RoomVisualizer } from './components/AugmentedReality';
 import { PromotionalTags } from './components/PromotionalTags';
 import { AIPromptOptimization } from './components/AIPromptOptimization';
 import { UserManagement } from './components/UserManagement';
@@ -78,7 +78,7 @@ function AppContent() {
 
         {currentView === 'marketplace' && <MarketplaceSyndication />}
 
-        {currentView === 'ar' && <AugmentedReality />}
+        {currentView === 'ar' && <RoomVisualizer />}
 
         {currentView === 'tags' && <PromotionalTags />}
 
