@@ -74,7 +74,15 @@ export const assetApi = {
       throw error;
     }
   },
-  
+  generate3D: async (imageId: string) => {
+  try {
+    const response = await api.post(`/assets/${imageId}/generate-3d`);
+    return response.data;
+  } catch (error: any) {
+    const msg = error.response?.data?.detail || "3D generation failed";
+    throw new Error(msg);
+  }
+},
   getGallery: async (userId?: string, allUsers?: boolean) => {
   const params = new URLSearchParams();
   if (userId) params.append('user_id', userId);

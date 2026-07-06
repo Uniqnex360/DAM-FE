@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 interface User {
   email: string;
   token: string;
+  name:string
 }
 interface ImpersonatedUser {
   email: string;
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEYS = {
   token: 'token',
   email: 'email',
+  name:'name',
   role: 'role',
   originalToken: 'originalToken',
   originalEmail: 'originalEmail',
@@ -74,9 +76,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem(STORAGE_KEYS.email, email);
       console.log('Token received:', access_token);
       let role = 'user';
+      let fullName = email.split('@')[0]; 
       try {
         const userInfo = await api.get('/auth/verify');
         role = userInfo.data.role || 'user';
+        if (userInfo.data.full_name) {
+          fullName = userInfo.data.full_name;
+        }
       } catch (error) {
         console.error('Failed to get user role:', error);
       }
@@ -85,7 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem(STORAGE_KEYS.impersonatedEmail);
       setIsImpersonating(false);
       setImpersonatedUser(null);
-      toast.success(`Welcome back, ${email}!`);
+      toast.success(`Welcome back, ${fullName}!`);
       navigate('/dashboard');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
@@ -205,19 +211,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const token = localStorage.getItem(STORAGE_KEYS.token);
         const email = localStorage.getItem(STORAGE_KEYS.email);
         const role = localStorage.getItem(STORAGE_KEYS.role);
+        const name=localStorage.getItem(STORAGE_KEYS.name)||undefined
         const impersonating = localStorage.getItem(STORAGE_KEYS.isImpersonating) === 'true';
         const impersonatedEmail = localStorage.getItem(STORAGE_KEYS.impersonatedEmail);
         if (!token || !email) {
           setLoading(false);
           return;
         }
-        setUser({ email, token });
+        setUser({ email, token,name});
         setUserRole(role);
         setIsImpersonating(impersonating);
         if (impersonatedEmail) {
           setImpersonatedUser({ email: impersonatedEmail });
         }
-        await api.get('/auth/verify');
+        const verifyRes = await api.get('/auth/verify');
+         if (verifyRes.data.full_name && verifyRes.data.full_name !== name) {
+        localStorage.setItem(STORAGE_KEYS.name, verifyRes.data.full_name);
+        setUser(prev => prev ? { ...prev, name: verifyRes.data.full_name } : null);
+      }
       } catch (error) {
         console.error('Token validation failed:', error);
         clearAuthData();

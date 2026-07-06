@@ -14,6 +14,7 @@ import {
   Sparkles,
   Users,
   Menu,
+  Cuboid,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -52,6 +53,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         { id: "ai-optimize", label: "AI Optimize", icon: Sparkles },
         { id: "configurator", label: "Configurator", icon: Layers },
         { id: "viewer", label: "3D Viewer", icon: Box },
+        { id: "3d-generator", label: "3D Generator", icon: Cuboid },
       ],
     },
     ...(user?.email?.includes("admin") && !isImpersonating
@@ -74,6 +76,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
           <div>
             <div className="text-white font-semibold text-sm">AssetLynx</div>
             <div className="text-cyan-400 text-xs">AI PLATFORM</div>
+            <div className="text-slate-400 text-xs mt-1 truncate font-medium" title={user?.name || user?.email}>
+              {user?.name || user?.email}
+            </div>
           </div>
         </div>
       </div>

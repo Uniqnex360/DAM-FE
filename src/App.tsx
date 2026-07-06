@@ -21,6 +21,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AdvancedUpload } from './components/AdvancedUpload';
 import { ReportsDashboard } from './components/ReportsDashboard';
 import { UserSelectionProvider, useUserSelection } from './contexts/UserSelectionContext';
+import { ThreeDGeneratorPage } from './components/ThreeDGeneratorPage';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -79,7 +80,7 @@ function AppContent() {
         {currentView === 'marketplace' && <MarketplaceSyndication />}
 
         {currentView === 'ar' && <RoomVisualizer />}
-
+        {currentView === '3d-generator' && <ThreeDGeneratorPage />}  // 
         {currentView === 'tags' && <PromotionalTags />}
 
         {currentView === 'ai-optimize' && <AIPromptOptimization />}

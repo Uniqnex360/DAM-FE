@@ -128,7 +128,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="flex items-center justify-between mb-4">

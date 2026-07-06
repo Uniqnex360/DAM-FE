@@ -9,15 +9,13 @@ export interface Room {
 }
 
 export interface VisualizeResponse {
-  image: string; // Base64 Data URL
+  image: string;
   room_id: string;
   scale: number;
 }
 
 class VisualizerService {
-  /**
-   * Returns metadata for all pre-configured rooms
-   */
+  
   async getRooms(): Promise<Room[]> {
     const { data } = await api.get<Room[]>('/room-visualizer/rooms');
     return data;
@@ -33,9 +31,6 @@ class VisualizerService {
   return data;
 }
 
-  /**
-   * Uploads product and returns the composited AR image
-   */
   async generatePreview(
     file: File,
     roomId: string,
