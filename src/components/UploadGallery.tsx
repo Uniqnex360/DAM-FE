@@ -13,13 +13,13 @@ import {
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
 import { assetApi } from "../lib/api";
+import { GalleryUpload } from "../lib/database.types";
 interface UploadGalleryProps {
-  userId?: string;  // ✅ Add userId prop
-  allUsers?: boolean;  // ✅ Add allUsers flag
+  userId?: string;
+  allUsers?: boolean; 
 }
 
 export function UploadGallery({ userId, allUsers }: UploadGalleryProps) {
-  // Use the GalleryUpload type from your API service
   const [uploads, setUploads] = useState<GalleryUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
@@ -206,7 +206,7 @@ export function UploadGallery({ userId, allUsers }: UploadGalleryProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
                         <h3 className="font-semibold text-slate-900">
-                          Upload Session
+                          {upload.metadata?.project_name || "Upload Session"}
                         </h3>
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(

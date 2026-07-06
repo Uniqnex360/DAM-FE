@@ -534,6 +534,29 @@ export interface ProcessedImage {
   thumbnail_url?: string;
   output_urls: string[];
 }
+export interface GalleryImage {
+  id: string;
+  url: string;
+  processed_url: string | null;
+  processing_status: "pending" | "processing" | "completed" | "failed";
+  thumbnail_url: string | null;
+  name: string;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
+
+export interface GalleryUpload {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  created_at: string;
+  metadata?: {
+    project_name?: string;
+    source?: string;
+    [key: string]: any; // Allows flexibility for other arbitrary metadata fields
+  };
+  images: GalleryImage[];
+}
 export  interface DashboardStats {
   total_images: number;
   total_outputs: number;
