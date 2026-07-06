@@ -375,14 +375,7 @@ export function AdvancedUpload() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
   const [processedResults, setProcessedResults] = useState<any[]>([]);
-  useEffect(() => {
-    return () => {
-      images.forEach((img) => {
-        if (img.preview) URL.revokeObjectURL(img.preview);
-        if (img.url) URL.revokeObjectURL(img.url);
-      });
-    };
-  }, [images]);
+  
   useEffect(() => {
     if (activeResizeMode === "preset") {
       const [w, h] = selectedPreset.split("x").map(Number);
@@ -2024,6 +2017,7 @@ export function AdvancedUpload() {
 
                           {editingImage && editingImage.url && (
                             <ImageCropModal
+                             key={editingImage.id} 
                               imageSrc={editingImage.url}
                               fileName={editingImage.name}
                               aspectRatio={editingImage.aspectRatio}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import { X, Check, ZoomIn } from "lucide-react";
 import { getCroppedImg } from "../utils/cropImage";
@@ -24,7 +24,13 @@ export function ImageCropModal({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-
+// Inside ImageCropModal component
+useEffect(() => {
+  // Reset state whenever the imageSrc changes
+  setCrop({ x: 0, y: 0 });
+  setZoom(1);
+  setCroppedAreaPixels(null);
+}, [imageSrc]); // This dependency array ensures the reset triggers on new images
   const getAspectValue = useCallback(() => {
     if (!aspectRatio) return undefined;
     const [w, h] = aspectRatio.split(":").map(Number);
