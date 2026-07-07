@@ -80,7 +80,7 @@ function AppContent() {
         {currentView === 'marketplace' && <MarketplaceSyndication />}
 
         {currentView === 'ar' && <RoomVisualizer />}
-        {currentView === '3d-generator' && <ThreeDGeneratorPage />}  // 
+        {currentView === '3d-generator' && <ThreeDGeneratorPage />}  
         {currentView === 'tags' && <PromotionalTags />}
 
         {currentView === 'ai-optimize' && <AIPromptOptimization />}

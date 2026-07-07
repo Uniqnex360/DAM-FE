@@ -11,7 +11,6 @@ import {
   Sparkles,
   Minimize2,
   FileImage,
-  AlertOctagon,
   Layers
 } from "lucide-react";
 import { fetchDashboardStats, DashboardData } from "../services/dashboard";
