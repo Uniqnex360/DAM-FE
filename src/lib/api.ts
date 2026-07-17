@@ -149,9 +149,14 @@ export const assetApi = {
     let filename = `project-${projectId}.zip`;
     const disposition = response.headers["content-disposition"];
     if (disposition) {
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      if (match?.[1]) {
-        filename = match[1];
+      const encodedMatch = disposition.match(/filename\*=utf-8''([^;]+)/i);
+      if (encodedMatch?.[1]) {
+        filename = decodeURIComponent(encodedMatch[1]);
+      } else {
+        const plainMatch = disposition.match(/filename="?([^"; ]+)"?/i);
+        if (plainMatch?.[1]) {
+          filename = plainMatch[1];
+        }
       }
     }
 
