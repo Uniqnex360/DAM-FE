@@ -5,6 +5,7 @@ export interface DashboardData {
     totalImagesUploaded: number;
     totalImagesProcessed: number;
     failed: number;
+     pending: number;
     avgProcessingTimeMs: number;
   };
   operationCounts: Record<string, number>;

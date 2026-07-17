@@ -64,6 +64,7 @@ export const assetApi = {
     return data;
   },
   
+  
   getReport: async (userId?: string) => {
     try {
       const params = userId ? `?user_id=${userId}` : '';
@@ -139,5 +140,29 @@ export const assetApi = {
     const response = await fetch(url, { mode: "cors" });
     const blob = await response.blob();
     return new File([blob], filename, { type: blob.type });
-  }
+  },
+   downloadProjectZip: async (projectId: string) => {
+    const response = await api.get(`/assets/projects/${projectId}/download-zip`, {
+      responseType: "blob",
+    });
+
+    let filename = `project-${projectId}.zip`;
+    const disposition = response.headers["content-disposition"];
+    if (disposition) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match?.[1]) {
+        filename = match[1];
+      }
+    }
+
+    const blob = response.data as Blob;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };

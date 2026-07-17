@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Box, Loader2 } from 'lucide-react';
-import { api } from '../services/api';
 
 interface Product {
   id: string;
@@ -23,38 +22,38 @@ export function ProductCatalog() {
     base_price: ''
   });
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  // useEffect(() => {
+  //   loadProducts();
+  // }, []);
 
-  const loadProducts = async () => {
-    try {
-      const data = await api.getProducts();
-      setProducts(data);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const loadProducts = async () => {
+  //   try {
+  //     const data = await api.getProducts();
+  //     setProducts(data);
+  //   } catch (error) {
+  //     console.error('Failed to load products:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  const handleCreateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleCreateProduct = async (e: React.FormEvent) => {
+  //   e.preventDefault();
 
-    try {
-      await api.createProduct({
-        name: newProduct.name,
-        description: newProduct.description,
-        category: newProduct.category,
-        base_price: parseFloat(newProduct.base_price) || null
-      });
-      setShowCreateModal(false);
-      setNewProduct({ name: '', description: '', category: '', base_price: '' });
-      loadProducts();
-    } catch (error) {
-      console.error('Failed to create product:', error);
-    }
-  };
+  //   try {
+  //     await api.createProduct({
+  //       name: newProduct.name,
+  //       description: newProduct.description,
+  //       category: newProduct.category,
+  //       base_price: parseFloat(newProduct.base_price) || null
+  //     });
+  //     setShowCreateModal(false);
+  //     setNewProduct({ name: '', description: '', category: '', base_price: '' });
+  //     loadProducts();
+  //   } catch (error) {
+  //     console.error('Failed to create product:', error);
+  //   }
+  // };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

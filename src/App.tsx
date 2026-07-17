@@ -19,9 +19,10 @@ import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdvancedUpload } from './components/AdvancedUpload';
-import { ReportsDashboard } from './components/ReportsDashboard';
+import { CombinedDashboard, ReportsDashboard } from './components/DAM';
 import { UserSelectionProvider, useUserSelection } from './contexts/UserSelectionContext';
 import { ThreeDGeneratorPage } from './components/ThreeDGeneratorPage';
+import { Projects } from './components/Projects';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -54,7 +55,7 @@ function AppContent() {
       <Toaster position="bottom-right" richColors />
       <div className="space-y-6">
         {currentView === 'dashboard' && <Dashboard />}
-
+        {currentView==='project' && <Projects/>}
         {currentView === 'upload' && (
           <>
             <AdvancedUpload />
@@ -65,8 +66,8 @@ function AppContent() {
             <JobTracker />
           </>
         )}
-       {currentView === "reports" && (
-          <ReportsDashboard 
+       {currentView === "DAM" && (
+          <CombinedDashboard 
             userId={userId} 
             allUsers={selectedUserId === null}
           />

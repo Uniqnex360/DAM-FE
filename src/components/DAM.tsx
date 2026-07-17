@@ -18,12 +18,29 @@ import {
   Folder,
   ChevronRight,
   CheckCircle,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
-import { DailyImport, DashboardStats, ProcessedImage, ProcessingStatus, RecentSession, TopDestination, TopOperation } from "../lib/database.types";
-
+import {
+  DailyImport,
+  DashboardStats,
+  ProcessedImage,
+  ProcessingStatus,
+  RecentSession,
+  TopDestination,
+  TopOperation,
+} from "../lib/database.types";
+import {
+  searchService,
+  type SearchFilters,
+  type SearchResult,
+  type SearchResponse,
+  type SearchFilterOptions,
+} from "../services/searchService";
+import { ImageDetailsModal } from "./ImageDetailsModal";
 type ViewMode = "grid" | "list";
-type Tab = "results" | "reports";
+type Tab = "results" | "reports" | "search";
 const STATUS_CONFIG = {
   done: { label: "Done", color: "text-green-600 bg-green-50 border-green-200" },
   processing: {
@@ -36,13 +53,18 @@ const STATUS_CONFIG = {
   },
   failed: { label: "Failed", color: "text-red-600 bg-red-50 border-red-200" },
 };
-interface ReportsDashboardProps {
+interface CombinedDashboardProps {
   userId?: string;
   allUsers?: boolean;
 }
-export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
+export function CombinedDashboard({
+  userId,
+  allUsers,
+}: CombinedDashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>("results");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<ProcessedImage[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [dailyImports, setDailyImports] = useState<DailyImport[]>([]);
@@ -51,68 +73,220 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
   const [topOperations, setTopOperations] = useState<TopOperation[]>([]);
   const [topDestinations, setTopDestinations] = useState<TopDestination[]>([]);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<ProcessedImage | null>(
     null,
   );
-  const [filterProject, setFilterProject] = useState("all");
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(
+    null,
+  );
   const [expandedSessions, setExpandedSessions] = useState<
     Record<string, boolean>
   >({});
   const [sessions, setSessions] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchPagination, setSearchPagination] = useState({
+    total: 0,
+    has_next: false,
+    pages: 0,
+    current_page: 1,
+  });
+  const [filterOptions, setFilterOptions] = useState<SearchFilterOptions>({
+    statuses: [],
+    file_types: [],
+    aspect_ratios: [],
+    operations: [],
+    projects: [],
+    crop_modes: [],
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterProject, setFilterProject] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [filterDestination, setFilterDestination] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   useEffect(() => {
-    loadData();
-  }, []);
- const  loadData = async () => {
-  try {
-    setLoading(true);
-   const [galleryData, report] = await Promise.all([
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        await Promise.all([loadReportsData(), fetchSearchFilters()]);
+      } catch (err) {
+        console.error("Failed to initialize data:", err);
+        setError("Failed to load data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    initializeData();
+  }, [userId, allUsers]);
+  const handleDebouncedSearch = (query: string) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    const newTimer = setTimeout(() => {
+      if (query || Object.values(searchFilters).some((v) => v)) {
+        handleSearch(1);
+      } else if (!query && Object.values(searchFilters).every((v) => !v)) {
+        setSearchResults([]);
+        setSearchPagination({
+          total: 0,
+          has_next: false,
+          pages: 0,
+          current_page: 1,
+        });
+      }
+    }, 500); 
+    setDebounceTimer(newTimer);
+  };
+  useEffect(() => {
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+    };
+  }, [debounceTimer]);
+  const fetchSearchFilters = async () => {
+    try {
+      const filters = await searchService.getFilters(userId, allUsers);
+      setFilterOptions(filters);
+    } catch (error) {
+      console.error("Failed to fetch search filters:", error);
+    }
+  };
+  const handleSearch = async (page = 1, skipQuery = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const offset = (page - 1) * 50;
+      const searchParams: SearchFilters = {
+        q: skipQuery ? undefined : searchQuery || undefined,
+        ...searchFilters,
+        user_id: userId,
+        all_users: allUsers,
+        limit: 50,
+        offset,
+      };
+      const response = await searchService.searchImages(searchParams);
+      setSearchResults(response.results);
+      setSearchPagination(response.pagination);
+      if (searchQuery || Object.values(searchFilters).some((v) => v)) {
+        await updateFilterOptionsBasedOnSearch(searchParams);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setError("Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const updateFilterOptionsBasedOnSearch = async (
+    currentParams: SearchFilters,
+  ) => {
+    try {
+      const updatedFilters = await searchService.getFilters(userId, allUsers);
+      setFilterOptions(updatedFilters);
+    } catch (error) {
+      console.error("Failed to update filter options:", error);
+    }
+  };
+  const clearSearchFilters = async () => {
+    setSearchFilters({});
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPagination({
+      total: 0,
+      has_next: false,
+      pages: 0,
+      current_page: 1,
+    });
+    setError(null);
+    await fetchSearchFilters();
+  };
+  const searchByProject = async (projectName: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await searchService.searchByProject(
+        projectName,
+        userId,
+        allUsers,
+      );
+      setSearchResults(response.results);
+      setSearchPagination(response.pagination);
+    } catch (error) {
+      console.error("Project search error:", error);
+      setError(`Failed to search project: ${projectName}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const searchByStatus = async (status: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await searchService.searchByStatus(
+        status,
+        userId,
+        allUsers,
+      );
+      setSearchResults(response.results);
+      setSearchPagination(response.pagination);
+    } catch (error) {
+      console.error("Status search error:", error);
+      setError(`Failed to search status: ${status}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const loadReportsData = async () => {
+    try {
+      const [galleryData, report] = await Promise.all([
         assetApi.getGallery(userId, allUsers),
         assetApi.getReport(),
       ]);
-
-    if (galleryData) {
-      setSessions(galleryData);
-
-      const flatImages: ProcessedImage[] = galleryData.flatMap((session: any) => {
-        return session.images.map((img: any) => ({
-          id: img.id,
-          filename: img.name,
-          file_size: img.size || 0,
-          dimensions: img.width && img.height 
-            ? `${img.width}×${img.height}` 
-            : "1080×1080",
-          status: (function () {
-            const s = session.status?.toLowerCase();
-            if (s === "completed" || s === "success" || s === "done") return "done";
-            if (s === "uploaded" || s === "pending") return "queued";
-            if (s === "failed" || s === "error") return "failed";
-            if (s === "processing") return "processing";
-            return "queued";
-          })(),
-          destinations: session.metadata?.destinations || ["Shopify"],
-          outputs_count: session.images.length,
-          outputs_ready: session.images.filter((i: any) => i.processed_url).length,
-          operations: img.processedOperations || [],
-          created_at: session.created_at,
-          thumbnail_url: img.url,
-          original_url: img.url,
-          processed_url: img.processed_url,
-          output_urls: img.processed_url ? [img.processed_url] : [],
-          project_name: session.metadata?.project_name || "Untitled Project", 
-        }));
-      });
-
-      setImages(flatImages);
-      calculateStats(flatImages);
-      calculateProcessingStatus(flatImages);
-      calculateTopDestinations(flatImages);
-      generateRecentSessions(flatImages);
-    }
-
+      if (galleryData) {
+        setSessions(galleryData);
+        const flatImages: ProcessedImage[] = galleryData.flatMap(
+          (session: any) => {
+            return session.images.map((img: any) => ({
+              id: img.id,
+              filename: img.name,
+              file_size: img.size || 0,
+              dimensions:
+                img.width && img.height
+                  ? `${img.width}×${img.height}`
+                  : "1080×1080",
+              status: (function () {
+                const s = session.status?.toLowerCase();
+                if (s === "completed" || s === "success" || s === "done")
+                  return "done";
+                if (s === "uploaded" || s === "pending") return "queued";
+                if (s === "failed" || s === "error") return "failed";
+                if (s === "processing") return "processing";
+                return "queued";
+              })(),
+              destinations: session.metadata?.destinations || ["Shopify"],
+              outputs_count: session.images.length,
+              outputs_ready: session.images.filter((i: any) => i.processed_url)
+                .length,
+              operations: img.processedOperations || [],
+              created_at: session.created_at,
+              thumbnail_url: img.url,
+              original_url: img.url,
+              processed_url: img.processed_url,
+              output_urls: img.processed_url ? [img.processed_url] : [],
+              project_name:
+                session.metadata?.project_name || "Untitled Project",
+            }));
+          },
+        );
+        setImages(flatImages);
+        calculateStats(flatImages);
+        calculateProcessingStatus(flatImages);
+        calculateTopDestinations(flatImages);
+        generateRecentSessions(flatImages);
+      }
       if (report) {
         if (report.daily_breakdown) {
           const chartData = report.daily_breakdown.slice(-7).map((d: any) => ({
@@ -135,8 +309,7 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
       }
     } catch (err) {
       console.error("API Load Failed:", err);
-    } finally {
-      setLoading(false);
+      throw err;
     }
   };
   const calculateStats = (data: ProcessedImage[]) => {
@@ -151,7 +324,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
     };
     setStats(stats);
   };
-  
   const calculateProcessingStatus = (data: ProcessedImage[]) => {
     setProcessingStatus({
       processing: data.filter((img) => img.status === "processing").length,
@@ -159,7 +331,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
       failed: data.filter((img) => img.status === "failed").length,
     });
   };
-  
   const calculateTopDestinations = (data: ProcessedImage[]) => {
     const destCounts: Record<string, number> = {};
     data.forEach((img) => {
@@ -172,6 +343,29 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 3);
     setTopDestinations(sorted);
+  };
+  const handleSearchWithNewFilters = async (newFilters: SearchFilters) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const searchParams: SearchFilters = {
+        q: searchQuery || undefined,
+        ...newFilters,
+        user_id: userId,
+        all_users: allUsers,
+        limit: 50,
+        offset: 0,
+      };
+      const response = await searchService.searchImages(searchParams);
+      setSearchResults(response.results);
+      setSearchPagination(response.pagination);
+      await updateFilterOptionsBasedOnSearch(searchParams);
+    } catch (error) {
+      console.error("Search error:", error);
+      setError("Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   const generateRecentSessions = (data: ProcessedImage[]) => {
     const sessions = data.slice(0, 5).map((img) => ({
@@ -199,40 +393,54 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const filteredImages = images.filter((img) => {
-  if (filterProject !== "all" && img.project_name !== filterProject) {
-    return false;
-  }
-
-  if (filterStatus !== "all" && img.status !== filterStatus) {
-    return false;
-  }
-
-  if (
-    filterDestination !== "all" &&
-    !img.destinations?.includes(filterDestination)
-  ) {
-    return false;
-  }
-
-  return true;
-});
-  if (loading) {
+    if (filterProject !== "all" && img.project_name !== filterProject)
+      return false;
+    if (filterStatus !== "all" && img.status !== filterStatus) return false;
+    if (
+      filterDestination !== "all" &&
+      !img.destinations?.includes(filterDestination)
+    )
+      return false;
+    return true;
+  });
+  if (error && !loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <div className="text-center">
+          <div className="text-red-600 mb-4">
+            <ImageIcon className="w-16 h-16 mx-auto mb-2 opacity-50" />
+            <p className="text-lg font-medium">{error}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (loading && activeTab !== "search") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-2" />
+          <p className="text-slate-600">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Results & Reports
+            Results, Reports & Search
           </h1>
           <p className="text-slate-600 text-sm mt-1">
-            View all processed image outputs and analytics across your import
-            sessions
+            View processed images, analytics, and search your image library
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -251,7 +459,7 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
           </div>
         </div>
       </div>
-
+      {/* Tab Navigation */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <button
@@ -279,12 +487,343 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
             <BarChart3 className="w-4 h-4" />
             <span>Reports</span>
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("search");
+              if (
+                searchResults.length === 0 &&
+                !searchQuery &&
+                Object.keys(searchFilters).length === 0
+              ) {
+                searchService
+                  .getRecentImages(20, userId, allUsers)
+                  .then((response) => {
+                    setSearchResults(response.results);
+                    setSearchPagination(response.pagination);
+                  })
+                  .catch(console.error);
+              }
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "search"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>Search</span>
+            <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded text-xs">
+              {searchResults.length}
+            </span>
+          </button>
         </div>
         <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
           <span className="text-2xl">+</span>
           <span className="font-medium">Import New</span>
         </button>
       </div>
+      {activeTab === "search" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-1 relative">
+  <Search className={`absolute left-3 top-3 w-5 h-5 ${loading && activeTab === "search" ? "text-blue-500 animate-pulse" : "text-slate-400"}`} />
+  <input
+    type="text"
+    value={searchQuery}
+    onChange={(e) => {
+      setSearchQuery(e.target.value);
+      handleDebouncedSearch(e.target.value);
+    }}
+    placeholder="Search by image name or project..."
+    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  />
+  {loading && activeTab === "search" && (
+    <div className="absolute right-3 top-3">
+      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+    </div>
+  )}
+</div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <SlidersHorizontal className="w-5 h-5" />
+                <span>Filters</span>
+              </button>
+            </div>
+            {/* Advanced Filters */}
+            {showFilters && (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg">
+                {/* Project Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Project
+                  </label>
+                  <select
+                    value={searchFilters.project_name || ""}
+                    onChange={async (e) => {
+                      const newFilters = {
+                        ...searchFilters,
+                        project_name: e.target.value || undefined,
+                      };
+                      setSearchFilters(newFilters);
+                      if (
+                        e.target.value ||
+                        searchQuery ||
+                        Object.values(newFilters).some((v) => v)
+                      ) {
+                        await handleSearchWithNewFilters(newFilters);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Projects</option>
+                    {filterOptions.projects.map((project) => (
+                      <option key={project.value} value={project.value}>
+                        {project.label} ({project.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={searchFilters.status || ""}
+                    onChange={async (e) => {
+                      const newFilters = {
+                        ...searchFilters,
+                        status: e.target.value || undefined,
+                      };
+                      setSearchFilters(newFilters);
+                      if (
+                        e.target.value ||
+                        searchQuery ||
+                        Object.values(newFilters).some((v) => v)
+                      ) {
+                        await handleSearchWithNewFilters(newFilters);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Statuses</option>
+                    {filterOptions.statuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label} ({status.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Operations Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Operations
+                  </label>
+                  <select
+                    value={searchFilters.operations || ""}
+                    onChange={async (e) => {
+                      const newFilters = {
+                        ...searchFilters,
+                        operations: e.target.value || undefined,
+                      };
+                      setSearchFilters(newFilters);
+                      if (
+                        e.target.value ||
+                        searchQuery ||
+                        Object.values(newFilters).some((v) => v)
+                      ) {
+                        await handleSearchWithNewFilters(newFilters);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Operations</option>
+                    {filterOptions.operations.map((op) => (
+                      <option key={op.value} value={op.value}>
+                        {op.label} ({op.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Clear Filters Button */}
+                <div className="flex items-end">
+                  <button
+                    onClick={clearSearchFilters}
+                    className="flex items-center space-x-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-white transition-colors w-full"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Clear All</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Error message */}
+            {error && activeTab === "search" && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+            )}
+          </div>
+          {/* Search Results */}
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                Search Results ({searchPagination.total})
+              </h2>
+              {searchPagination.total > 0 && (
+                <div className="text-sm text-slate-600">
+                  Page {searchPagination.current_page} of{" "}
+                  {searchPagination.pages}
+                </div>
+              )}
+            </div>
+            {loading && activeTab === "search" ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="text-center py-12">
+                <ImageIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500">
+                  {searchQuery || Object.values(searchFilters).some((v) => v)
+                    ? "No results found. Try adjusting your search."
+                    : "Enter search terms or apply filters to find images."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {searchResults.map((image) => (
+                    <div
+                      key={image.id}
+                      className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors cursor-pointer"
+                      onClick={() =>
+                        setSelectedImage({
+                          id: image.id,
+                          filename: image.name,
+                          file_size: 0,
+                          dimensions: image.dimensions || "",
+                          status:
+                            image.status === "completed"
+                              ? "done"
+                              : (image.status as any),
+                          destinations: [],
+                          outputs_count: image.has_processed_output ? 1 : 0,
+                          outputs_ready: image.has_processed_output ? 1 : 0,
+                          original_url: image.url,
+                          processed_url: image.processed_url,
+                          operations: image.operations || [],
+                          created_at: image.created_at,
+                          thumbnail_url: image.thumbnail_url,
+                          output_urls: image.processed_url
+                            ? [image.processed_url]
+                            : [],
+                        } as ProcessedImage)
+                      }
+                    >
+                      <div className="aspect-square bg-slate-100 relative">
+                        <img
+                          src={image.thumbnail_url}
+                          alt={image.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              image.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : image.status === "processing"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : image.status === "failed"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {image.status}
+                          </span>
+                        </div>
+                        {image.has_processed_output && (
+                          <div className="absolute top-2 left-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p
+                          className="text-sm font-medium text-slate-900 truncate"
+                          title={image.name}
+                        >
+                          {image.name}
+                        </p>
+                        <p
+                          className="text-xs text-slate-600 truncate"
+                          title={image.project_name}
+                        >
+                          📁 {image.project_name}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-slate-500">
+                            {image.dimensions}
+                          </span>
+                          {image.operations.length > 0 && (
+                            <span
+                              className="text-xs text-blue-600 truncate max-w-20"
+                              title={image.operations.join(", ")}
+                            >
+                              {image.operations.length} ops
+                            </span>
+                          )}
+                        </div>
+                        {image.aspect_ratio && (
+                          <div className="mt-1">
+                            <span className="text-xs text-purple-600">
+                              {image.aspect_ratio}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Pagination */}
+                {searchPagination.pages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+                    <button
+                      onClick={() =>
+                        handleSearch(searchPagination.current_page - 1)
+                      }
+                      disabled={searchPagination.current_page === 1 || loading}
+                      className="flex items-center space-x-2 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span>Previous</span>
+                    </button>
+                    <span className="text-sm text-slate-600">
+                      Showing {(searchPagination.current_page - 1) * 50 + 1} to{" "}
+                      {Math.min(
+                        searchPagination.current_page * 50,
+                        searchPagination.total,
+                      )}{" "}
+                      of {searchPagination.total} results
+                    </span>
+                    <button
+                      onClick={() =>
+                        handleSearch(searchPagination.current_page + 1)
+                      }
+                      disabled={!searchPagination.has_next || loading}
+                      className="flex items-center space-x-2 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span>Next</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {activeTab === "results" && (
         <>
           <div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between shadow-sm">
@@ -303,7 +842,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                   <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
-
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Folder className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -328,7 +866,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                   <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
-
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Filter className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -345,7 +882,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                   <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
-
               <div className="flex items-center space-x-2 px-3 py-2 border border-slate-100 rounded-xl bg-white">
                 <Activity className="w-4 h-4 text-slate-400" />
                 <div className="relative">
@@ -363,7 +899,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                 </div>
               </div>
             </div>
-
             <div className="flex items-center space-x-4">
               <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
@@ -395,11 +930,14 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
           {viewMode === "list" ? (
             <div className="space-y-4">
               {sessions
-  .filter((s) => {
-    const projectName = s.metadata?.project_name || "Untitled Project";
-    return filterProject === "all" || projectName === filterProject;
-  })
-  .map((session) => (
+                .filter((s) => {
+                  const projectName =
+                    s.metadata?.project_name || "Untitled Project";
+                  return (
+                    filterProject === "all" || projectName === filterProject
+                  );
+                })
+                .map((session) => (
                   <div key={session.id} className="space-y-2">
                     <div
                       onClick={() =>
@@ -444,7 +982,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                         className={`w-5 h-5 text-slate-300 transition-transform ${expandedSessions[session.id] ? "rotate-90" : ""}`}
                       />
                     </div>
-
                     {expandedSessions[session.id] && (
                       <div className="pl-12 space-y-3">
                         {session.images.slice(0, 5).map((img: any) => (
@@ -480,28 +1017,31 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
                                 </p>
                               </div>
                               <button
-  onClick={() =>
-    setSelectedImage({
-      id: img.id,
-      filename: img.name,
-      file_size: img.size || 0,
-      dimensions: `${img.width}×${img.height}`,
-      status: "done",
-      destinations: session.metadata?.destinations || [],
-      outputs_count: 1,
-      outputs_ready: img.processed_url ? 1 : 0,
-      original_url: img.url,
-      processed_url: img.processed_url,
-      operations: img.processedOperations || [],
-      created_at: session.created_at,
-      thumbnail_url: img.url,
-      output_urls: img.processed_url ? [img.processed_url] : [],
-    })
-  }
-  className="text-slate-300 hover:text-blue-500"
->
-  <Eye className="w-5 h-5" />
-</button>
+                                onClick={() =>
+                                  setSelectedImage({
+                                    id: img.id,
+                                    filename: img.name,
+                                    file_size: img.size || 0,
+                                    dimensions: `${img.width}×${img.height}`,
+                                    status: "done",
+                                    destinations:
+                                      session.metadata?.destinations || [],
+                                    outputs_count: 1,
+                                    outputs_ready: img.processed_url ? 1 : 0,
+                                    original_url: img.url,
+                                    processed_url: img.processed_url,
+                                    operations: img.processedOperations || [],
+                                    created_at: session.created_at,
+                                    thumbnail_url: img.url,
+                                    output_urls: img.processed_url
+                                      ? [img.processed_url]
+                                      : [],
+                                  })
+                                }
+                                className="text-slate-300 hover:text-blue-500"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -557,7 +1097,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
               </p>
               <p className="text-xs text-slate-500 mt-1">Total Images</p>
             </div>
-
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
                 <Package className="w-4 h-4 text-green-500" />
@@ -567,7 +1106,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
               </p>
               <p className="text-xs text-slate-500 mt-1">Total Outputs</p>
             </div>
-
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-purple-500" />
@@ -577,7 +1115,6 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
               </p>
               <p className="text-xs text-slate-500 mt-1">Completed</p>
             </div>
-
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center">
                 <Activity className="w-4 h-4 text-cyan-500" />
@@ -800,127 +1337,10 @@ export function ReportsDashboard({ userId, allUsers }: ReportsDashboardProps) {
           </div>
         </div>
       )}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div
-            className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-slate-100 rounded-lg">
-                    {selectedImage.thumbnail_url && (
-                      <img
-                        src={selectedImage.original_url}
-                        alt={selectedImage.filename}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      {selectedImage.filename}
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      {selectedImage.dimensions} ·{" "}
-                      {formatFileSize(selectedImage.file_size)} ·{" "}
-                      {new Date(selectedImage.created_at).toLocaleString()}
-                    </p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      {selectedImage.destinations?.map((dest) => (
-                        <span
-                          key={dest}
-                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
-                        >
-                          {dest}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedImage(null)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-4 bg-slate-50 rounded-lg">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {selectedImage.outputs_count}
-                  </p>
-                  <p className="text-sm text-slate-600">Total Outputs</p>
-                </div>
-                <div className="text-center p-4 bg-slate-50 rounded-lg">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {selectedImage.outputs_ready}
-                  </p>
-                  <p className="text-sm text-slate-600">Completed</p>
-                </div>
-                <div className="text-center p-4 bg-slate-50 rounded-lg">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {selectedImage.destinations?.length || 0}
-                  </p>
-                  <p className="text-sm text-slate-600">Destinations</p>
-                </div>
-                <div className="text-center p-4 bg-slate-50 rounded-lg">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {selectedImage.operations?.length || 0}
-                  </p>
-                  <p className="text-sm text-slate-600">Operations</p>
-                </div>
-              </div>
-             
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">
-                  ALL OUTPUTS
-                </h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {[
-                    selectedImage.original_url,
-                    ...selectedImage.output_urls,
-                  ].map((url, idx) => (
-                    <div
-                      key={idx}
-                      className="aspect-square bg-slate-100 rounded-lg border border-slate-200 p-3 flex flex-col"
-                    >
-                      <div className="flex-1 bg-white rounded overflow-hidden">
-                        <img
-                          src={url}
-                          alt={`Output ${idx}`}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-
-                      <div className="mt-2">
-                        <p className="text-xs text-orange-600 font-medium">
-                          {idx === 0 ? "Original" : "Processed Output"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {
-                            selectedImage.destinations?.[
-                              idx % selectedImage.destinations.length
-                            ]
-                          }
-                        </p>
-                        <p className="text-xs text-green-600 font-medium mt-1">
-                          Ready
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+     <ImageDetailsModal
+  selectedImage={selectedImage}
+  onClose={() => setSelectedImage(null)}
+/>
     </div>
   );
 }

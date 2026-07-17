@@ -13,9 +13,10 @@ import {
   Tag,
   Sparkles,
   Users,
-  Menu,
   Cuboid,
+  Projector,
 } from "lucide-react";
+import logo from '../logo/logo-main.png';
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,8 +40,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
       items: [
         { id: "dashboard", label: "Dashboard", icon: BarChart3 },
         { id: "upload", label: "Upload", icon: Upload },
-        { id: "reports", label: "Reports", icon: TrendingUp },
-        { id: "search", label: "Search", icon: Search },
+        { id: "DAM", label: "DAM", icon: TrendingUp },
+        { id: "project", label: "Project", icon: Projector },
+        
         { id: "catalog", label: "Catalog", icon: Briefcase },
         { id: "marketplace", label: "Marketplace", icon: TrendingUp },
       ],
@@ -68,20 +70,24 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-slate-900 text-slate-300">
-      <div className="p-6 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
-            <Box className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <div className="text-white font-semibold text-sm">AssetLynx</div>
-            <div className="text-cyan-400 text-xs">AI PLATFORM</div>
-            <div className="text-slate-400 text-xs mt-1 truncate font-medium" title={user?.name || user?.email}>
-              {user?.name || user?.email}
-            </div>
-          </div>
+  <div className="p-4 border-b border-slate-800">
+    <div className="space-y-2">
+      {/* Logo takes full width */}
+      <img 
+        src={logo} 
+        alt="AssetLynxe" 
+        className="h-10 w-full object-contain px-2" 
+      />  
+      
+      {/* Brand and User info */}
+      <div className="text-center px-2">
+        <div className="text-white font-semibold text-sm">AssetLynxe</div>
+        <div className="text-slate-400 text-xs mt-1 truncate font-medium" title={user?.name || user?.email}>
+          {user?.name || user?.email}
         </div>
       </div>
+    </div>
+  </div>
 
       {isImpersonating && (
         <div className="mx-4 mt-4 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between gap-2">
@@ -167,13 +173,13 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             onClick={() => setMobileOpen(true)}
             className="p-2 hover:bg-slate-100 rounded-lg"
           >
-            <Menu className="w-6 h-6" />
+            
           </button>
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
               <Box className="w-5 h-5 text-white" />
             </div>
-            <span className="font-semibold">AssetLynx</span>
+            <span className="font-semibold">AssetLynxe</span>
           </div>
           <div className="w-10" />
         </header>
