@@ -50,7 +50,7 @@ export interface AnalysisResponse {
 }
 
 export const assetApi = {
-  upload: async (files: File[] | FormData, userId?: string) => {
+  upload: async (files: File[] | FormData, userId?: string, onProgress?: (pct: number) => void) => {
     const formData = files instanceof FormData ? files : (() => {
       const fd = new FormData();
       (files as File[]).forEach((file) => fd.append('files', file));
@@ -58,13 +58,67 @@ export const assetApi = {
     })();
     
     const params = userId ? `?user_id=${userId}` : '';
-    const { data } = await api.post(`/assets/upload${params}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+      const { data } = await api.post(`/assets/upload${params}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (evt) => {
+      if (onProgress && evt.total) {
+        onProgress(Math.round((evt.loaded / evt.total) * 100));
+      }
+    },
+  });
     return data;
   },
   
-  
+  deleteImage: async (imageId: string, userId?: string) => {
+    try {
+      const params = userId ? `?user_id=${userId}` : '';
+      const { data } = await api.delete(`/assets/${imageId}${params}`);
+      return data;
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || "Failed to delete image";
+      throw new Error(msg);
+    }
+  },
+
+  // NEW: Batch delete multiple images
+  batchDeleteImages: async (imageIds: string[], userId?: string) => {
+    try {
+      const params = userId ? `?user_id=${userId}` : '';
+      const { data } = await api.delete(`/assets/batch${params}`, {
+        data: { image_ids: imageIds }
+      });
+      return data;
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || "Failed to delete images";
+      throw new Error(msg);
+    }
+  },
+
+  // NEW: Delete an entire upload session with all its images
+  deleteUpload: async (uploadId: string, userId?: string) => {
+    try {
+      const params = userId ? `?user_id=${userId}` : '';
+      const { data } = await api.delete(`/assets/upload/${uploadId}${params}`);
+      return data;
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || "Failed to delete upload session";
+      throw new Error(msg);
+    }
+  },
+
+  // NEW: Upload a single file (for annotated images, etc.)
+  uploadSingle: async (formData: FormData, userId?: string) => {
+    try {
+      const params = userId ? `?user_id=${userId}` : '';
+      const { data } = await api.post(`/assets/upload${params}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || "Failed to upload file";
+      throw new Error(msg);
+    }
+  },
   getReport: async (userId?: string) => {
     try {
       const params = userId ? `?user_id=${userId}` : '';

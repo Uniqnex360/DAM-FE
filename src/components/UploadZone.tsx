@@ -82,7 +82,7 @@ export function UploadZone() {
         >
           <Upload className={`w-12 h-12 mx-auto mb-4 ${dragActive ? 'text-blue-500' : 'text-slate-400'}`} />
           <p className="text-lg font-medium text-slate-700 mb-2">
-            Drag and drop images here
+            Drag and drop images here1
           </p>
           <p className="text-slate-500 mb-4">or</p>
           <label className="inline-block">

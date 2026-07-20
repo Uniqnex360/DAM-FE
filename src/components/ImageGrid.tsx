@@ -51,6 +51,7 @@ interface ImageGridProps {
    onDownloadSessionZip?: (session: ImageGridSession) => void;
   showStats?: boolean;
   expandedByDefault?: boolean;
+   deletingId?: string | null; 
 }
 
 export function ImageGrid({

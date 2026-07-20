@@ -1,15 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Upload,
-  Link,
-  FileText,
-  Globe,
-  Cloud,
   Loader2,
   CheckCircle,
   Wand2,
-  Crop,
-  Ruler,
   Palette,
   X,
   Sparkles,
@@ -23,14 +17,8 @@ import {
   List as ListIcon,
   Plus,
   Image as ImageIcon,
-  Box,
-  Minimize2,
-  BarChart,
   Folder,
   Download,
-  Type,
-  Shield,
-  Maximize,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import { toast } from "sonner";
@@ -41,303 +29,31 @@ import {
   getResizeDimensionsForDestinations,
   MARKETPLACE_RULES,
 } from "../utils/marketplaceRules";
-import { useAuth } from "../contexts/AuthContext";
 import { useUserSelection } from "../contexts/UserSelectionContext";
-
-const ECOMMERCE_DESTINATIONS = [
-  {
-    id: "unified-commerce",
-    label: "Unified E-Commerce",
-    initial: "U",
-    bg: "bg-slate-50",
-    text: "text-slate-500",
-    border: "border-slate-100",
-  },
-  {
-    id: "shopify",
-    label: "Shopify",
-    initial: "S",
-    bg: "bg-emerald-50",
-    text: "text-emerald-600",
-    border: "border-emerald-100",
-  },
-  {
-    id: "woocommerce",
-    label: "WooCommerce",
-    initial: "W",
-    bg: "bg-indigo-50",
-    text: "text-indigo-600",
-    border: "border-indigo-100",
-  },
-  {
-    id: "magento",
-    label: "Magento",
-    initial: "M",
-    bg: "bg-orange-50",
-    text: "text-orange-600",
-    border: "border-orange-100",
-  },
-  {
-    id: "bigcommerce",
-    label: "BigCommerce",
-    initial: "B",
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-100",
-  },
-  {
-    id: "wix-store",
-    label: "Wix Store",
-    initial: "W",
-    bg: "bg-violet-50",
-    text: "text-violet-600",
-    border: "border-violet-100",
-  },
-];
-const SOURCES = [
-  { id: "files", label: "Files", icon: Upload },
-  { id: "urls", label: "URLs", icon: Link },
-  { id: "csv", label: "CSV", icon: FileText },
-  { id: "page", label: "Page", icon: Globe },
-  { id: "cloud", label: "Cloud", icon: Cloud },
-];
-const MARKETPLACE_DESTINATIONS = [
-  {
-    id: "amazon-us",
-    label: "Amazon US",
-    initial: "Am",
-    bg: "bg-orange-50",
-    text: "text-orange-600",
-    border: "border-orange-100",
-  },
-  {
-    id: "amazon-uk",
-    label: "Amazon UK",
-    initial: "Am",
-    bg: "bg-orange-50",
-    text: "text-orange-600",
-    border: "border-orange-100",
-  },
-  {
-    id: "walmart",
-    label: "Walmart",
-    initial: "Wa",
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-100",
-  },
-  {
-    id: "wayfair-us",
-    label: "Wayfair US",
-    initial: "Wa",
-    bg: "bg-purple-50",
-    text: "text-purple-600",
-    border: "border-purple-100",
-  },
-  {
-    id: "wayfair-uk",
-    label: "Wayfair UK",
-    initial: "Wa",
-    bg: "bg-purple-50",
-    text: "text-purple-600",
-    border: "border-purple-100",
-  },
-  {
-    id: "ebay-us",
-    label: "eBay US",
-    initial: "eB",
-    bg: "bg-rose-50",
-    text: "text-rose-600",
-    border: "border-rose-100",
-  },
-  {
-    id: "ebay-uk",
-    label: "eBay UK",
-    initial: "eB",
-    bg: "bg-rose-50",
-    text: "text-rose-600",
-    border: "border-rose-100",
-  },
-  {
-    id: "target-plus",
-    label: "Target Plus",
-    initial: "Tg",
-    bg: "bg-red-50",
-    text: "text-red-600",
-    border: "border-red-100",
-  },
-  {
-    id: "tiktok-shop",
-    label: "TikTok Shop",
-    initial: "TT",
-    bg: "bg-black/5",
-    text: "text-black",
-    border: "border-slate-200",
-  },
-  {
-    id: "homedepot",
-    label: "Home Depot",
-    initial: "HD",
-    bg: "bg-orange-50",
-    text: "text-orange-700",
-    border: "border-orange-100",
-  },
-];
-
-const MARKETPLACE_GROUPS = [
-  {
-    id: "us",
-    countryCode: "US",
-    countryName: "United States",
-    items: MARKETPLACE_DESTINATIONS.filter(
-      (d) =>
-        d.id === "amazon-us" ||
-        d.id === "walmart" ||
-        d.id === "wayfair-us" ||
-        d.id === "ebay-us" ||
-        d.id === "target-plus" ||
-        d.id === "tiktok-shop" ||
-        d.id === "homedepot",
-    ),
-  },
-  {
-    id: "uk",
-    countryCode: "UK",
-    countryName: "United Kingdom",
-    items: MARKETPLACE_DESTINATIONS.filter(
-      (d) =>
-        d.id === "amazon-uk" || d.id === "wayfair-uk" || d.id === "ebay-uk",
-    ),
-  },
-];
-
-const PROCESSING_OPTIONS = [
-  {
-    id: "resize",
-    label: "Image Resizing",
-    description: "Resize to specific dimensions",
-    icon: Ruler,
-  },
-  {
-    id: "image-refill",
-    label: "Image Refill / Reconstruction",
-    description: "AI-powered completion of cut-off product parts (Outpainting)",
-    icon: Maximize,
-  },
-
-  {
-    id: "watermark-remove",
-    label: "Watermark Removal",
-    description: "Remove watermarks without affecting product",
-    icon: Shield,
-  },
-  {
-    id: "text-remove",
-    label: "Text Removal",
-    description: "Auto-detect and remove embedded text",
-    icon: Type,
-  },
-
-  {
-    id: "shadow-remove",
-    label: "Shadow Removal",
-    description: "Remove harsh shadows while preserving natural lighting",
-    icon: Sparkles,
-  },
-  {
-    id: "bg-remove",
-    label: "Background Removal",
-    description: "Remove background automatically",
-    icon: Palette,
-  },
-  {
-    id: "retouch",
-    label: "Image Retouch / Enhancer",
-    description: "Enhance color, sharpness, and quality",
-    icon: Sparkles,
-  },
-  {
-    id: "crop",
-    label: "Image Cropping / Reframing",
-    description: "Smart crop and aspect ratio adjust",
-    icon: Crop,
-  },
-  {
-    id: "compress",
-    label: "Image Compression",
-    description: "Optimize file size without quality loss",
-    icon: Minimize2,
-  },
-  {
-    id: "lifestyle",
-    label: "Lifestyle Image Creation",
-    description: "Generate lifestyle scene images",
-    icon: ImageIcon,
-  },
-  {
-    id: "infographic",
-    label: "Infographic Creation",
-    description: "Auto-generate product infographics",
-    icon: BarChart,
-  },
-  {
-    id: "line-diagram",
-    label: "Line Diagram",
-    description: "Technical line drawing generation",
-    icon: Ruler,
-  },
-  {
-    id: "swatch",
-    label: "Material Swatch Creation",
-    description: "Generate color and material swatches",
-    icon: Palette,
-  },
-  {
-    id: "3d-model",
-    label: "3D Render",
-    description: "Create photorealistic 3D product renders",
-    icon: Box,
-  },
-];
+import {
+  BG_COLOR_PRESETS,
+  ECOMMERCE_DESTINATIONS,
+  MARKETPLACE_DESTINATIONS,
+  MARKETPLACE_GROUPS,
+  PROCESSING_OPTIONS,
+  SOURCES,
+} from "../utils/Selections";
 
 type Step = "upload" | "destinations" | "processing" | "results";
 type UploadSource = "files" | "urls" | "csv" | "page" | "cloud";
-
 export function AdvancedUpload() {
   const [currentStep, setCurrentStep] = useState<Step>("upload");
   const [projectName, setProjectName] = useState("");
   const [useMarketplaceResize, setUseMarketplaceResize] = useState(true);
-  const [customResizeDims, setCustomResizeDims] = useState({
-    width: 800,
-    height: 800,
-  });
-  const [cropMode, setCropMode] = useState<"preset" | "free">("preset");
+  const [showPerImageOverrides, setShowPerImageOverrides] = useState(false);
 
+  const [cropMode, setCropMode] = useState<"preset" | "free">("preset");
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHexColor, setCustomHexColor] = useState("#FFFFFF");
 
-  const BG_COLOR_PRESETS = [
-    { label: "White", value: "#FFFFFF", preview: "bg-white border-slate-200" },
-    {
-      label: "Light Gray",
-      value: "#F5F5F5",
-      preview: "bg-[#F5F5F5] border-slate-200",
-    },
-    {
-      label: "Dark Gray",
-      value: "#E0E0E0",
-      preview: "bg-[#E0E0E0] border-slate-300",
-    },
-    { label: "Black", value: "#000000", preview: "bg-black border-slate-700" },
-    {
-      label: "Transparent",
-      value: "transparent",
-      preview: "bg-slate-100 border-slate-200",
-    },
-  ];
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
   const [measurementImage, setMeasurementImage] = useState<any>(null);
   const [lineDiagramResults, setLineDiagramResults] = useState<any[]>([]);
@@ -345,25 +61,16 @@ export function AdvancedUpload() {
   const [recoloringImage, setRecoloringImage] = useState<any>(null);
   const [pickedColor, setPickedColor] = useState("#000000");
   const [replaceColor, setReplaceColor] = useState("#ff0000");
-  const [showFileList, setShowFileList] = useState(false);
-  const { userRole, isImpersonating } = useAuth();
   const { selectedUserId } = useUserSelection();
   const [isApplyingRecolor, setIsApplyingRecolor] = useState(false);
   const [uploadSource, setUploadSource] = useState<UploadSource>("files");
   const [images, setImages] = useState<any[]>([]);
-  const [selectedDestinations, setSelectedDestinations] = useState<string[]>([
-    "shopify",
-    "amazon-us",
-    "walmart",
-    "bigcommerce",
-  ]);
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>(
+    [],
+  );
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoDetect, setAutoDetect] = useState(false);
-  const [selectedProcessing, setSelectedProcessing] = useState<string[]>([
-    "retouch",
-    "crop",
-  ]);
+  const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
   const [activeResizeMode, setActiveResizeMode] = useState<
     "original" | "preset" | "custom" | "percentage"
   >("preset");
@@ -371,11 +78,9 @@ export function AdvancedUpload() {
   const [resizeDims, setResizeDims] = useState({ width: 800, height: 800 });
   const [resizePercentage, setResizePercentage] = useState(100);
   const [compressionQuality, setCompressionQuality] = useState(80);
-
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, phase: "" });
   const [processedResults, setProcessedResults] = useState<any[]>([]);
-  
   useEffect(() => {
     if (activeResizeMode === "preset") {
       const [w, h] = selectedPreset.split("x").map(Number);
@@ -387,13 +92,11 @@ export function AdvancedUpload() {
       try {
         let allUsers = false;
         let userId = undefined;
-
         if (selectedUserId === null) {
           allUsers = true;
         } else {
           userId = selectedUserId;
         }
-
         const gallery = await assetApi.getGallery(userId, allUsers);
         const projects = [
           ...new Set(
@@ -407,52 +110,97 @@ export function AdvancedUpload() {
     };
     loadProjects();
   }, [selectedUserId]);
-  const addMoreImages = (files: FileList) => {
-    const newFiles = Array.from(files).filter((f) =>
-      f.type.startsWith("image/"),
-    );
-    setImages((prev) => [
-      ...prev,
-      ...newFiles.map((f) => ({
-        file: f,
-        name: f.name,
-        id: Math.random(),
-        preview: URL.createObjectURL(f),
-        url: URL.createObjectURL(f),
-      })),
-    ]);
-  };
+  // Automatically sync per-image operations when global selections change
+  // and when per-image overrides are first shown
+  useEffect(() => {
+    if (
+      showPerImageOverrides &&
+      images.length > 1 &&
+      selectedProcessing.length > 0
+    ) {
+      setImages((prev) =>
+        prev.map((img) => {
+          // If image doesn't have custom operations yet, initialize with global
+          if (!img.selectedOps || img.selectedOps.length === 0) {
+            return {
+              ...img,
+              selectedOps: [...selectedProcessing],
+            };
+          }
+          // If image has custom operations, keep them as is
+          return img;
+        }),
+      );
+    }
+}, [showPerImageOverrides]); // Remove selectedProcessing and images.length from deps
   const removeImage = (id: number) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
-
   const handleProcessBatch = async () => {
-    const isCropSelected = selectedProcessing.includes("crop");
-    if (isCropSelected) {
-      const allImagesCropped = images.every((img) => img.isCropped === true);
-      if (!allImagesCropped) {
-        const uncroppedCount = images.filter((img) => !img.isCropped).length;
+    // const isCropSelected = selectedProcessing.includes("crop");
+    // if (isCropSelected) {
+    //   const allImagesCropped = images.every((img) => img.isCropped === true);
+    //   if (!allImagesCropped) {
+    //     const uncroppedCount = images.filter((img) => !img.isCropped).length;
+    //     toast.error(
+    //       `Please crop ${uncroppedCount} image(s) before processing.`,
+    //     );
+    //     return;
+    //   }
+    // }
+    const anyImageNeedsCrop = images.some((img) =>
+      (img.selectedOps?.length ? img.selectedOps : selectedProcessing).includes(
+        "crop",
+      ),
+    );
+    if (anyImageNeedsCrop) {
+      const uncroppedTargets = images.filter((img) => {
+        const ops = img.selectedOps?.length
+          ? img.selectedOps
+          : selectedProcessing;
+        return ops.includes("crop") && !img.isCropped;
+      });
+      if (uncroppedTargets.length > 0) {
         toast.error(
-          `Please crop ${uncroppedCount} image(s) before processing.`,
+          `Please crop ${uncroppedTargets.length} image(s) before processing.`,
         );
         return;
       }
     }
+const anyImageNeedsLineDiagram = images.some((img) => {
+  const ops = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+  return ops.includes("line-diagram");
+});
 
+if (anyImageNeedsLineDiagram) {
+  const imagesWithoutMeasurements = images.filter((img) => {
+    const ops = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+    return ops.includes("line-diagram") && 
+      !lineDiagramResults.some((r) => r.imageId === img.id && r.measurements.length > 0);
+  });
+  
+  if (imagesWithoutMeasurements.length > 0) {
+    toast.error(
+      `Please add measurements to ${imagesWithoutMeasurements.length} image(s) before processing. Images: ${imagesWithoutMeasurements.map(i => i.name).join(', ')}`,
+    );
+    return;
+  }
+}
     setUploading(true);
-    setProgress({ current: 0, total: images.length, phase: "Uploading" });
-
+    setProgress({
+      current: 0,
+      total: images.length,
+      phase: "Uploading",
+    });
     try {
       const project = projectName.trim();
       const formData = new FormData();
       if (project) formData.append("project_name", project);
       const dimensionsMap: Record<string, { width: number; height: number }> =
         {};
-
       images.forEach((img) => {
         if (img.file) {
           formData.append("files", img.file, img.name);
-
           if (img.isCropped && img.originalDimensions) {
             dimensionsMap[img.name] = img.originalDimensions;
           }
@@ -471,112 +219,162 @@ export function AdvancedUpload() {
       if (Object.keys(dimensionsMap).length > 0) {
         formData.append("original_dimensions", JSON.stringify(dimensionsMap));
       }
-
-      const batchResult = await assetApi.upload(formData, selectedUserId);
+      const batchResult = await assetApi.upload(
+        formData,
+        selectedUserId,
+        (pct) => {
+          setProgress((prev) => ({
+            ...prev,
+            current: Math.round((pct / 100) * prev.total),
+          }));
+        },
+      );
+      const totalRequested = images.length;
+      const uploadedCount = batchResult.images.length;
+      const failedCount =
+        batchResult.failed_files?.length ??
+        Math.max(0, totalRequested - uploadedCount);
+      if (failedCount === 0) {
+        toast.success(
+          `${uploadedCount} of ${totalRequested} image${
+            totalRequested !== 1 ? "s" : ""
+          } uploaded successfully.`,
+        );
+      } else if (uploadedCount === 0) {
+        toast.error(`All ${totalRequested} uploads failed.`);
+      } else {
+        toast.warning(
+          `${uploadedCount} of ${totalRequested} image${
+            totalRequested !== 1 ? "s" : ""
+          } uploaded successfully. ${failedCount} failed.`,
+        );
+      }
+      if (batchResult.failed_files?.length) {
+        console.warn("Failed uploads:", batchResult.failed_files);
+      }
       setProgress({
         current: 0,
         total: batchResult.images.length,
         phase: "Processing",
       });
-      const willRemoveBackground = selectedProcessing.includes("bg-remove");
-      const willRemoveShadow = selectedProcessing.includes("shadow-remove");
-      const results = await Promise.all(
-        batchResult.images.map(async (asset: any, idx: number) => {
-          let operationsToSend = [...selectedProcessing];
-          const processOptions: any = {};
-          if (willRemoveBackground) {
-            processOptions.background_color = backgroundColor;
-          }
-          if (selectedProcessing.includes("resize")) {
-            if (useMarketplaceResize) {
-              const dimensions =
-                getResizeDimensionsForDestinations(selectedDestinations);
-              if (dimensions && dimensions.length > 0) {
-                processOptions.resize = dimensions;
+
+      const results = [];
+      for (const asset of batchResult.images) {
+        const matchingLocal = images.find((img) => img.name === asset.name);
+        let operationsToSend = matchingLocal?.selectedOps?.length
+          ? [...matchingLocal.selectedOps]
+          : [...selectedProcessing];
+        const processOptions: any = {};
+        
+if (operationsToSend.includes("bg-remove")) {
+  if (backgroundColor && backgroundColor !== "transparent") {
+    processOptions.background_color = backgroundColor;
+  } else {
+    processOptions.background_color = "transparent";
+  }
+}
+
+       if (operationsToSend.includes("line-diagram")) {
+  const lineDiagramData = lineDiagramResults.find(
+    (r) => r.imageName === asset.name || r.imageName === matchingLocal?.name
+  );
+  if (lineDiagramData && lineDiagramData.measurements.length > 0) {
+    processOptions.measurements = lineDiagramData.measurements;
+    processOptions.annotated_image_url = lineDiagramData.annotatedImageUrl;
+  }
+}
+        if (operationsToSend.includes("resize")) {
+          if (useMarketplaceResize) {
+            const dimensions =
+              getResizeDimensionsForDestinations(selectedDestinations);
+            if (dimensions && dimensions.length > 0) {
+              processOptions.resize = dimensions;
+              operationsToSend = operationsToSend.filter(
+                (op) => op !== "resize",
+              );
+            }
+          } else {
+            switch (activeResizeMode) {
+              case "original":
                 operationsToSend = operationsToSend.filter(
                   (op) => op !== "resize",
                 );
-              }
-            } else {
-              switch (activeResizeMode) {
-                case "original":
-                  operationsToSend = operationsToSend.filter(
-                    (op) => op !== "resize",
-                  );
-                  break;
-                case "preset":
-                case "custom":
-                  processOptions.resize = {
-                    width: resizeDims.width,
-                    height: resizeDims.height,
-                  };
-                  break;
-                case "percentage":
-                  const targetWidth = Math.round(
-                    (asset.width || 1000) * (resizePercentage / 100),
-                  );
-                  const targetHeight = Math.round(
-                    (asset.height || 1000) * (resizePercentage / 100),
-                  );
-                  processOptions.resize = {
-                    width: targetWidth,
-                    height: targetHeight,
-                  };
-                  break;
-              }
+                break;
+              case "preset":
+              case "custom":
+                processOptions.resize = {
+                  width: resizeDims.width,
+                  height: resizeDims.height,
+                };
+                break;
+              case "percentage":
+                const targetWidth = Math.round(
+                  (asset.width || 1000) * (resizePercentage / 100),
+                );
+                const targetHeight = Math.round(
+                  (asset.height || 1000) * (resizePercentage / 100),
+                );
+                processOptions.resize = {
+                  width: targetWidth,
+                  height: targetHeight,
+                };
+                break;
             }
           }
+        }
 
-          if (selectedProcessing.includes("compress")) {
-            processOptions.quality = compressionQuality;
-          }
+        if (operationsToSend.includes("compress")) {
+          processOptions.quality = compressionQuality;
+        }
 
-          const ops = autoDetect ? [] : operationsToSend;
-          const res = await assetApi.process(
-            asset.id,
-            ops,
-            processOptions,
-            autoDetect,
-          );
+        const ops = autoDetect ? [] : operationsToSend;
+        const res = await assetApi.process(
+          asset.id,
+          ops,
+          processOptions,
+          autoDetect,
+        );
 
-          setProgress((prev) => ({ ...prev, current: idx + 1 }));
-          if (res.outputs && res.outputs.length > 0) {
-            return {
-              outputs: res.outputs,
-              originalName: asset.name,
-              metadata: asset,
-              appliedOps: res.telemetry?.steps || ops,
-            };
-          } else {
-            return {
-              url: res.url,
-              name: res.name,
-              originalName: asset.name,
-              metadata: asset,
-              appliedOps: res.telemetry?.steps || ops,
-            };
-          }
-        }),
-      );
+        setProgress((prev) => ({
+          ...prev,
+          current: Math.min(prev.current + 1, prev.total),
+        }));
 
+        if (res.outputs && res.outputs.length > 0) {
+          results.push({
+            outputs: res.outputs,
+            originalName: asset.name,
+            metadata: asset,
+            appliedOps: res.telemetry?.steps || ops,
+          });
+        } else {
+          results.push({
+            url: res.url,
+            name: res.name,
+            originalName: asset.name,
+            metadata: asset,
+            appliedOps: res.telemetry?.steps || ops,
+          });
+        }
+      }
       setProcessedResults(results);
       setCurrentStep("results");
       toast.success("Processing complete!");
     } catch (e: any) {
       console.error("Process error:", e);
-
       const backendMessage =
         e?.response?.data?.detail ||
         e?.response?.data?.message ||
         e?.message ||
         "Failed to process batch";
-
       toast.error(backendMessage);
     } finally {
       setUploading(false);
     }
   };
-
+  useEffect(() => {
+    console.log("progress state changed", progress);
+  }, [progress]);
   const handleCropSave = (newFile: File, mode: string, ratio?: string) => {
     if (!editingImage) return;
     const newUrl = URL.createObjectURL(newFile);
@@ -603,12 +401,10 @@ export function AdvancedUpload() {
     );
     setEditingImage(null);
   };
-
   const handleLineDiagramClick = (image: any) => {
     setMeasurementImage(image);
     setShowMeasurementTool(true);
   };
-
   const handleMeasurementSave = (
     measurements: any[],
     annotatedImageUrl: string,
@@ -642,7 +438,20 @@ export function AdvancedUpload() {
     setShowMeasurementTool(false);
     setMeasurementImage(null);
   };
-
+  const toggleImageOperation = (imageId: number, opId: string) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId
+          ? {
+              ...img,
+              selectedOps: img.selectedOps?.includes(opId)
+                ? img.selectedOps.filter((o: string) => o !== opId)
+                : [...(img.selectedOps || []), opId],
+            }
+          : img,
+      ),
+    );
+  };
   const handleImageColorPick = (e: React.MouseEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     const rect = img.getBoundingClientRect();
@@ -665,7 +474,6 @@ export function AdvancedUpload() {
     setPickedColor(hex.toUpperCase());
     toast.success(`Picked color: ${hex.toUpperCase()}`);
   };
-
   const getRecoloredPreviewUrl = (): string => {
     if (!recoloringImage) return "";
     if (recoloringImage.cloudinaryUrl) {
@@ -675,7 +483,6 @@ export function AdvancedUpload() {
     }
     return recoloringImage.preview || recoloringImage.url || "";
   };
-
   const applyRecoloring = async () => {
     setIsApplyingRecolor(true);
     try {
@@ -757,7 +564,6 @@ export function AdvancedUpload() {
       </div>
     );
   };
-
   return (
     <div className="w-full space-y-6 ">
       <div className="flex items-center justify-between mb-4 px-2">
@@ -793,190 +599,44 @@ export function AdvancedUpload() {
           </div>
         </div>
       </div>
-
       <Stepper />
+      {progress.total > 0 && progress.current < progress.total && (
+        <div className="px-2 mb-4">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>
+              {progress.phase === "Processing"
+                ? "Processing images..."
+                : "Uploading files..."}
+            </span>
+            <span>
+              {progress.current}/{progress.total} (
+              {Math.round((progress.current / progress.total) * 100)}%)
+            </span>
+          </div>
+          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all"
+              style={{
+                width: `${Math.round(
+                  (progress.current / progress.total) * 100,
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {currentStep === "upload" && (
-        <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">
-              Import Source
-            </h3>
-            <div className="grid grid-cols-5 gap-4">
-              {SOURCES.map((source) => {
-                const isActive = uploadSource === source.id;
-                const Icon = source.icon;
-
-                return (
-                  <button
-                    key={source.id}
-                    onClick={() => setUploadSource(source.id as UploadSource)}
-                    className={cn(
-                      "flex flex-col items-center justify-center py-6 px-4 rounded-2xl border-2 transition-all gap-3",
-                      isActive
-                        ? "border-[#007BC7] bg-blue-50/50 text-[#007BC7] shadow-sm"
-                        : "border-slate-50 hover:border-slate-200 text-slate-400 bg-white",
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "w-6 h-6",
-                        isActive ? "text-[#007BC7]" : "text-slate-300",
-                      )}
-                    />
-                    <span className="text-sm font-bold tracking-tight">
-                      {source.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-24 text-center flex flex-col items-center group hover:border-blue-400 transition-colors relative">
-            {uploadSource === "files" ? (
-              <>
-                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:scale-110 transition-transform">
-                  <Upload className="w-8 h-8 text-slate-300" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2">
-                  Drag and drop images here
-                </h3>
-                <p className="text-slate-400 text-sm font-medium mb-8"></p>
-                <div className="flex items-center w-64 mb-8">
-                  <div className="flex-grow h-px bg-slate-100"></div>
-                  <span className="mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                    or
-                  </span>
-                  <div className="flex-grow h-px bg-slate-100"></div>
-                </div>
-                <div className="flex flex-col items-center gap-4">
-                  <div className="h-px w-24 bg-slate-100 mb-2" />
-                  <label className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-10 py-4 rounded-xl font-bold flex items-center space-x-2 cursor-pointer shadow-xl shadow-blue-100 transition-all">
-                    <Plus className="w-5 h-5" />
-                    <span>Browse Files</span>
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        const validTypes = [
-                          "image/jpeg",
-                          "image/png",
-                          "image/webp",
-                          "image/avif",
-                          "application/pdf",
-                        ];
-                        const invalidFiles = files.filter(
-                          (f) => !validTypes.includes(f.type),
-                        );
-                        const validFiles = files.filter((f) =>
-                          validTypes.includes(f.type),
-                        );
-
-                        if (invalidFiles.length > 0) {
-                          const invalidNames = invalidFiles
-                            .map((f) => f.name)
-                            .join(", ");
-                          toast.error(
-                            `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
-                          );
-                        }
-
-                        if (validFiles.length === 0) {
-                          toast.error("Please select valid image files");
-                          return;
-                        }
-
-                        const filePromises = validFiles.map((f) => {
-                          return new Promise<any>((resolve) => {
-                            const previewUrl = URL.createObjectURL(f);
-                            const img = new Image();
-                            img.onload = () => {
-                              resolve({
-                                file: f,
-                                name: f.name,
-                                id: Math.random(),
-                                preview: previewUrl,
-                                url: previewUrl,
-                                isCropped: false,
-                                originalDimensions: {
-                                  width: img.naturalWidth,
-                                  height: img.naturalHeight,
-                                },
-                              });
-                            };
-                            img.onerror = () => {
-                              resolve({
-                                file: f,
-                                name: f.name,
-                                id: Math.random(),
-                                preview: previewUrl,
-                                url: previewUrl,
-                                isCropped: false,
-                                originalDimensions: null,
-                              });
-                            };
-                            img.src = previewUrl;
-                          });
-                        });
-
-                        Promise.all(filePromises).then((newImages) => {
-                          setImages(newImages);
-                          console.log(
-                            "Images loaded with dimensions:",
-                            newImages,
-                          );
-                        });
-
-                        if (invalidFiles.length > 0) {
-                          toast.warning(
-                            `${invalidFiles.length} file(s) skipped due to invalid type`,
-                          );
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
-                  {(() => {
-                    const activeSource = SOURCES.find(
-                      (s) => s.id === uploadSource,
-                    );
-                    const Icon = activeSource?.icon || Upload;
-                    return <Icon className="w-8 h-8 text-slate-300" />;
-                  })()}
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
-                  Import via {uploadSource}
-                </h3>
-                <p className="text-slate-400 text-sm font-medium mb-8">
-                  Connect your {uploadSource} source to fetch product images
-                  automatically.
-                </p>
-                <button className="border-2 border-slate-200 text-slate-600 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all">
-                  Configure Source
-                </button>
-              </div>
-            )}
-          </div>
-          {images.length > 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm mt-6">
+        <div className="flex gap-6 animate-in fade-in duration-500 items-start">
+          {/* LEFT: Import source + drag-and-drop */}
+          <div className="flex-1 space-y-6">
+            {/* Import Source card */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
-                  Selected Files ({images.length})
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                  Import Source
                 </h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setImages([])}
-                    className="text-xs font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
-                  >
-                    Remove all
-                  </button>
+                {images.length > 0 && (
                   <button
                     onClick={() => setCurrentStep("destinations")}
                     className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-100"
@@ -984,36 +644,234 @@ export function AdvancedUpload() {
                     <span>Next: Destinations</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
-                </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {images.map((image) => (
-                  <div key={image.id} className="relative group">
-                    <div className="aspect-square bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
-                      <img
-                        src={image.preview || image.url}
-                        alt={image.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+              <div className="grid grid-cols-5 gap-4">
+                {SOURCES.map((source) => {
+                  const isActive = uploadSource === source.id;
+                  const Icon = source.icon;
+                  return (
                     <button
-                      onClick={() => removeImage(image.id)}
-                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                      key={source.id}
+                      onClick={() => setUploadSource(source.id as UploadSource)}
+                      className={cn(
+                        "flex flex-col items-center justify-center py-6 px-4 rounded-2xl border-2 transition-all gap-3",
+                        isActive
+                          ? "border-[#007BC7] bg-blue-50/50 text-[#007BC7] shadow-sm"
+                          : "border-slate-50 hover:border-slate-200 text-slate-400 bg-white",
+                      )}
                     >
-                      <X className="w-3 h-3" />
+                      <Icon
+                        className={cn(
+                          "w-6 h-6",
+                          isActive ? "text-[#007BC7]" : "text-slate-300",
+                        )}
+                      />
+                      <span className="text-sm font-bold tracking-tight">
+                        {source.label}
+                      </span>
                     </button>
-                    <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
-                      {image.name}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          )}
+
+            <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-8 md:p-10 lg:p-12 flex flex-col md:flex-row gap-8 group hover:border-blue-400 transition-colors relative">
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                {uploadSource === "files" ? (
+                  <>
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:scale-110 transition-transform">
+                      <Upload className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900 mb-2">
+                      Drag and drop images here
+                    </h3>
+                    <p className="text-slate-400 text-sm font-medium mb-8"></p>
+                    <div className="flex items-center w-64 mb-8">
+                      <div className="flex-grow h-px bg-slate-100" />
+                      <span className="mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                        or
+                      </span>
+                      <div className="flex-grow h-px bg-slate-100" />
+                    </div>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="h-px w-24 bg-slate-100 mb-2" />
+                      <label className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-10 py-4 rounded-xl font-bold flex items-center space-x-2 cursor-pointer shadow-xl shadow-blue-100 transition-all">
+                        <Plus className="w-5 h-5" />
+                        <span>Browse Files</span>
+                        <input
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            const validTypes = [
+                              "image/jpeg",
+                              "image/png",
+                              "image/webp",
+                              "image/avif",
+                              "application/pdf",
+                            ];
+                            const invalidFiles = files.filter(
+                              (f) => !validTypes.includes(f.type),
+                            );
+                            const validFiles = files.filter((f) =>
+                              validTypes.includes(f.type),
+                            );
+
+                            if (invalidFiles.length > 0) {
+                              const invalidNames = invalidFiles
+                                .map((f) => f.name)
+                                .join(", ");
+                              toast.error(
+                                `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
+                              );
+                            }
+
+                            if (validFiles.length === 0) {
+                              toast.error("Please select valid image files");
+                              return;
+                            }
+
+                            const filePromises = validFiles.map((f) => {
+                              return new Promise<any>((resolve) => {
+                                const previewUrl = URL.createObjectURL(f);
+                                const img = new Image();
+                                img.onload = () => {
+                                  resolve({
+                                    file: f,
+                                    name: f.name,
+                                    id: Math.random(),
+                                    preview: previewUrl,
+                                    url: previewUrl,
+                                    isCropped: false,
+                                    originalDimensions: {
+                                      width: img.naturalWidth,
+                                      height: img.naturalHeight,
+                                    },
+                                    selectedOps: [],
+                                  });
+                                };
+                                img.onerror = () => {
+                                  resolve({
+                                    file: f,
+                                    name: f.name,
+                                    id: Math.random(),
+                                    preview: previewUrl,
+                                    url: previewUrl,
+                                    isCropped: false,
+                                    originalDimensions: null,
+                                    selectedOps: [],
+                                  });
+                                };
+                                img.src = previewUrl;
+                              });
+                            });
+
+                            Promise.all(filePromises).then((newImages) => {
+                              setImages(newImages);
+                              console.log(
+                                "Images loaded with dimensions:",
+                                newImages,
+                              );
+                            });
+
+                            if (invalidFiles.length > 0) {
+                              toast.warning(
+                                `${invalidFiles.length} file(s) skipped due to invalid type`,
+                              );
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
+                      {(() => {
+                        const activeSource = SOURCES.find(
+                          (s) => s.id === uploadSource,
+                        );
+                        const Icon = activeSource?.icon || Upload;
+                        return <Icon className="w-8 h-8 text-slate-300" />;
+                      })()}
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
+                      Import via {uploadSource}
+                    </h3>
+                    <p className="text-slate-400 text-sm font-medium mb-8">
+                      Connect your {uploadSource} source to fetch product images
+                      automatically.
+                    </p>
+                    <button className="border-2 border-slate-200 text-slate-600 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all">
+                      Configure Source
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT: Selected files inside the same card */}
+              <div className="w-full md:w-80 bg-slate-50 rounded-2xl border border-slate-200 p-4 shadow-inner">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-600">
+                    Selected Files
+                  </h4>
+                  {images.length > 0 && (
+                    <button
+                      onClick={() => setImages([])}
+                      className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {images.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">
+                    No files selected yet. Add files on the left.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                    {images.map((image) => (
+                      <div key={image.id} className="relative group">
+                        <div className="aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden">
+                          <img
+                            src={image.preview || image.url}
+                            alt={image.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeImage(image.id)}
+                          className="absolute -top-0 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
+                          {image.name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Selected files panel */}
         </div>
       )}
-
+      <div className="pt-1">
+        <button
+          onClick={() => setCurrentStep("upload")}
+          className="flex items-center space-x-2 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Import</span>
+        </button>
+      </div>
       {currentStep === "destinations" && (
         <div className="flex gap-6 animate-in slide-in-from-right-4 duration-500 items-start">
           <div className="flex-1 space-y-6">
@@ -1055,9 +913,7 @@ export function AdvancedUpload() {
                   )}
                 </div>
               </div>
-
               <div className="h-px bg-slate-100 w-full mb-8" />
-
               <div>
                 <div className="mb-4">
                   <h3 className="text-lg font-black text-slate-900">
@@ -1085,7 +941,6 @@ export function AdvancedUpload() {
                     placeholder="e.g. Summer Collection 2025"
                     className={`w-full bg-slate-50 border rounded-2xl pl-12 pr-6 py-4 text-sm transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white ${!projectName.trim() ? "border-amber-300" : "border-slate-200"}`}
                   />
-
                   {showProjectSuggestions && projectName.trim() && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-40 overflow-y-auto">
                       {existingProjects
@@ -1115,16 +970,14 @@ export function AdvancedUpload() {
                       )}
                     </div>
                   )}
-
                   {!projectName.trim() && (
                     <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1">
-                       Project name is required to continue
+                      Project name is required to continue
                     </p>
                   )}
                 </div>
               </div>
             </div>
-
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -1206,7 +1059,6 @@ export function AdvancedUpload() {
                 })}
               </div>
             </div>
-
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
@@ -1304,18 +1156,7 @@ export function AdvancedUpload() {
                 })}
               </div>
             </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => setCurrentStep("upload")}
-                className="flex items-center space-x-2 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to Import</span>
-              </button>
-            </div>
           </div>
-
           <div className="w-[340px] shrink-0">
             <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm sticky top-10">
               <div className="mb-6">
@@ -1397,7 +1238,6 @@ export function AdvancedUpload() {
           </div>
         </div>
       )}
-
       {currentStep === "processing" && (
         <div className="flex gap-10 animate-in slide-in-from-right-4 duration-500 items-start">
           <div className="flex-1 bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm">
@@ -1411,7 +1251,6 @@ export function AdvancedUpload() {
                   destination.
                 </p>
               </div>
-
               <div className="flex items-center space-x-6">
                 <button
                   type="button"
@@ -1428,7 +1267,6 @@ export function AdvancedUpload() {
                   >
                     <Wand2 className="w-4 h-4" /> Auto
                   </div>
-
                   <div
                     className={cn(
                       "w-10 h-6 rounded-full transition-colors relative shadow-inner",
@@ -1443,20 +1281,37 @@ export function AdvancedUpload() {
                     />
                   </div>
                 </button>
-
                 {!autoDetect && (
-                  <button
-                    onClick={() =>
-                      setSelectedProcessing(PROCESSING_OPTIONS.map((o) => o.id))
-                    }
-                    className="text-blue-600 font-black text-xs uppercase tracking-widest hover:underline"
-                  >
-                    Select all
-                  </button>
+                  <>
+                    <button
+                      onClick={() =>
+                        setSelectedProcessing(
+                          PROCESSING_OPTIONS.map((o) => o.id),
+                        )
+                      }
+                      className="text-blue-600 font-black text-xs uppercase tracking-widest hover:underline"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      disabled={images.length <= 1}
+                      onClick={() => setShowPerImageOverrides((v) => !v)}
+                      className={cn(
+                        "text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors",
+                        images.length <= 1
+                          ? "text-slate-300 border-slate-200 cursor-not-allowed"
+                          : showPerImageOverrides
+                            ? "text-blue-600 border-blue-500 bg-blue-50"
+                            : "text-slate-500 border-slate-200 hover:border-slate-400",
+                      )}
+                    >
+                      Per-image overrides
+                    </button>
+                  </>
                 )}
               </div>
             </div>
-
             {autoDetect ? (
               <div className="p-8 bg-blue-50 border-2 border-blue-100 rounded-[2rem] text-center flex flex-col items-center">
                 <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
@@ -1472,600 +1327,1018 @@ export function AdvancedUpload() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 items-start">
-                {PROCESSING_OPTIONS.map((op) => {
-                  const active = selectedProcessing.includes(op.id);
-                  return (
-                    <div
-                      key={op.id}
-                      className={cn(
-                        "border-2 rounded-[1.75rem] transition-all overflow-hidden h-fit",
-                        active
-                          ? "border-blue-500 bg-blue-50/30 ring-1 ring-blue-500 shadow-md shadow-blue-50"
-                          : "border-slate-100 hover:border-slate-200 bg-white",
-                      )}
-                    >
-                      <button
-                        onClick={() =>
-                          setSelectedProcessing((prev) => {
-                            if (op.id === "bg-remove" && !active) {
-                              return [
-                                ...prev.filter((x) => x !== "shadow-remove"),
-                                op.id,
-                              ];
-                            }
-                            return active
-                              ? prev.filter((x) => x !== op.id)
-                              : [...prev, op.id];
-                          })
-                        }
-                        className="w-full p-6 flex items-center space-x-5 text-left"
+              <>
+                <div className="grid grid-cols-2 gap-4 items-start">
+                  {PROCESSING_OPTIONS.map((op) => {
+                    const active = selectedProcessing.includes(op.id);
+                    return (
+                      <div
+                        key={op.id}
+                        className={cn(
+                          "border-2 rounded-[1.75rem] transition-all overflow-hidden h-fit",
+                          active
+                            ? "border-blue-500 bg-blue-50/30 ring-1 ring-blue-500 shadow-md shadow-blue-50"
+                            : "border-slate-100 hover:border-slate-200 bg-white",
+                        )}
                       >
-                        <div
-                          className={cn(
-                            "p-3 rounded-2xl shadow-sm shrink-0",
-                            active
-                              ? "bg-blue-500 text-white"
-                              : "bg-blue-50 text-blue-500",
-                          )}
+                        <button
+                          onClick={() =>
+                            setSelectedProcessing((prev) => {
+                              if (op.id === "bg-remove" && !active) {
+                                return [
+                                  ...prev.filter((x) => x !== "shadow-remove"),
+                                  op.id,
+                                ];
+                              }
+                              return active
+                                ? prev.filter((x) => x !== op.id)
+                                : [...prev, op.id];
+                            })
+                          }
+                          className="w-full p-6 flex items-center space-x-5 text-left"
                         >
-                          <op.icon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-base font-black text-slate-800 leading-tight truncate">
-                            {op.label}
+                          <div
+                            className={cn(
+                              "p-3 rounded-2xl shadow-sm shrink-0",
+                              active
+                                ? "bg-blue-500 text-white"
+                                : "bg-blue-50 text-blue-500",
+                            )}
+                          >
+                            <op.icon className="w-6 h-6" />
                           </div>
-                          <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
-                            {op.description}
-                          </div>
-                        </div>
-                        <div
-                          className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
-                            active
-                              ? "bg-blue-500 border-blue-500"
-                              : "border-slate-200",
-                          )}
-                        >
-                          {active && (
-                            <CheckCircle className="w-4 h-4 text-white" />
-                          )}
-                        </div>
-                      </button>
-                      {active && op.id === "bg-remove" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                            <div className="flex items-start gap-2">
-                              <Sparkles className="w-4 h-4 text-blue-600 mt-0.5" />
-                              <div>
-                                <p className="text-[10px] text-blue-600 mt-0.5">
-                                  Select Shadow Removal to enable background
-                                  color options.
-                                </p>
-                              </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-base font-black text-slate-800 leading-tight truncate">
+                              {op.label}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
+                              {op.description}
                             </div>
                           </div>
-
-                          {selectedProcessing.includes("shadow-remove") && (
-                            <>
-                              <div className="mb-3">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                                  Background Color
-                                </label>
-                              </div>
-
-                              <div className="grid grid-cols-5 gap-2 mb-3">
-                                {BG_COLOR_PRESETS.map((preset) => (
-                                  <button
-                                    key={preset.value}
-                                    onClick={() => {
-                                      setBackgroundColor(preset.value);
-                                      setCustomHexColor(preset.value);
-                                    }}
-                                    className={`relative aspect-square rounded-xl border-2 transition-all ${
-                                      backgroundColor === preset.value
-                                        ? "border-blue-500 ring-2 ring-blue-100"
-                                        : "border-slate-200 hover:border-slate-300"
-                                    }`}
-                                    title={preset.label}
-                                  >
-                                    <div
-                                      className={`absolute inset-1 rounded-lg ${preset.preview}`}
-                                    />
-                                    {backgroundColor === preset.value && (
-                                      <div className="absolute inset-0 flex items-center justify-center">
-                                        <CheckCircle className="w-4 h-4 text-blue-600 drop-shadow-sm" />
-                                      </div>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 relative">
-                                  <input
-                                    type="text"
-                                    value={customHexColor}
-                                    onChange={(e) => {
-                                      let value = e.target.value;
-
-                                      if (!value.startsWith("#")) {
-                                        value = "#" + value.replace(/#/g, "");
-                                      }
-
-                                      const hexPart = value
-                                        .slice(1)
-                                        .replace(/[^0-9A-Fa-f]/g, "");
-                                      value = "#" + hexPart;
-
-                                      value = value.slice(0, 7);
-
-                                      setCustomHexColor(value);
-
-                                      if (value.length === 7) {
-                                        setBackgroundColor(value);
-                                      }
-                                    }}
-                                    onKeyDown={(e) => {
-                                      
-                                      if (
-                                        e.key === "Backspace" &&
-                                        customHexColor === "#"
-                                      ) {
-                                        e.preventDefault();
-                                      }
-                                    }}
-                                    placeholder="#FFFFFF"
-                                    className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
-                                  />
-                                  <div
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded border border-slate-200"
-                                    style={{ backgroundColor: customHexColor }}
-                                  />
-                                </div>
+                          <div
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                              active
+                                ? "bg-blue-500 border-blue-500"
+                                : "border-slate-200",
+                            )}
+                          >
+                            {active && (
+                              <CheckCircle className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                        </button>
+                        {active && op.id === "bg-remove" && (
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    <div className="mb-3 flex items-center justify-between">
+      <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+        Background Options
+      </label>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-400">Change Color:</span>
+        <button
+          type="button"
+          onClick={() => {
+            if (backgroundColor && backgroundColor !== "transparent") {
+              setBackgroundColor("transparent");
+              setCustomHexColor("#FFFFFF");
+            } else {
+              setBackgroundColor("#FFFFFF");
+              setCustomHexColor("#FFFFFF");
+            }
+          }}
+          className={cn(
+            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+            backgroundColor && backgroundColor !== "transparent" 
+              ? "bg-blue-600" 
+              : "bg-slate-300"
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm",
+              backgroundColor && backgroundColor !== "transparent" 
+                ? "translate-x-4" 
+                : "translate-x-0.5"
+            )}
+          />
+        </button>
+      </div>
+    </div>
+    
+    {backgroundColor && backgroundColor !== "transparent" ? (
+      <>
+        <div className="grid grid-cols-5 gap-2 mb-3">
+          {BG_COLOR_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              onClick={() => {
+                setBackgroundColor(preset.value);
+                setCustomHexColor(preset.value);
+              }}
+              className={`relative aspect-square rounded-xl border-2 transition-all ${
+                backgroundColor === preset.value
+                  ? "border-blue-500 ring-2 ring-blue-100"
+                  : "border-slate-200 hover:border-slate-300"
+              }`}
+              title={preset.label}
+            >
+              <div className={`absolute inset-1 rounded-lg ${preset.preview}`} />
+              {backgroundColor === preset.value && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-blue-600 drop-shadow-sm" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={customHexColor}
+              onChange={(e) => {
+                let value = e.target.value;
+                if (!value.startsWith("#")) {
+                  value = "#" + value.replace(/#/g, "");
+                }
+                const hexPart = value.slice(1).replace(/[^0-9A-Fa-f]/g, "");
+                value = "#" + hexPart;
+                value = value.slice(0, 7);
+                setCustomHexColor(value);
+                if (value.length === 7) {
+                  setBackgroundColor(value);
+                }
+              }}
+              placeholder="#FFFFFF"
+              className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+            />
+            <div
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded border border-slate-200"
+              style={{ backgroundColor: customHexColor }}
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (/^#[0-9A-Fa-f]{6}$/.test(customHexColor)) {
+                setBackgroundColor(customHexColor);
+              }
+            }}
+            className="px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+          >
+            Apply
+          </button>
+        </div>
+        <button
+          onClick={() => setShowColorPicker(!showColorPicker)}
+          className="mt-2 text-[10px] text-slate-500 hover:text-blue-600 font-medium flex items-center gap-1"
+        >
+          <Palette className="w-3 h-3" />
+          {showColorPicker ? "Hide" : "Show"} Advanced Color Picker
+        </button>
+        {showColorPicker && (
+          <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={customHexColor}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase();
+                  setCustomHexColor(value);
+                  setBackgroundColor(value);
+                }}
+                className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
+              />
+              <span className="text-xs text-slate-600">
+                Pick any color: <span className="font-mono font-bold">{customHexColor}</span>
+              </span>
+            </div>
+          </div>
+        )}
+      </>
+    ) : (
+      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3">
+        <p className="text-xs text-slate-500">
+          Background will be removed and kept transparent. Toggle "Change Color" to fill with a solid color.
+        </p>
+      </div>
+    )}
+  </div>
+)}
+                        {active && op.id === "resize" && (
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-100">
+                              <span className="text-xs font-bold text-slate-700">
+                                Resize Mode
+                              </span>
+                              <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
                                 <button
-                                  onClick={() => {
-                                    if (
-                                      /^#[0-9A-Fa-f]{6}$/.test(customHexColor)
-                                    ) {
-                                      setBackgroundColor(customHexColor);
-                                      toast.success(
-                                        `Background color set to ${customHexColor}`,
-                                      );
-                                    } else {
-                                      toast.error(
-                                        "Please enter a full 6-digit hex color (e.g., #FF5733)",
-                                      );
-                                    }
-                                  }}
-                                  className="px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                  onClick={() => setUseMarketplaceResize(true)}
+                                  className={cn(
+                                    "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                                    useMarketplaceResize
+                                      ? "bg-blue-600 text-white shadow-sm"
+                                      : "text-slate-500 hover:text-slate-700",
+                                  )}
                                 >
-                                  Apply
+                                  Auto (Platform)
+                                </button>
+                                <button
+                                  onClick={() => setUseMarketplaceResize(false)}
+                                  className={cn(
+                                    "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
+                                    !useMarketplaceResize
+                                      ? "bg-blue-600 text-white shadow-sm"
+                                      : "text-slate-500 hover:text-slate-700",
+                                  )}
+                                >
+                                  Custom
                                 </button>
                               </div>
-
-                              <button
-                                onClick={() =>
-                                  setShowColorPicker(!showColorPicker)
-                                }
-                                className="mt-2 text-[10px] text-slate-500 hover:text-blue-600 font-medium flex items-center gap-1"
-                              >
-                                <Palette className="w-3 h-3" />
-                                {showColorPicker ? "Hide" : "Show"} Advanced
-                                Color Picker
-                              </button>
-
-                              {showColorPicker && (
-                                <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                  <div className="flex items-center gap-3">
-                                    <input
-                                      type="color"
-                                      value={customHexColor}
-                                      onChange={(e) => {
-                                        const value =
-                                          e.target.value.toUpperCase();
-                                        setCustomHexColor(value);
-                                        setBackgroundColor(value);
-                                      }}
-                                      className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
-                                    />
-                                    <span className="text-xs text-slate-600">
-                                      Pick any color:{" "}
-                                      <span className="font-mono font-bold">
-                                        {customHexColor}
-                                      </span>
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {active && op.id === "resize" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-100">
-                            <span className="text-xs font-bold text-slate-700">
-                              Resize Mode
-                            </span>
-                            <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
-                              <button
-                                onClick={() => setUseMarketplaceResize(true)}
-                                className={cn(
-                                  "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
-                                  useMarketplaceResize
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700",
-                                )}
-                              >
-                                Auto (Platform)
-                              </button>
-                              <button
-                                onClick={() => setUseMarketplaceResize(false)}
-                                className={cn(
-                                  "px-3 py-1.5 text-xs font-bold rounded-md transition-all",
-                                  !useMarketplaceResize
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700",
-                                )}
-                              >
-                                Custom
-                              </button>
                             </div>
-                          </div>
-
-                          {useMarketplaceResize ? (
-                            <div className="space-y-2">
-                              <p className="text-xs text-slate-500">
-                                Will resize to platform specifications:
-                              </p>
-                              {selectedDestinations.length === 0 ? (
-                                <p className="text-xs text-amber-600">
-                                  Select destinations first to see dimensions
+                            {useMarketplaceResize ? (
+                              <div className="space-y-2">
+                                <p className="text-xs text-slate-500">
+                                  Will resize to platform specifications:
                                 </p>
-                              ) : (
-                                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                  {selectedDestinations.map((destId) => {
-                                    const rule = MARKETPLACE_RULES[destId];
-                                    if (!rule) return null;
-                                    return (
-                                      <div
-                                        key={destId}
-                                        className="flex items-center justify-between text-sm bg-white p-2 rounded-lg border border-slate-100"
-                                      >
-                                        <span className="font-medium text-slate-700">
-                                          {rule.label}
-                                        </span>
-                                        <span className="text-blue-600 font-mono text-xs">
-                                          {rule.resizeDimensions.width} ×{" "}
-                                          {rule.resizeDimensions.height}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
+                                {selectedDestinations.length === 0 ? (
+                                  <p className="text-xs text-amber-600">
+                                    Select destinations first to see dimensions
+                                  </p>
+                                ) : (
+                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                    {selectedDestinations.map((destId) => {
+                                      const rule = MARKETPLACE_RULES[destId];
+                                      if (!rule) return null;
+                                      return (
+                                        <div
+                                          key={destId}
+                                          className="flex items-center justify-between text-sm bg-white p-2 rounded-lg border border-slate-100"
+                                        >
+                                          <span className="font-medium text-slate-700">
+                                            {rule.label}
+                                          </span>
+                                          <span className="text-blue-600 font-mono text-xs">
+                                            {rule.resizeDimensions.width} ×{" "}
+                                            {rule.resizeDimensions.height}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
+                                  {(
+                                    [
+                                      "original",
+                                      "preset",
+                                      "custom",
+                                      "percentage",
+                                    ] as const
+                                  ).map((mode) => (
+                                    <button
+                                      key={mode}
+                                      onClick={() => setActiveResizeMode(mode)}
+                                      className={cn(
+                                        "flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
+                                        activeResizeMode === mode
+                                          ? "bg-white text-blue-600 shadow-sm"
+                                          : "text-slate-400 hover:text-slate-600",
+                                      )}
+                                    >
+                                      {mode}
+                                    </button>
+                                  ))}
                                 </div>
-                              )}
+                                {activeResizeMode === "preset" && (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {["500x500", "800x800", "1024x1024"].map(
+                                      (preset) => (
+                                        <button
+                                          key={preset}
+                                          onClick={() =>
+                                            setSelectedPreset(preset)
+                                          }
+                                          className={cn(
+                                            "py-2 text-xs font-bold rounded-lg border",
+                                            selectedPreset === preset
+                                              ? "bg-blue-100 border-blue-300 text-blue-700"
+                                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300",
+                                          )}
+                                        >
+                                          {preset}
+                                        </button>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+                                {activeResizeMode === "custom" && (
+                                  <div className="flex gap-4">
+                                    <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                      Width{" "}
+                                      <input
+                                        type="number"
+                                        value={resizeDims.width}
+                                        onChange={(e) =>
+                                          setResizeDims((p) => ({
+                                            ...p,
+                                            width: Number(e.target.value),
+                                          }))
+                                        }
+                                        className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                      />
+                                    </label>
+                                    <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
+                                      Height{" "}
+                                      <input
+                                        type="number"
+                                        value={resizeDims.height}
+                                        onChange={(e) =>
+                                          setResizeDims((p) => ({
+                                            ...p,
+                                            height: Number(e.target.value),
+                                          }))
+                                        }
+                                        className="w-full mt-1 px-3 py-2 border rounded-xl"
+                                      />
+                                    </label>
+                                  </div>
+                                )}
+                                {activeResizeMode === "percentage" && (
+                                  <div>
+                                    <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
+                                      <span>Scale Factor</span>
+                                      <span className="text-blue-600">
+                                        {resizePercentage}%
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="range"
+                                      min="10"
+                                      max="200"
+                                      step="10"
+                                      value={resizePercentage}
+                                      onChange={(e) =>
+                                        setResizePercentage(
+                                          Number(e.target.value),
+                                        )
+                                      }
+                                      className="w-full accent-blue-600"
+                                    />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {active && op.id === "compress" && (
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
+                              <span>Quality Ratio</span>
+                              <span className="text-blue-600">
+                                {compressionQuality}%
+                              </span>
                             </div>
+                            <input
+                              type="range"
+                              min="10"
+                              max="100"
+                              step="5"
+                              value={compressionQuality}
+                              onChange={(e) =>
+                                setCompressionQuality(Number(e.target.value))
+                              }
+                              className="w-full accent-blue-600"
+                            />
+                          </div>
+                        )}
+                        {/* {active && op.id === "crop" && (
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+                              <span className="text-xs font-bold text-slate-700">
+                                Crop Mode
+                              </span>
+                              <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
+                                <button
+                                  onClick={() => setCropMode("preset")}
+                                  className={cn(
+                                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                                    cropMode === "preset"
+                                      ? "bg-blue-600 text-white shadow-sm"
+                                      : "text-slate-500 hover:text-slate-700",
+                                  )}
+                                >
+                                  Marketplace Presets
+                                </button>
+                                <button
+                                  onClick={() => setCropMode("free")}
+                                  className={cn(
+                                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                                    cropMode === "free"
+                                      ? "bg-blue-600 text-white shadow-sm"
+                                      : "text-slate-500 hover:text-slate-700",
+                                  )}
+                                >
+                                  Free Crop
+                                </button>
+                              </div>
+                            </div>
+                            {cropMode === "preset" ? (
+                              <div>
+                                <p className="text-xs text-slate-500 mb-2">
+                                  Select aspect ratio:
+                                </p>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {[
+                                    ...new Set(
+                                      selectedDestinations
+                                        .map(
+                                          (d) =>
+                                            MARKETPLACE_RULES[d]?.aspectRatio
+                                              ?.default,
+                                        )
+                                        .filter(Boolean),
+                                    ),
+                                  ].map((ratio) => (
+                                    <button
+                                      key={ratio}
+                                      onClick={() => {
+                                        const uncropped = images.find(
+                                          (img) => !img.isCropped,
+                                        );
+                                        if (uncropped) {
+                                          setEditingImage({
+                                            ...uncropped,
+                                            aspectRatio: ratio,
+                                            cropMode: "preset",
+                                          });
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                                    >
+                                      {ratio}
+                                    </button>
+                                  ))}
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  ⚡ Crops to exact marketplace requirements
+                                </p>
+                              </div>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-slate-500 mb-2">
+                                  Free crop (any shape):
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    const uncropped = images.find(
+                                      (img) => !img.isCropped,
+                                    );
+                                    if (uncropped) {
+                                      setEditingImage({
+                                        ...uncropped,
+                                        aspectRatio: undefined,
+                                        cropMode: "free",
+                                      });
+                                    }
+                                  }}
+                                  className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
+                                >
+                                  Free Crop (any aspect ratio)
+                                </button>
+                                <p className="text-[10px] text-amber-600 mt-2">
+                                  Free cropping may not meet marketplace
+                                  requirements
+                                </p>
+                              </div>
+                            )}
+                            <div className="mt-3 max-h-40 overflow-y-auto">
+                              {images.map((img, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    const previewUrl =
+                                      img.preview ||
+                                      img.url ||
+                                      (img.file
+                                        ? URL.createObjectURL(img.file)
+                                        : "");
+                                    setEditingImage({
+                                      ...img,
+                                      url: previewUrl,
+                                      preview: previewUrl,
+                                      aspectRatio:
+                                        cropMode === "preset"
+                                          ? "1:1"
+                                          : undefined,
+                                      cropMode: cropMode,
+                                    });
+                                  }}
+                                  className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+                                    img.isCropped
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  }`}
+                                >
+                                  <span>
+                                    {img.isCropped ? "✓" : "✂️"} Crop:{" "}
+                                    {img.name}
+                                  </span>
+                                  {img.isCropped && (
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                            {editingImage && editingImage.url && (
+                              <ImageCropModal
+                                key={editingImage.id}
+                                imageSrc={editingImage.url}
+                                fileName={editingImage.name}
+                                aspectRatio={editingImage.aspectRatio}
+                                cropMode={editingImage.cropMode}
+                                onClose={() => setEditingImage(null)}
+                                onSave={handleCropSave}
+                              />
+                            )}
+                          </div>
+                        )} */}
+                        {active && op.id === "crop" && (
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+      <span className="text-xs font-bold text-slate-700">
+        Crop Mode
+      </span>
+      <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
+        <button
+          onClick={() => setCropMode("preset")}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-md transition-all",
+            cropMode === "preset"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-500 hover:text-slate-700",
+          )}
+        >
+          Marketplace Presets
+        </button>
+        <button
+          onClick={() => setCropMode("free")}
+          className={cn(
+            "px-3 py-1 text-xs font-medium rounded-md transition-all",
+            cropMode === "free"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "text-slate-500 hover:text-slate-700",
+          )}
+        >
+          Free Crop
+        </button>
+      </div>
+    </div>
+    {cropMode === "preset" ? (
+      <div>
+        <p className="text-xs text-slate-500 mb-2">
+          Select aspect ratio:
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[
+            ...new Set(
+              selectedDestinations
+                .map(
+                  (d) =>
+                    MARKETPLACE_RULES[d]?.aspectRatio
+                      ?.default,
+                )
+                .filter(Boolean),
+            ),
+          ].map((ratio) => (
+            <button
+              key={ratio}
+              onClick={() => {
+                const uncropped = images.find(
+                  (img) => {
+                    const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+                    return imgOps.includes("crop") && !img.isCropped;
+                  }
+                );
+                if (uncropped) {
+                  setEditingImage({
+                    ...uncropped,
+                    aspectRatio: ratio,
+                    cropMode: "preset",
+                  });
+                }
+              }}
+              className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+            >
+              {ratio}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-400">
+           Crops to exact marketplace requirements
+        </p>
+      </div>
+    ) : (
+      <div>
+        <p className="text-xs text-slate-500 mb-2">
+          Free crop (any shape):
+        </p>
+        <button
+          onClick={() => {
+            const uncropped = images.find(
+              (img) => {
+                const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+                return imgOps.includes("crop") && !img.isCropped;
+              }
+            );
+            if (uncropped) {
+              setEditingImage({
+                ...uncropped,
+                aspectRatio: undefined,
+                cropMode: "free",
+              });
+            }
+          }}
+          className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
+        >
+          Free Crop (any aspect ratio)
+        </button>
+        <p className="text-[10px] text-amber-600 mt-2">
+          Free cropping may not meet marketplace
+          requirements
+        </p>
+      </div>
+    )}
+    {/* <div className="mt-3 max-h-40 overflow-y-auto">
+      {images
+        .filter((img) => {
+          const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+          return imgOps.includes("crop");
+        })
+        .map((img, idx) => (
+        <button
+          key={idx}
+          onClick={() => {
+            const previewUrl =
+              img.preview ||
+              img.url ||
+              (img.file
+                ? URL.createObjectURL(img.file)
+                : "");
+            setEditingImage({
+              ...img,
+              url: previewUrl,
+              preview: previewUrl,
+              aspectRatio:
+                cropMode === "preset"
+                  ? "1:1"
+                  : undefined,
+              cropMode: cropMode,
+            });
+          }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+            img.isCropped
+              ? "bg-green-100 text-green-700"
+              : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+          }`}
+        >
+          <span>
+            {img.isCropped ? "✓" : "✂️"} Crop:{" "}
+            {img.name}
+          </span>
+          {img.isCropped && (
+            <CheckCircle className="w-4 h-4 text-green-600" />
+          )}
+        </button>
+      ))}
+    </div> */}
+    <div className="mt-3 max-h-40 overflow-y-auto">
+  {images.filter((img) => {
+    const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+    return imgOps.includes("crop");
+  }).length === 0 ? (
+    <div className="text-center py-4">
+      <p className="text-xs text-slate-400 mb-3">
+        No images selected for cropping
+      </p>
+      <p className="text-[10px] text-slate-400 mb-3">
+        Select images to crop from per-image overrides or add crop globally
+      </p>
+      {images.length > 1 && showPerImageOverrides ? (
+        <button
+          onClick={() => setShowPerImageOverrides(true)}
+          className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100"
+        >
+          Open Per-Image Overrides
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            setSelectedProcessing(prev => 
+              prev.includes("crop") ? prev : [...prev, "crop"]
+            );
+            toast.success("Crop operation added globally");
+          }}
+          className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100"
+        >
+          Add Crop to All Images
+        </button>
+      )}
+    </div>
+  ) : (
+    images
+      .filter((img) => {
+        const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+        return imgOps.includes("crop");
+      })
+      .map((img, idx) => (
+        <button
+          key={idx}
+          onClick={() => {
+            const previewUrl =
+              img.preview ||
+              img.url ||
+              (img.file
+                ? URL.createObjectURL(img.file)
+                : "");
+            setEditingImage({
+              ...img,
+              url: previewUrl,
+              preview: previewUrl,
+              aspectRatio:
+                cropMode === "preset"
+                  ? "1:1"
+                  : undefined,
+              cropMode: cropMode,
+            });
+          }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
+            img.isCropped
+              ? "bg-green-100 text-green-700"
+              : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+          }`}
+        >
+          <span>
+            {img.isCropped ? "✓" : "✂️"} Crop:{" "}
+            {img.name}
+          </span>
+          {img.isCropped && (
+            <CheckCircle className="w-4 h-4 text-green-600" />
+          )}
+        </button>
+      ))
+  )}
+</div>
+    {editingImage && editingImage.url && (
+      <ImageCropModal
+        key={editingImage.id}
+        imageSrc={editingImage.url}
+        fileName={editingImage.name}
+        aspectRatio={editingImage.aspectRatio}
+        cropMode={editingImage.cropMode}
+        onClose={() => setEditingImage(null)}
+        onSave={handleCropSave}
+      />
+    )}
+  </div>
+)}
+                        {/* {active && op.id === "line-diagram" && (
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <p className="text-xs text-slate-500 mb-2">
+                              Click on an image to add measurements
+                            </p>
+                            <button
+                              onClick={() => {
+                                const img = images[0];
+                                if (img) handleLineDiagramClick(img);
+                              }}
+                              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
+                            >
+                              Open Measurement Tool
+                            </button>
+                          </div>
+                        )} */}
+                        {active && op.id === "line-diagram" && (
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    <p className="text-xs text-slate-500 mb-2">
+      Click on an image to add measurements
+    </p>
+    {images.filter((img) => {
+      const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+      return imgOps.includes("line-diagram");
+    }).length === 0 ? (
+      <div className="text-center py-4">
+        <p className="text-xs text-slate-400 mb-3">
+          No images selected for line diagram
+        </p>
+        {images.length > 1 && showPerImageOverrides ? (
+          <button
+            onClick={() => setShowPerImageOverrides(true)}
+            className="px-3 py-1.5 text-xs bg-purple-50 text-purple-600 border border-purple-200 rounded-md hover:bg-purple-100"
+          >
+            Open Per-Image Overrides
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              setSelectedProcessing(prev => 
+                prev.includes("line-diagram") ? prev : [...prev, "line-diagram"]
+              );
+              toast.success("Line diagram added globally");
+            }}
+            className="px-3 py-1.5 text-xs bg-purple-50 text-purple-600 border border-purple-200 rounded-md hover:bg-purple-100"
+          >
+            Add Line Diagram to All Images
+          </button>
+        )}
+      </div>
+    ) : (
+      images
+        .filter((img) => {
+          const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+          return imgOps.includes("line-diagram");
+        })
+        .map((img) => (
+          <button
+            key={img.id}
+            onClick={() => handleLineDiagramClick(img)}
+            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold w-full text-left mb-2"
+          >
+             {img.name}
+          </button>
+        ))
+    )}
+  </div>
+)}
+                        {active && op.id === "recolor" && (
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <button
+                              onClick={() => {
+                                const img = images[0];
+                                if (img) setRecoloringImage(img);
+                              }}
+                              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
+                            >
+                              Open Color Picker
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {images.length > 1 &&
+  showPerImageOverrides &&
+  selectedProcessing.length > 0 && (
+    <div className="mt-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h4 className="text-sm font-black text-slate-900">
+            Per-Image Operation Overrides
+          </h4>
+          <p className="text-xs text-slate-400 mt-1">
+            Customize which operations apply to each image. 
+            <span className="text-blue-600 font-semibold"> Blue = Will be applied</span>
+            {" • "}
+            <span className="text-slate-400">Grey = Will be skipped</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setImages(prev => prev.map(img => ({
+                ...img,
+                selectedOps: [...selectedProcessing]
+              })));
+            }}
+            className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+          >
+            Reset All to Global
+          </button>
+        </div>
+      </div>
+      
+      <div className="space-y-3">
+        {images.map((img) => {
+          // Get effective operations for this image
+          const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+          
+          // Count only ACTIVE operations from the global list that are actually in imgOps
+          const activeOpsCount = PROCESSING_OPTIONS.filter(
+            (op) => selectedProcessing.includes(op.id) && imgOps.includes(op.id)
+          ).length;
+          
+          // Check if image has custom operations (different from global)
+          const hasCustomOps = img.selectedOps?.length > 0;
+          
+          return (
+            <div
+              key={img.id}
+              className="flex items-center gap-4 border border-slate-100 rounded-xl p-4 hover:border-slate-200 transition-colors bg-slate-50/50"
+            >
+              {/* Image Preview */}
+              <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-slate-200 flex-shrink-0 shadow-sm">
+                <img
+                  src={img.preview || img.url}
+                  alt={img.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="55" text-anchor="middle" fill="%23999" font-size="12">No preview</text></svg>';
+                  }}
+                />
+              </div>
+              
+              {/* Image Info & Operations */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {img.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasCustomOps ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                          Custom ({activeOpsCount} of {selectedProcessing.length} ops)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImages(prev => prev.map(i => 
+                              i.id === img.id ? { ...i, selectedOps: [] } : i
+                            ));
+                          }}
+                          className="text-[10px] font-bold text-red-500 hover:text-red-600 px-2 py-0.5 rounded-md hover:bg-red-50 transition-colors"
+                          title="Remove all custom operations (use global)"
+                        >
+                          Reset to Global
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                        Global ({activeOpsCount} ops)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Operation Toggles with clearer labels */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-medium text-slate-400 mb-2">
+                    Click to toggle operations for this image:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {PROCESSING_OPTIONS.filter((op) =>
+                      selectedProcessing.includes(op.id),
+                    ).map((op) => {
+                      const isActive = imgOps.includes(op.id);
+                      return (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => toggleImageOperation(img.id, op.id)}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all flex items-center gap-2",
+                            isActive
+                              ? "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 shadow-sm"
+                              : "bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-500",
+                          )}
+                        >
+                          {isActive ? (
+                            <>
+                              <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="font-semibold">{op.label}</span>
+                              <span className="text-[9px] text-blue-500 font-bold ml-1">ON</span>
+                            </>
                           ) : (
                             <>
-                              <div className="flex space-x-2 mb-4 bg-slate-100/50 p-1 rounded-xl">
-                                {(
-                                  [
-                                    "original",
-                                    "preset",
-                                    "custom",
-                                    "percentage",
-                                  ] as const
-                                ).map((mode) => (
-                                  <button
-                                    key={mode}
-                                    onClick={() => setActiveResizeMode(mode)}
-                                    className={cn(
-                                      "flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all",
-                                      activeResizeMode === mode
-                                        ? "bg-white text-blue-600 shadow-sm"
-                                        : "text-slate-400 hover:text-slate-600",
-                                    )}
-                                  >
-                                    {mode}
-                                  </button>
-                                ))}
-                              </div>
-
-                              {activeResizeMode === "preset" && (
-                                <div className="grid grid-cols-3 gap-2">
-                                  {["500x500", "800x800", "1024x1024"].map(
-                                    (preset) => (
-                                      <button
-                                        key={preset}
-                                        onClick={() =>
-                                          setSelectedPreset(preset)
-                                        }
-                                        className={cn(
-                                          "py-2 text-xs font-bold rounded-lg border",
-                                          selectedPreset === preset
-                                            ? "bg-blue-100 border-blue-300 text-blue-700"
-                                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300",
-                                        )}
-                                      >
-                                        {preset}
-                                      </button>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-
-                              {activeResizeMode === "custom" && (
-                                <div className="flex gap-4">
-                                  <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
-                                    Width{" "}
-                                    <input
-                                      type="number"
-                                      value={resizeDims.width}
-                                      onChange={(e) =>
-                                        setResizeDims((p) => ({
-                                          ...p,
-                                          width: Number(e.target.value),
-                                        }))
-                                      }
-                                      className="w-full mt-1 px-3 py-2 border rounded-xl"
-                                    />
-                                  </label>
-                                  <label className="flex-1 text-[10px] font-bold text-slate-500 uppercase">
-                                    Height{" "}
-                                    <input
-                                      type="number"
-                                      value={resizeDims.height}
-                                      onChange={(e) =>
-                                        setResizeDims((p) => ({
-                                          ...p,
-                                          height: Number(e.target.value),
-                                        }))
-                                      }
-                                      className="w-full mt-1 px-3 py-2 border rounded-xl"
-                                    />
-                                  </label>
-                                </div>
-                              )}
-
-                              {activeResizeMode === "percentage" && (
-                                <div>
-                                  <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
-                                    <span>Scale Factor</span>
-                                    <span className="text-blue-600">
-                                      {resizePercentage}%
-                                    </span>
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min="10"
-                                    max="200"
-                                    step="10"
-                                    value={resizePercentage}
-                                    onChange={(e) =>
-                                      setResizePercentage(
-                                        Number(e.target.value),
-                                      )
-                                    }
-                                    className="w-full accent-blue-600"
-                                  />
-                                </div>
-                              )}
+                              <X className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{op.label}</span>
+                              <span className="text-[9px] text-slate-400 ml-1">OFF</span>
                             </>
                           )}
-                        </div>
-                      )}
-
-                      {active && op.id === "compress" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
-                            <span>Quality Ratio</span>
-                            <span className="text-blue-600">
-                              {compressionQuality}%
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="10"
-                            max="100"
-                            step="5"
-                            value={compressionQuality}
-                            onChange={(e) =>
-                              setCompressionQuality(Number(e.target.value))
-                            }
-                            className="w-full accent-blue-600"
-                          />
-                        </div>
-                      )}
-                      {active && op.id === "crop" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
-                            <span className="text-xs font-bold text-slate-700">
-                              Crop Mode
-                            </span>
-                            <div className="flex items-center space-x-2 bg-slate-100 p-0.5 rounded-lg">
-                              <button
-                                onClick={() => setCropMode("preset")}
-                                className={cn(
-                                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                  cropMode === "preset"
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700",
-                                )}
-                              >
-                                Marketplace Presets
-                              </button>
-                              <button
-                                onClick={() => setCropMode("free")}
-                                className={cn(
-                                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                  cropMode === "free"
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700",
-                                )}
-                              >
-                                Free Crop
-                              </button>
-                            </div>
-                          </div>
-
-                          {cropMode === "preset" ? (
-                            <div>
-                              <p className="text-xs text-slate-500 mb-2">
-                                Select aspect ratio:
-                              </p>
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {[
-                                  ...new Set(
-                                    selectedDestinations
-                                      .map(
-                                        (d) =>
-                                          MARKETPLACE_RULES[d]?.aspectRatio
-                                            ?.default,
-                                      )
-                                      .filter(Boolean),
-                                  ),
-                                ].map((ratio) => (
-                                  <button
-                                    key={ratio}
-                                    onClick={() => {
-                                      const uncropped = images.find(
-                                        (img) => !img.isCropped,
-                                      );
-                                      if (uncropped) {
-                                        setEditingImage({
-                                          ...uncropped,
-                                          aspectRatio: ratio,
-                                          cropMode: "preset",
-                                        });
-                                      }
-                                    }}
-                                    className="px-3 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
-                                  >
-                                    {ratio}
-                                  </button>
-                                ))}
-                              </div>
-                              <p className="text-[10px] text-slate-400">
-                                ⚡ Crops to exact marketplace requirements
-                              </p>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="text-xs text-slate-500 mb-2">
-                                Free crop (any shape):
-                              </p>
-                              <button
-                                onClick={() => {
-                                  const uncropped = images.find(
-                                    (img) => !img.isCropped,
-                                  );
-                                  if (uncropped) {
-                                    setEditingImage({
-                                      ...uncropped,
-                                      aspectRatio: undefined,
-                                      cropMode: "free",
-                                    });
-                                  }
-                                }}
-                                className="w-full py-2 text-xs bg-slate-100 border border-slate-200 rounded-md hover:bg-slate-200"
-                              >
-                                Free Crop (any aspect ratio)
-                              </button>
-                              <p className="text-[10px] text-amber-600 mt-2">
-                                Free cropping may not meet marketplace
-                                requirements
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="mt-3 max-h-40 overflow-y-auto">
-                            {images.map((img, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  const previewUrl =
-                                    img.preview ||
-                                    img.url ||
-                                    (img.file
-                                      ? URL.createObjectURL(img.file)
-                                      : "");
-                                  setEditingImage({
-                                    ...img,
-                                    url: previewUrl,
-                                    preview: previewUrl,
-                                    aspectRatio:
-                                      cropMode === "preset" ? "1:1" : undefined,
-                                    cropMode: cropMode,
-                                  });
-                                }}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold mb-2 block w-full text-left truncate flex items-center justify-between ${
-                                  img.isCropped
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                }`}
-                              >
-                                <span>
-                                  {img.isCropped ? "✓" : "✂️"} Crop: {img.name}
-                                </span>
-                                {img.isCropped && (
-                                  <CheckCircle className="w-4 h-4 text-green-600" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-
-                          {editingImage && editingImage.url && (
-                            <ImageCropModal
-                             key={editingImage.id} 
-                              imageSrc={editingImage.url}
-                              fileName={editingImage.name}
-                              aspectRatio={editingImage.aspectRatio}
-                              cropMode={editingImage.cropMode}
-                              onClose={() => setEditingImage(null)}
-                              onSave={handleCropSave}
-                            />
-                          )}
-                        </div>
-                      )}
-
-                      {active && op.id === "line-diagram" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <p className="text-xs text-slate-500 mb-2">
-                            Click on an image to add measurements
-                          </p>
-                          <button
-                            onClick={() => {
-                              const img = images[0];
-                              if (img) handleLineDiagramClick(img);
-                            }}
-                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
-                          >
-                            Open Measurement Tool
-                          </button>
-                        </div>
-                      )}
-
-                      {active && op.id === "recolor" && (
-                        <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                          <button
-                            onClick={() => {
-                              const img = images[0];
-                              if (img) setRecoloringImage(img);
-                            }}
-                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold"
-                          >
-                            Open Color Picker
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
+              </>
             )}
           </div>
-
           <div className="w-[340px] shrink-0 h-fit bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm sticky top-10">
             <h3 className="font-black text-slate-900 text-lg mb-1">
               Processing Plan
@@ -2078,7 +2351,6 @@ export function AdvancedUpload() {
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 Total outputs per image
               </span>
-
               <div className="text-5xl font-black text-[#007BC7] my-3 leading-none">
                 {images.length}
               </div>
@@ -2121,7 +2393,6 @@ export function AdvancedUpload() {
               )}
               <span>{uploading ? "Processing..." : "Start Processing"}</span>
             </button>
-
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
@@ -2137,7 +2408,6 @@ export function AdvancedUpload() {
           </div>
         </div>
       )}
-
       {currentStep === "results" && (
         <div className="space-y-5 animate-in fade-in duration-500 pb-20">
           <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between shadow-sm">
@@ -2147,27 +2417,22 @@ export function AdvancedUpload() {
                   setCurrentStep("upload");
                   setImages([]);
                   setProjectName("");
-
                   setProcessedResults([]);
                 }}
                 className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center space-x-2 transition-all shadow-lg shadow-blue-100"
               >
                 <Plus className="w-4 h-4" /> <span>Import More</span>
               </button>
-
               <div className="h-8 w-px bg-slate-100" />
-
               <button className="flex items-center space-x-2 text-slate-500 text-xs font-black uppercase tracking-widest px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors">
                 <SortAsc className="w-4 h-4" />
                 <span>Newest first</span>
               </button>
-
               <button className="flex items-center space-x-2 text-slate-500 text-xs font-black uppercase tracking-widest px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors">
                 <Filter className="w-4 h-4" />
                 <span>All destinations</span>
               </button>
             </div>
-
             <div className="flex items-center space-x-6">
               <div className="flex bg-slate-100 p-1.5 rounded-xl">
                 <button
@@ -2198,7 +2463,6 @@ export function AdvancedUpload() {
               </span>
             </div>
           </div>
-
           {viewMode === "list" && (
             <div className="space-y-3">
               {processedResults.map((res, idx) => (
@@ -2224,7 +2488,6 @@ export function AdvancedUpload() {
                       </div>
                     </div>
                   </div>
-
                   {res.outputs && res.outputs.length > 0 ? (
                     <div className="border-t border-slate-100 pt-4">
                       <h5 className="text-sm font-black text-slate-700 mb-3">
@@ -2326,7 +2589,6 @@ export function AdvancedUpload() {
                       </div>
                     </div>
                   ) : null}
-
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
                     <div className="text-xs text-slate-400">
                       Steps: {res.appliedOps?.join(", ") || "None"}
@@ -2342,7 +2604,6 @@ export function AdvancedUpload() {
               ))}
             </div>
           )}
-
           {viewMode === "grid" && (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
               {processedResults.map((res, idx) => (
@@ -2460,7 +2721,6 @@ export function AdvancedUpload() {
           onSave={handleMeasurementSave}
         />
       )}
-
       {recoloringImage && (
         <div
           className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4"
