@@ -20,6 +20,7 @@ import {
   CheckCircle,
   SlidersHorizontal,
   X,
+  Download,
 } from "lucide-react";
 import { assetApi } from "../lib/api";
 import {
@@ -39,6 +40,7 @@ import {
   type SearchFilterOptions,
 } from "../services/searchService";
 import { ImageDetailsModal } from "./ImageDetailsModal";
+import { toast } from "sonner";
 type ViewMode = "grid" | "list";
 type Tab = "results" | "reports" | "search";
 const STATUS_CONFIG = {
@@ -433,7 +435,6 @@ export function CombinedDashboard({
   }
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
@@ -552,10 +553,8 @@ export function CombinedDashboard({
                 <span>Filters</span>
               </button>
             </div>
-            {/* Advanced Filters */}
             {showFilters && (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg">
-                {/* Project Filter */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Project
@@ -586,7 +585,6 @@ export function CombinedDashboard({
                     ))}
                   </select>
                 </div>
-                {/* Status Filter */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Status
@@ -617,7 +615,6 @@ export function CombinedDashboard({
                     ))}
                   </select>
                 </div>
-                {/* Operations Filter */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Operations
@@ -648,7 +645,6 @@ export function CombinedDashboard({
                     ))}
                   </select>
                 </div>
-                {/* Clear Filters Button */}
                 <div className="flex items-end">
                   <button
                     onClick={clearSearchFilters}
@@ -660,14 +656,12 @@ export function CombinedDashboard({
                 </div>
               </div>
             )}
-            {/* Error message */}
             {error && activeTab === "search" && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
           </div>
-          {/* Search Results */}
           <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-900">
@@ -788,7 +782,6 @@ export function CombinedDashboard({
                     </div>
                   ))}
                 </div>
-                {/* Pagination */}
                 {searchPagination.pages > 1 && (
                   <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
                     <button
@@ -1050,39 +1043,96 @@ export function CombinedDashboard({
                   </div>
                 ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-4">
-              {filteredImages.map((img) => (
-                <button
-                  key={img.id}
-                  onClick={() => setSelectedImage(img)}
-                  className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow text-left"
-                >
-                  <div className="aspect-square bg-slate-100 relative">
-                    <img
-                      src={img.thumbnail_url}
-                      className="w-full h-full object-cover"
-                      alt={img.filename}
-                    />
-                    <span
-                      className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium border flex items-center space-x-1 ${STATUS_CONFIG[img.status].color}`}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      <span>{STATUS_CONFIG[img.status].label}</span>
-                    </span>
-                  </div>
-                  <div className="p-3">
-                    <p className="font-bold text-slate-900 text-sm truncate">
-                      {img.filename}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase">
-                      {img.outputs_ready}/{img.outputs_count} outputs ready
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+         ) : (
+  <div className="space-y-6">
+    {sessions
+      .filter((s) => {
+        const projectName = s.metadata?.project_name || "Untitled Project";
+        return filterProject === "all" || projectName === filterProject;
+      })
+      .map((session) => (
+        <div key={session.id} className="space-y-3">
+          <div className="flex items-center space-x-3">
+  <div className="p-2 bg-blue-50 rounded-lg border border-blue-100">
+    <Folder className="w-4 h-4 text-blue-500" />
+  </div>
+  <h3 className="font-bold text-slate-900 text-sm">
+    {session.metadata?.project_name || "Untitled Project"}
+  </h3>
+  <span className="text-xs text-slate-400">
+    {session.images.length} images
+  </span>
+  {session.images.length > 1 && (
+    <button
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          toast.loading("Downloading ZIP...");
+          await assetApi.downloadProjectZip(session.id);
+          toast.dismiss();
+          toast.success("ZIP downloaded");
+        } catch (error) {
+          toast.dismiss();
+          toast.error("Failed to download ZIP");
+        }
+      }}
+      className="flex items-center space-x-1 px-2 py-1 bg-emerald-500 text-white rounded-md text-xs font-bold hover:bg-emerald-600 transition-colors"
+    >
+      <Download className="w-3 h-3" />
+      <span>Download as ZIP</span>
+    </button>
+  )}
+</div>
+          <div className="grid grid-cols-4 gap-4">
+            {session.images.map((img: any) => (
+              <button
+                key={img.id}
+                onClick={() =>
+                  setSelectedImage({
+                    id: img.id,
+                    filename: img.name,
+                    file_size: img.size || 0,
+                    dimensions: `${img.width}×${img.height}`,
+                    status: "done",
+                    destinations: session.metadata?.destinations || [],
+                    outputs_count: 1,
+                    outputs_ready: img.processed_url ? 1 : 0,
+                    original_url: img.url,
+                    processed_url: img.processed_url,
+                    operations: img.processedOperations || [],
+                    created_at: session.created_at,
+                    thumbnail_url: img.url,
+                    output_urls: img.processed_url ? [img.processed_url] : [],
+                    project_name: session.metadata?.project_name || "Untitled Project",
+                  })
+                }
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow text-left"
+              >
+                <div className="aspect-square bg-slate-100 relative">
+                  <img
+                    src={img.url}
+                    className="w-full h-full object-cover"
+                    alt={img.name}
+                  />
+                  <span className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-600 border-green-200">
+                    Done
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="font-bold text-slate-900 text-sm truncate">
+                    {img.name}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1 font-bold uppercase">
+                    {img.processed_url ? "1/1" : "0/1"} outputs ready
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+  </div>
+)}
         </>
       )}
       {activeTab === "reports" && stats && (

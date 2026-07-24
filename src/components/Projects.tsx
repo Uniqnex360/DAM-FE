@@ -17,7 +17,7 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
   const [selectedImage, setSelectedImage] = useState<ProcessedImage | null>(null);
 
   useEffect(() => {
-    loadProjects();
+    loadProjects(); 
     const interval = setInterval(loadProjects, 30000);
     
     const handleProjectUpdate = () => {
@@ -35,12 +35,12 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
     try {
       const data = await assetApi.getGallery(userId, allUsers);
       
-      // Transform to show only sessions with project names
+      
       const projectData = data
         .filter((upload: any) => upload.metadata?.project_name)
         .map((upload: any) => ({
           ...upload,
-          // Add project-specific metadata
+          
           metadata: {
             ...upload.metadata,
             project_description: upload.metadata?.description,
@@ -58,7 +58,7 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
 
   const handleDeleteProject = async (projectId: string) => {
     try {
-      // Add your project delete API call here
+      
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
       toast.success("Project deleted successfully");
     } catch (error) {
@@ -69,7 +69,7 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
 
   const handleDeleteImage = async (imageId: string, projectId: string) => {
     try {
-      // Add your image delete API call here
+      
       setProjects((prev) =>
         prev.map((project) => ({
           ...project,
@@ -93,11 +93,11 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
   };
 
   const handleImageClick = (image: any, project: any) => {
-    // Transform image data to ProcessedImage format for the modal
+    
     const processedImage: ProcessedImage = {
       id: image.id,
       filename: image.name || "Untitled Image",
-      file_size: 0, // You might want to get actual file size
+      file_size: 0, 
       dimensions: image.width && image.height ? `${image.width}×${image.height}` : "Unknown",
       status: image.processing_status === "completed" ? "done" : 
               image.processing_status === "processing" ? "processing" :

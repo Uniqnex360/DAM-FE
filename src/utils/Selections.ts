@@ -1,5 +1,4 @@
-import { BarChart, Box, Cloud, Crop, FileText, Globe, ImageIcon, Maximize, Minimize2, Palette, Ruler, Shield, Sparkles, Type, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { BarChart, Box, Cloud, Crop, FileText, Globe, ImageIcon, Maximize, Minimize2, Palette, Ruler, Shield, Sparkles, Type, Upload,Link } from "lucide-react";
 export const BG_COLOR_PRESETS = [
     { label: "White", value: "#FFFFFF", preview: "bg-white border-slate-200" },
     {
@@ -13,11 +12,7 @@ export const BG_COLOR_PRESETS = [
       preview: "bg-[#E0E0E0] border-slate-300",
     },
     { label: "Black", value: "#000000", preview: "bg-black border-slate-700" },
-    {
-      label: "Transparent",
-      value: "transparent",
-      preview: "bg-slate-100 border-slate-200",
-    },
+   
   ];
 export const ECOMMERCE_DESTINATIONS = [
   {

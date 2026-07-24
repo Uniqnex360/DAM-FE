@@ -106,7 +106,6 @@ export const assetApi = {
     }
   },
 
-  // NEW: Upload a single file (for annotated images, etc.)
   uploadSingle: async (formData: FormData, userId?: string) => {
     try {
       const params = userId ? `?user_id=${userId}` : '';

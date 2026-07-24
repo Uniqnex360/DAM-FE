@@ -40,7 +40,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
         { id: "dashboard", label: "Dashboard", icon: BarChart3 },
         { id: "upload", label: "Upload", icon: Upload },
         { id: "DAM", label: "DAM", icon: TrendingUp },
-        { id: "project", label: "Project", icon: Projector },
+        { id: "project", label: "Projects", icon: Projector },
 
         { id: "catalog", label: "Catalog", icon: Briefcase },
         { id: "marketplace", label: "Marketplace", icon: TrendingUp },
