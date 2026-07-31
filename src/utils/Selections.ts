@@ -1,4 +1,4 @@
-import { BarChart, Box, Cloud, Crop, FileText, Globe, ImageIcon, Maximize, Minimize2, Palette, Ruler, Shield, Sparkles, Type, Upload,Link } from "lucide-react";
+import { BarChart, Box, Cloud, Crop, FileText, Globe, ImageIcon, Maximize, Minimize2, Palette, Ruler, Shield, Sparkles, Type, Upload,Link, Frame } from "lucide-react";
 export const BG_COLOR_PRESETS = [
     { label: "White", value: "#FFFFFF", preview: "bg-white border-slate-200" },
     {
@@ -186,6 +186,12 @@ export const PROCESSING_OPTIONS = [
     description: "Resize to specific dimensions",
     icon: Ruler,
   },
+  {
+  id: "smart-frame",
+  label: "Smart Frame Fit",
+  description: "Auto-crop whitespace, scale & center product in frame",
+  icon: Frame,
+},
   {
     id: "image-refill",
     label: "Image Refill / Reconstruction",
