@@ -66,6 +66,12 @@ export function AdvancedUpload() {
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>(
     [],
   );
+  const [smartFrameOptions, setSmartFrameOptions] = useState({
+  width: 1200,
+  height: 1200,
+  inset: 40,
+  background: "#FFFFFF",
+});
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoDetect, setAutoDetect] = useState(false);
   const [selectedProcessing, setSelectedProcessing] = useState<string[]>([]);
@@ -189,32 +195,34 @@ export function AdvancedUpload() {
       const dimensionsMap: Record<string, { width: number; height: number }> =
         {};
       for (const img of images) {
-  let fileToUpload = img.file;
-  let nameToUpload = img.name;
+        let fileToUpload = img.file;
+        let nameToUpload = img.name;
 
-  const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
-  if (imgOps.includes("line-diagram")) {
-    const lineDiagramData = lineDiagramResults.find(
-      (r) => r.imageId === img.id
-    );
-    if (lineDiagramData?.annotatedImageUrl) {
-      try {
-        const response = await fetch(lineDiagramData.annotatedImageUrl);
-        const blob = await response.blob();
-        fileToUpload = new File([blob], img.name, { type: 'image/png' });
-      } catch (e) {
-        console.error("Failed to fetch annotated image:", e);
+        const imgOps = img.selectedOps?.length
+          ? img.selectedOps
+          : selectedProcessing;
+        if (imgOps.includes("line-diagram")) {
+          const lineDiagramData = lineDiagramResults.find(
+            (r) => r.imageId === img.id,
+          );
+          if (lineDiagramData?.annotatedImageUrl) {
+            try {
+              const response = await fetch(lineDiagramData.annotatedImageUrl);
+              const blob = await response.blob();
+              fileToUpload = new File([blob], img.name, { type: "image/png" });
+            } catch (e) {
+              console.error("Failed to fetch annotated image:", e);
+            }
+          }
+        }
+
+        if (fileToUpload) {
+          formData.append("files", fileToUpload, nameToUpload);
+          if (img.isCropped && img.originalDimensions) {
+            dimensionsMap[nameToUpload] = img.originalDimensions;
+          }
+        }
       }
-    }
-  }
-
-  if (fileToUpload) {
-    formData.append("files", fileToUpload, nameToUpload);
-    if (img.isCropped && img.originalDimensions) {
-      dimensionsMap[nameToUpload] = img.originalDimensions;
-    }
-  }
-}
       const cropSettings = images
         .filter((img) => img.isCropped)
         .map((img) => ({
@@ -272,7 +280,9 @@ export function AdvancedUpload() {
         let operationsToSend = matchingLocal?.selectedOps?.length
           ? [...matchingLocal.selectedOps]
           : [...selectedProcessing];
-        operationsToSend = operationsToSend.filter(op => op !== "line-diagram");
+        operationsToSend = operationsToSend.filter(
+          (op) => op !== "line-diagram",
+        );
 
         const processOptions: any = {};
         if (operationsToSend.includes("bg-remove")) {
@@ -282,7 +292,10 @@ export function AdvancedUpload() {
             processOptions.background_color = "transparent";
           }
         }
-        
+        if (operationsToSend.includes("smart-frame")) {
+  processOptions.smart_frame = smartFrameOptions;
+}
+
         const uploadId = batchResult.upload_id;
 
         if (operationsToSend.includes("resize")) {
@@ -2086,78 +2099,68 @@ export function AdvancedUpload() {
                           </div>
                         )}
                         {active && op.id === "smart-frame" && (
-                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-  <div>
-    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-      Output Width
-    </label>
-    <input
-      type="number"
-      defaultValue={1200}
-      onChange={(e) => {
-        const display = document.getElementById('frame-width-value');
-        if (display) display.textContent = `${e.target.value}px`;
-      }}
-      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-      placeholder="1200"
-    />
-    <span id="frame-width-value" className="text-[10px] text-slate-400 mt-1 block">1200px</span>
+  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+            Output Width
+          </label>
+          <input
+            type="number"
+            value={smartFrameOptions.width}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 1200;
+              setSmartFrameOptions(prev => ({ ...prev, width: val }));
+            }}
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+          />
+          <span className="text-[10px] text-slate-400 mt-1 block">{smartFrameOptions.width}px</span>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+            Output Height
+          </label>
+          <input
+            type="number"
+            value={smartFrameOptions.height}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 1200;
+              setSmartFrameOptions(prev => ({ ...prev, height: val }));
+            }}
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+          />
+          <span className="text-[10px] text-slate-400 mt-1 block">{smartFrameOptions.height}px</span>
+        </div>
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+          Frame Padding
+        </label>
+        <div className="flex items-center justify-between mb-1">
+          <input
+            type="range"
+            min="0"
+            max="200"
+            value={smartFrameOptions.inset}
+            onChange={(e) => {
+              const val = parseInt(e.target.value);
+              setSmartFrameOptions(prev => ({ ...prev, inset: val }));
+            }}
+            className="flex-1 accent-blue-600"
+          />
+          <span className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right">
+            {smartFrameOptions.inset}px
+          </span>
+        </div>
+        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+          <span>0px (tight)</span>
+          <span>200px (spacious)</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div>
-    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-      Output Height
-    </label>
-    <input
-      type="number"
-      defaultValue={1200}
-      onChange={(e) => {
-        const display = document.getElementById('frame-height-value');
-        if (display) display.textContent = `${e.target.value}px`;
-      }}
-      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-      placeholder="1200"
-    />
-    <span id="frame-height-value" className="text-[10px] text-slate-400 mt-1 block">1200px</span>
-  </div>
-</div>
-                              <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                                  Frame Padding
-                                </label>
-                                <div className="flex items-center justify-between mb-1">
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max="200"
-                                    defaultValue={40}
-                                    onChange={(e) => {
-                                      // Update the displayed value
-                                      const val = e.target.value;
-                                      const display = document.getElementById(
-                                        "frame-padding-value",
-                                      );
-                                      if (display)
-                                        display.textContent = `${val}px`;
-                                    }}
-                                    className="flex-1 accent-blue-600"
-                                  />
-                                  <span
-                                    id="frame-padding-value"
-                                    className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right"
-                                  >
-                                    40px
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                                  <span>0px (tight)</span>
-                                  <span>200px (spacious)</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+)}
                         {active && op.id === "compress" && (
                           <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
                             <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
