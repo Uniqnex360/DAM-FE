@@ -188,14 +188,33 @@ export function AdvancedUpload() {
       if (project) formData.append("project_name", project);
       const dimensionsMap: Record<string, { width: number; height: number }> =
         {};
-      images.forEach((img) => {
-        if (img.file) {
-          formData.append("files", img.file, img.name);
-          if (img.isCropped && img.originalDimensions) {
-            dimensionsMap[img.name] = img.originalDimensions;
-          }
-        }
-      });
+      for (const img of images) {
+  let fileToUpload = img.file;
+  let nameToUpload = img.name;
+
+  const imgOps = img.selectedOps?.length ? img.selectedOps : selectedProcessing;
+  if (imgOps.includes("line-diagram")) {
+    const lineDiagramData = lineDiagramResults.find(
+      (r) => r.imageId === img.id
+    );
+    if (lineDiagramData?.annotatedImageUrl) {
+      try {
+        const response = await fetch(lineDiagramData.annotatedImageUrl);
+        const blob = await response.blob();
+        fileToUpload = new File([blob], img.name, { type: 'image/png' });
+      } catch (e) {
+        console.error("Failed to fetch annotated image:", e);
+      }
+    }
+  }
+
+  if (fileToUpload) {
+    formData.append("files", fileToUpload, nameToUpload);
+    if (img.isCropped && img.originalDimensions) {
+      dimensionsMap[nameToUpload] = img.originalDimensions;
+    }
+  }
+}
       const cropSettings = images
         .filter((img) => img.isCropped)
         .map((img) => ({
@@ -253,6 +272,8 @@ export function AdvancedUpload() {
         let operationsToSend = matchingLocal?.selectedOps?.length
           ? [...matchingLocal.selectedOps]
           : [...selectedProcessing];
+        operationsToSend = operationsToSend.filter(op => op !== "line-diagram");
+
         const processOptions: any = {};
         if (operationsToSend.includes("bg-remove")) {
           if (backgroundColor && backgroundColor !== "transparent") {
@@ -261,17 +282,7 @@ export function AdvancedUpload() {
             processOptions.background_color = "transparent";
           }
         }
-        if (operationsToSend.includes("line-diagram")) {
-          const lineDiagramData = lineDiagramResults.find(
-            (r) =>
-              r.imageName === asset.name || r.imageName === matchingLocal?.name,
-          );
-          if (lineDiagramData && lineDiagramData.measurements.length > 0) {
-            processOptions.measurements = lineDiagramData.measurements;
-            processOptions.annotated_image_url =
-              lineDiagramData.annotatedImageUrl;
-          }
-        }
+        
         const uploadId = batchResult.upload_id;
 
         if (operationsToSend.includes("resize")) {
@@ -2075,52 +2086,78 @@ export function AdvancedUpload() {
                           </div>
                         )}
                         {active && op.id === "smart-frame" && (
-  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-            Output Width
-          </label>
-          <input
-            type="number"
-            defaultValue={1200}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-            placeholder="1200"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-            Output Height
-          </label>
-          <input
-            type="number"
-            defaultValue={1200}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-            placeholder="1200"
-          />
-        </div>
-      </div>
-      <div>
-        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-          Frame Padding (px)
-        </label>
-        <input
-          type="range"
-          min="0"
-          max="200"
-          defaultValue={40}
-          className="w-full accent-blue-600"
-        />
-        <div className="flex justify-between text-[10px] text-slate-400">
-          <span>0px (tight)</span>
-          <span>200px (spacious)</span>
-        </div>
-      </div>
-      
-    </div>
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+  <div>
+    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+      Output Width
+    </label>
+    <input
+      type="number"
+      defaultValue={1200}
+      onChange={(e) => {
+        const display = document.getElementById('frame-width-value');
+        if (display) display.textContent = `${e.target.value}px`;
+      }}
+      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+      placeholder="1200"
+    />
+    <span id="frame-width-value" className="text-[10px] text-slate-400 mt-1 block">1200px</span>
   </div>
-)}
+  <div>
+    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+      Output Height
+    </label>
+    <input
+      type="number"
+      defaultValue={1200}
+      onChange={(e) => {
+        const display = document.getElementById('frame-height-value');
+        if (display) display.textContent = `${e.target.value}px`;
+      }}
+      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+      placeholder="1200"
+    />
+    <span id="frame-height-value" className="text-[10px] text-slate-400 mt-1 block">1200px</span>
+  </div>
+</div>
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                  Frame Padding
+                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="200"
+                                    defaultValue={40}
+                                    onChange={(e) => {
+                                      // Update the displayed value
+                                      const val = e.target.value;
+                                      const display = document.getElementById(
+                                        "frame-padding-value",
+                                      );
+                                      if (display)
+                                        display.textContent = `${val}px`;
+                                    }}
+                                    className="flex-1 accent-blue-600"
+                                  />
+                                  <span
+                                    id="frame-padding-value"
+                                    className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right"
+                                  >
+                                    40px
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                  <span>0px (tight)</span>
+                                  <span>200px (spacious)</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         {active && op.id === "compress" && (
                           <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
                             <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">
