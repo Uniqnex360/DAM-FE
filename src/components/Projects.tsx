@@ -56,9 +56,9 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
     }
   };
 
-  const handleDeleteProject = async (projectId: string) => {
+ const handleDeleteProject = async (projectId: string) => {
     try {
-      
+      await assetApi.deleteUpload(projectId, userId);
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
       toast.success("Project deleted successfully");
     } catch (error) {
@@ -69,7 +69,7 @@ export function Projects({ userId, allUsers }: ProjectsProps) {
 
   const handleDeleteImage = async (imageId: string, projectId: string) => {
     try {
-      
+      await assetApi.deleteImage(imageId, userId);
       setProjects((prev) =>
         prev.map((project) => ({
           ...project,

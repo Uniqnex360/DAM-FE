@@ -94,7 +94,6 @@ export const assetApi = {
     }
   },
 
-  // NEW: Delete an entire upload session with all its images
   deleteUpload: async (uploadId: string, userId?: string) => {
     try {
       const params = userId ? `?user_id=${userId}` : '';

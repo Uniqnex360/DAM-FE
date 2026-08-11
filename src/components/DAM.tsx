@@ -268,11 +268,11 @@ export function CombinedDashboard({
                 if (s === "processing") return "processing";
                 return "queued";
               })(),
-              destinations: session.metadata?.destinations || ["Shopify"],
+               destinations: session.metadata?.destinations || session.destinations || [],
+               operations: img.operations || img.processed_operations || session.operations || [],
               outputs_count: session.images.length,
               outputs_ready: session.images.filter((i: any) => i.processed_url)
                 .length,
-              operations: img.processedOperations || [],
               created_at: session.created_at,
               thumbnail_url: img.url,
               original_url: img.url,
@@ -1094,12 +1094,12 @@ export function CombinedDashboard({
                     file_size: img.size || 0,
                     dimensions: `${img.width}×${img.height}`,
                     status: "done",
-                    destinations: session.metadata?.destinations || [],
+destinations: session.metadata?.destinations || session.destinations || [],
                     outputs_count: 1,
                     outputs_ready: img.processed_url ? 1 : 0,
                     original_url: img.url,
                     processed_url: img.processed_url,
-                    operations: img.processedOperations || [],
+operations: img.operations || img.processed_operations || [],
                     created_at: session.created_at,
                     thumbnail_url: img.url,
                     output_urls: img.processed_url ? [img.processed_url] : [],

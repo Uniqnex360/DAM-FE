@@ -91,7 +91,6 @@ export function AdvancedUpload() {
       setResizeDims({ width: w, height: h });
     }
   }, [activeResizeMode, selectedPreset]);
-
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -192,12 +191,12 @@ export function AdvancedUpload() {
       const project = projectName.trim();
       const formData = new FormData();
       if (project) formData.append("project_name", project);
+      formData.append("destinations", JSON.stringify(selectedDestinations));
       const dimensionsMap: Record<string, { width: number; height: number }> =
         {};
       for (const img of images) {
         let fileToUpload = img.file;
-        let nameToUpload = img.name;
-
+        const nameToUpload = img.name;
         const imgOps = img.selectedOps?.length
           ? img.selectedOps
           : selectedProcessing;
@@ -215,7 +214,6 @@ export function AdvancedUpload() {
             }
           }
         }
-
         if (fileToUpload) {
           formData.append("files", fileToUpload, nameToUpload);
           if (img.isCropped && img.originalDimensions) {
@@ -283,7 +281,6 @@ export function AdvancedUpload() {
         operationsToSend = operationsToSend.filter(
           (op) => op !== "line-diagram",
         );
-
         const processOptions: any = {};
         if (operationsToSend.includes("bg-remove")) {
           if (backgroundColor && backgroundColor !== "transparent") {
@@ -295,9 +292,7 @@ export function AdvancedUpload() {
         if (operationsToSend.includes("smart-frame")) {
   processOptions.smart_frame = smartFrameOptions;
 }
-
         const uploadId = batchResult.upload_id;
-
         if (operationsToSend.includes("resize")) {
           if (useMarketplaceResize) {
             const dimensions =
@@ -611,235 +606,9 @@ export function AdvancedUpload() {
         </div>
       </div>
       <Stepper />
-
-      {/* {currentStep === "upload" && (
-        <div className="flex gap-6 animate-in fade-in duration-500 items-start">
-          <div className="flex-1 space-y-6">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                  Import Source
-                </h3>
-                {images.length > 0 && (
-                  <button
-                    onClick={() => setCurrentStep("destinations")}
-                    className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-100"
-                  >
-                    <span>Next: Destinations</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-5 gap-4">
-                {SOURCES.map((source) => {
-                  const isActive = uploadSource === source.id;
-                  const Icon = source.icon;
-                  return (
-                    <button
-                      key={source.id}
-                      onClick={() => setUploadSource(source.id as UploadSource)}
-                      className={cn(
-                        "flex flex-col items-center justify-center py-6 px-4 rounded-2xl border-2 transition-all gap-3",
-                        isActive
-                          ? "border-[#007BC7] bg-blue-50/50 text-[#007BC7] shadow-sm"
-                          : "border-slate-50 hover:border-slate-200 text-slate-400 bg-white",
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "w-6 h-6",
-                          isActive ? "text-[#007BC7]" : "text-slate-300",
-                        )}
-                      />
-                      <span className="text-sm font-bold tracking-tight">
-                        {source.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-8 md:p-10 lg:p-12 flex flex-col md:flex-row gap-8 group hover:border-blue-400 transition-colors relative">
-              <div className="flex-1 flex flex-col items-center justify-center text-center">
-                {uploadSource === "files" ? (
-                  <>
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 group-hover:scale-110 transition-transform">
-                      <Upload className="w-8 h-8 text-slate-300" />
-                    </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-2">
-                      Drag and drop images here
-                    </h3>
-                    <p className="text-slate-400 text-sm font-medium mb-8"></p>
-                    <div className="flex items-center w-64 mb-8">
-                      <div className="flex-grow h-px bg-slate-100" />
-                      <span className="mx-4 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        or
-                      </span>
-                      <div className="flex-grow h-px bg-slate-100" />
-                    </div>
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="h-px w-24 bg-slate-100 mb-2" />
-                      <label className="bg-[#007BC7] hover:bg-[#0069ab] text-white px-10 py-4 rounded-xl font-bold flex items-center space-x-2 cursor-pointer shadow-xl shadow-blue-100 transition-all">
-                        <Plus className="w-5 h-5" />
-                        <span>Browse Files</span>
-                        <input
-                          type="file"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            const validTypes = [
-                              "image/jpeg",
-                              "image/png",
-                              "image/webp",
-                              "image/avif",
-                              "application/pdf",
-                            ];
-                            const invalidFiles = files.filter(
-                              (f) => !validTypes.includes(f.type),
-                            );
-                            const validFiles = files.filter((f) =>
-                              validTypes.includes(f.type),
-                            );
-                            if (invalidFiles.length > 0) {
-                              const invalidNames = invalidFiles
-                                .map((f) => f.name)
-                                .join(", ");
-                              toast.error(
-                                `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
-                              );
-                            }
-                            if (validFiles.length === 0) {
-                              toast.error("Please select valid image files");
-                              return;
-                            }
-                            const filePromises = validFiles.map((f) => {
-                              return new Promise<any>((resolve) => {
-                                const previewUrl = URL.createObjectURL(f);
-                                const img = new Image();
-                                img.onload = () => {
-                                  resolve({
-                                    file: f,
-                                    name: f.name,
-                                    id: Math.random(),
-                                    preview: previewUrl,
-                                    url: previewUrl,
-                                    isCropped: false,
-                                    originalDimensions: {
-                                      width: img.naturalWidth,
-                                      height: img.naturalHeight,
-                                    },
-                                    selectedOps: [],
-                                  });
-                                };
-                                img.onerror = () => {
-                                  resolve({
-                                    file: f,
-                                    name: f.name,
-                                    id: Math.random(),
-                                    preview: previewUrl,
-                                    url: previewUrl,
-                                    isCropped: false,
-                                    originalDimensions: null,
-                                    selectedOps: [],
-                                  });
-                                };
-                                img.src = previewUrl;
-                              });
-                            });
-                            Promise.all(filePromises).then((newImages) => {
-                              setImages(newImages);
-                              console.log(
-                                "Images loaded with dimensions:",
-                                newImages,
-                              );
-                            });
-                            if (invalidFiles.length > 0) {
-                              toast.warning(
-                                `${invalidFiles.length} file(s) skipped due to invalid type`,
-                              );
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
-                      {(() => {
-                        const activeSource = SOURCES.find(
-                          (s) => s.id === uploadSource,
-                        );
-                        const Icon = activeSource?.icon || Upload;
-                        return <Icon className="w-8 h-8 text-slate-300" />;
-                      })()}
-                    </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
-                      Import via {uploadSource}
-                    </h3>
-                    <p className="text-slate-400 text-sm font-medium mb-8">
-                      Connect your {uploadSource} source to fetch product images
-                      automatically.
-                    </p>
-                    <button className="border-2 border-slate-200 text-slate-600 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all">
-                      Configure Source
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="w-full md:w-80 bg-slate-50 rounded-2xl border border-slate-200 p-4 shadow-inner">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-600">
-                    Selected Files
-                  </h4>
-                  {images.length > 0 && (
-                    <button
-                      onClick={() => setImages([])}
-                      className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                {images.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">
-                    No files selected yet. Add files on the left.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
-                    {images.map((image) => (
-                      <div key={image.id} className="relative group">
-                        <div className="aspect-square bg-white rounded-xl border border-slate-100 overflow-hidden">
-                          <img
-                            src={image.preview || image.url}
-                            alt={image.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeImage(image.id)}
-                          className="absolute -top-0 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                        <p className="text-[10px] text-slate-500 font-medium mt-1 truncate">
-                          {image.name}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
       {currentStep === "upload" && (
         <div className="flex gap-6 animate-in fade-in duration-500 items-start">
-          {/* LEFT: Import Source - 40% */}
           <div className="w-[40%] space-y-6">
-            {/* Import Source card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
@@ -855,7 +624,6 @@ export function AdvancedUpload() {
                   </button>
                 )}
               </div>
-
               <div className="grid grid-cols-5 gap-4">
                 {SOURCES.map((source) => {
                   const isActive = uploadSource === source.id;
@@ -885,8 +653,6 @@ export function AdvancedUpload() {
                 })}
               </div>
             </div>
-
-            {/* Drag and drop area */}
             <div className="bg-white rounded-[2.5rem] border-2 border-slate-200 border-dashed p-8 flex flex-col items-center justify-center text-center group hover:border-blue-400 transition-colors relative">
               {uploadSource === "files" ? (
                 <>
@@ -928,7 +694,6 @@ export function AdvancedUpload() {
                           const validFiles = files.filter((f) =>
                             validTypes.includes(f.type),
                           );
-
                           if (invalidFiles.length > 0) {
                             const invalidNames = invalidFiles
                               .map((f) => f.name)
@@ -937,12 +702,10 @@ export function AdvancedUpload() {
                               `Invalid file types: ${invalidNames}. Only images (JPG, PNG, WebP, AVIF) and PDFs are allowed.`,
                             );
                           }
-
                           if (validFiles.length === 0) {
                             toast.error("Please select valid image files");
                             return;
                           }
-
                           const filePromises = validFiles.map((f) => {
                             return new Promise<any>((resolve) => {
                               const previewUrl = URL.createObjectURL(f);
@@ -977,7 +740,6 @@ export function AdvancedUpload() {
                               img.src = previewUrl;
                             });
                           });
-
                           Promise.all(filePromises).then((newImages) => {
                             setImages((prev) => [...prev, ...newImages]);
                             console.log(
@@ -985,7 +747,6 @@ export function AdvancedUpload() {
                               newImages,
                             );
                           });
-
                           if (invalidFiles.length > 0) {
                             toast.warning(
                               `${invalidFiles.length} file(s) skipped due to invalid type`,
@@ -1021,8 +782,6 @@ export function AdvancedUpload() {
               )}
             </div>
           </div>
-
-          {/* RIGHT: Selected Files Preview - 60% */}
           <div className="w-[60%] bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1042,7 +801,6 @@ export function AdvancedUpload() {
                 </button>
               )}
             </div>
-
             {images.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-96 text-center">
                 <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
@@ -1067,8 +825,6 @@ export function AdvancedUpload() {
                         className="w-full h-full object-contain p-2"
                       />
                     </div>
-
-                    {/* Hover overlay with actions */}
                     <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <button
                         onClick={() => removeImage(image.id)}
@@ -1078,8 +834,6 @@ export function AdvancedUpload() {
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-
-                    {/* Image info */}
                     <div className="mt-2 px-1">
                       <p className="text-xs font-medium text-slate-700 truncate">
                         {image.name}
@@ -1577,7 +1331,6 @@ export function AdvancedUpload() {
                             imgOps.includes(op.id),
                         ).length;
                         const hasCustomOps = img.selectedOps?.length > 0;
-
                         return (
                           <div key={img.id} className="relative group">
                             <button
@@ -1613,8 +1366,6 @@ export function AdvancedUpload() {
                               )}
                               <ChevronDown className="w-3 h-3" />
                             </button>
-
-                            {/* Dropdown for this image */}
                             <div
                               id={`override-${img.id}`}
                               className="hidden absolute top-full left-0 mt-1 z-20 bg-white border border-slate-200 rounded-xl shadow-lg p-3 min-w-[280px]"
@@ -2684,7 +2435,6 @@ export function AdvancedUpload() {
               }
               className="w-full bg-[#007BC7] hover:bg-[#0069ab] text-white py-5 rounded-2xl font-black flex items-center justify-center space-x-3 shadow-2xl shadow-blue-100 disabled:opacity-50 transition-all uppercase tracking-widest text-xs relative overflow-hidden"
             >
-              {/* Progress fill background */}
               {uploading && progress.total > 0 && (
                 <div
                   className="absolute inset-0 bg-emerald-500 transition-all duration-500 ease-out"
@@ -2693,8 +2443,6 @@ export function AdvancedUpload() {
                   }}
                 />
               )}
-
-              {/* Button content (on top of fill) */}
               <span className="relative z-10 flex items-center justify-center space-x-3">
                 {uploading ? (
                   <>

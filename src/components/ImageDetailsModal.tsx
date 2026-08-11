@@ -21,7 +21,7 @@ export function ImageDetailsModal({
   const originalUrl = selectedImage.original_url;
   const processedUrl = selectedImage.processed_url;
   
-  // Only consider it a valid processed output if processed_url exists and is different from original_url
+  
   const hasProcessedOutput = Boolean(processedUrl && processedUrl !== originalUrl);
 
   const destinations = selectedImage.destinations ?? [];
@@ -39,7 +39,6 @@ export function ImageDetailsModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          {/* Header */}
           <div className="mb-6 flex items-start justify-between">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 overflow-hidden rounded-lg bg-slate-100 border border-slate-200">
@@ -85,7 +84,6 @@ export function ImageDetailsModal({
             </button>
           </div>
 
-          {/* Stats Summary */}
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="rounded-lg bg-slate-50 p-4 text-center border border-slate-100">
               <p className="text-2xl font-bold text-slate-900">1</p>
@@ -114,14 +112,12 @@ export function ImageDetailsModal({
             </div>
           </div>
 
-          {/* INPUT & OUTPUT COMPARISON */}
           <div>
             <h3 className="mb-4 text-lg font-bold text-slate-900">
               INPUT & OUTPUT
             </h3>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* ORIGINAL INPUT */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -141,7 +137,6 @@ export function ImageDetailsModal({
                 </div>
               </div>
 
-              {/* PROCESSED OUTPUT */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className={`rounded px-2.5 py-1 text-xs font-bold ${
