@@ -1886,46 +1886,45 @@ export function AdvancedUpload() {
         </div>
       </div>
 
-      {/* Fit Mode Selection */}
-      <div>
-        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-          Fit Mode
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "contain" }))}
-            className={cn(
-              "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
-              smartFrameOptions.fit_mode === "contain"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-slate-200 text-slate-600 hover:border-slate-300"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span>Zoom Out</span>
-            </div>
-            <div className="text-[8px] text-slate-400 font-normal mt-1">
-              Show full image with padding
-            </div>
-          </button>
-          <button
-            onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "cover" }))}
-            className={cn(
-              "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
-              smartFrameOptions.fit_mode === "cover"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-slate-200 text-slate-600 hover:border-slate-300"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span>Zoom In</span>
-            </div>
-            <div className="text-[8px] text-slate-400 font-normal mt-1">
-              Fill frame, may crop edges
-            </div>
-          </button>
-        </div>
+     <div>
+  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+    Fit Mode
+  </label>
+  <div className="grid grid-cols-2 gap-2">
+    <button
+      onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "contain" }))}
+      className={cn(
+        "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
+        smartFrameOptions.fit_mode === "contain"
+          ? "border-blue-500 bg-blue-50 text-blue-700"
+          : "border-slate-200 text-slate-600 hover:border-slate-300"
+      )}
+    >
+      <div className="flex items-center gap-1 justify-center">
+        <span>Zoom Out</span>
       </div>
+      <div className="text-[8px] text-slate-400 font-normal mt-1 text-center">
+        Show full image with padding
+      </div>
+    </button>
+    <button
+      onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "cover" }))}
+      className={cn(
+        "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
+        smartFrameOptions.fit_mode === "cover"
+          ? "border-blue-500 bg-blue-50 text-blue-700"
+          : "border-slate-200 text-slate-600 hover:border-slate-300"
+      )}
+    >
+      <div className="flex items-center gap-2 justify-center">
+        <span>Zoom In</span>
+      </div>
+      <div className="text-[8px] text-slate-400 font-normal mt-1 text-center">
+        Fill frame, may crop edges
+      </div>
+    </button>
+  </div>
+</div>
 
       {/* Padding Slider */}
       <div>
