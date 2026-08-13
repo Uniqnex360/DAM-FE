@@ -22,6 +22,9 @@ import { fetchDashboardStats, DashboardData } from "../services/dashboard";
 import { UserSelector } from "./UserSelector";
 import { useAuth } from "../contexts/AuthContext";
 import { useUserSelection } from "../contexts/UserSelectionContext";
+import { mapToProcessedImage } from "../lib/formatters";
+import { ProcessedImage } from "../lib/database.types";
+import { ImageDetailsModal } from "./ImageDetailsModal";
 const OPERATION_ICONS: Record<string, LucideIcon> = {
   resize: Minimize2,
   resize_multiple: Minimize2,
@@ -39,7 +42,6 @@ const OPERATION_ICONS: Record<string, LucideIcon> = {
 
 const OPERATION_LABELS: Record<string, string> = {
   resize: "Image Resizing",
-  // "resize_multiple": "Batch Resizing",
   bg_removal: "Background Removal",
   shadow_fix: "Shadow Removal",
   smart_crop: "Smart Object Cropping",
@@ -51,6 +53,7 @@ const OPERATION_LABELS: Record<string, string> = {
   upload: "Upload",
 };
 export function Dashboard() {
+  const[selectedImage,setSelectedImage]=useState<ProcessedImage|null>(null)
   const { userRole, isImpersonating } = useAuth();
   const { selectedUserId } = useUserSelection();
   const [stats, setStats] = useState<DashboardData>({
@@ -167,7 +170,6 @@ export function Dashboard() {
             {stats.summary.totalImagesUploaded}
           </p>
         </div>
-        {/* Total Failed */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-red-100 rounded-lg">
@@ -183,7 +185,6 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Pending */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-yellow-100 rounded-lg">
@@ -212,66 +213,90 @@ export function Dashboard() {
         </div>
       </div>
 
-     
-<div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-  <h2 className="text-xl font-bold text-slate-900 mb-6">Process Applied</h2>
-  {sortedOperations.length > 0 ? (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {sortedOperations.map(([type, data]) => {
-        const Icon = OPERATION_ICONS[type] || OPERATION_ICONS["default"];
-        const label = OPERATION_LABELS[type] || type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        
-        const stats = typeof data === 'object' ? data : { 
-          count: data, 
-          completed: 0, 
-          failed: 0, 
-          pending: 0, 
-          avgTimeMs: 0 
-        };
-        
-        return (
-          <div key={type} className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-white rounded-lg border border-slate-200">
-                <Icon className="w-5 h-5 text-slate-700" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-900 truncate">{label}</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{stats.count}</p>
-              </div>
-            </div>
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+        <h2 className="text-xl font-bold text-slate-900 mb-6">
+          Process Applied
+        </h2>
+        {sortedOperations.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sortedOperations.map(([type, data]) => {
+              const Icon = OPERATION_ICONS[type] || OPERATION_ICONS["default"];
+              const label =
+                OPERATION_LABELS[type] ||
+                type
+                  .replace(/_/g, " ")
+                  .split(" ")
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" ");
 
-            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 text-xs">
-              <div className="flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                <span className="font-medium text-green-600">{stats.completed}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5 text-red-600" />
-                <span className="font-medium text-red-600">{stats.failed}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Hourglass className="w-3.5 h-3.5 text-yellow-600" />
-                <span className="font-medium text-yellow-600">{stats.pending}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-blue-600" />
-                <span className="font-medium text-blue-600">{(stats.avgTimeMs / 1000).toFixed(1)}s</span>
-              </div>
-            </div>
+              const stats =
+                typeof data === "object"
+                  ? data
+                  : {
+                      count: data,
+                      completed: 0,
+                      failed: 0,
+                      pending: 0,
+                      avgTimeMs: 0,
+                    };
+
+              return (
+                <div
+                  key={type}
+                  className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200">
+                      <Icon className="w-5 h-5 text-slate-700" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900 truncate">
+                        {label}
+                      </p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">
+                        {stats.count}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200 text-xs">
+                    <div className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                      <span className="font-medium text-green-600">
+                        {stats.completed}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                      <span className="font-medium text-red-600">
+                        {stats.failed}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Hourglass className="w-3.5 h-3.5 text-yellow-600" />
+                      <span className="font-medium text-yellow-600">
+                        {stats.pending}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="font-medium text-blue-600">
+                        {(stats.avgTimeMs / 1000).toFixed(1)}s
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-    </div>
-  ) : (
-    <div className="text-center py-12">
-      <FileImage className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-      <p className="text-slate-500">No operations recorded yet</p>
-    </div>
-  )}
-</div>
+        ) : (
+          <div className="text-center py-12">
+            <FileImage className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500">No operations recorded yet</p>
+          </div>
+        )}
+      </div>
 
-      {/* Recent Activity */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6">
           Recent Activity
@@ -279,9 +304,13 @@ export function Dashboard() {
         <div className="space-y-3">
           {stats.recentOperations.map((op) => (
             <div
-              key={op.id}
-              className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200"
-            >
+    key={op.id}
+     onClick={() => {
+      console.log("Dashboard recent operation raw object:", op); // 👈 Paste this
+      setSelectedImage(mapToProcessedImage(op));
+    }}
+    className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 cursor-pointer transition-colors group"
+  >
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="h-12 w-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 flex-shrink-0">
                   <img
@@ -324,6 +353,10 @@ export function Dashboard() {
           ))}
         </div>
       </div>
+        <ImageDetailsModal
+        selectedImage={selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </div>
   );
 }

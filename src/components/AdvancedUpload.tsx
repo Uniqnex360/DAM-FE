@@ -70,7 +70,6 @@ export function AdvancedUpload() {
     width: 1200,
     height: 1200,
     inset: 40,
-    fit_mode: "contain",
     zoom_factor: 1.0,
   });
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
@@ -143,6 +142,15 @@ export function AdvancedUpload() {
         "crop",
       ),
     );
+    if (selectedProcessing.includes("smart-frame") || images.some(img => 
+    (img.selectedOps?.length ? img.selectedOps : selectedProcessing).includes("smart-frame")
+  )) {
+    if (!smartFrameOptions.width || !smartFrameOptions.height) {
+      toast.error("Please enter valid width and height for smart frame");
+      return;
+    }
+  }
+
     if (anyImageNeedsCrop) {
       const uncroppedTargets = images.filter((img) => {
         const ops = img.selectedOps?.length
@@ -291,6 +299,10 @@ export function AdvancedUpload() {
           }
         }
         if (operationsToSend.includes("smart-frame")) {
+          if (!smartFrameOptions.width || !smartFrameOptions.height) {
+    toast.error("Please enter valid width and height for smart frame");
+    return;
+  }
           processOptions.smart_frame = smartFrameOptions;
         }
         const uploadId = batchResult.upload_id;
@@ -1851,139 +1863,136 @@ export function AdvancedUpload() {
                           </div>
                         )}
                         {active && op.id === "smart-frame" && (
-  <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-            Output Width
-          </label>
-          <input
-            type="number"
-            value={smartFrameOptions.width}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) || 1200;
-              setSmartFrameOptions(prev => ({ ...prev, width: val }));
-            }}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-          />
-          <span className="text-[10px] text-slate-400 mt-1 block">{smartFrameOptions.width}px</span>
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-            Output Height
-          </label>
-          <input
-            type="number"
-            value={smartFrameOptions.height}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) || 1200;
-              setSmartFrameOptions(prev => ({ ...prev, height: val }));
-            }}
-            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
-          />
-          <span className="text-[10px] text-slate-400 mt-1 block">{smartFrameOptions.height}px</span>
-        </div>
-      </div>
+                          <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    Output Width
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={smartFrameOptions.width || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === "") {
+                                        setSmartFrameOptions((prev) => ({
+                                          ...prev,
+                                          width: 0,
+                                        }));
+                                      } else {
+                                        const numVal = parseInt(val);
+                                        if (!isNaN(numVal)) {
+                                          setSmartFrameOptions((prev) => ({
+                                            ...prev,
+                                            width: numVal,
+                                          }));
+                                        }
+                                      }
+                                    }}
+                                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+                                  />
+                                  <span className="text-[10px] text-slate-400 mt-1 block">
+                                    {smartFrameOptions.width}px
+                                  </span>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                    Output Height
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={smartFrameOptions.height || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === "") {
+                                        setSmartFrameOptions((prev) => ({
+                                          ...prev,
+                                          height: 0,
+                                        }));
+                                      } else {
+                                        const numVal = parseInt(val);
+                                        if (!isNaN(numVal)) {
+                                          setSmartFrameOptions((prev) => ({
+                                            ...prev,
+                                            height: numVal,
+                                          }));
+                                        }
+                                      }
+                                    }}
+                                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg"
+                                  />
+                                  <span className="text-[10px] text-slate-400 mt-1 block">
+                                    {smartFrameOptions.height}px
+                                  </span>
+                                </div>
+                              </div>
 
-     <div>
-  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-    Fit Mode
-  </label>
-  <div className="grid grid-cols-2 gap-2">
-    <button
-      onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "contain" }))}
-      className={cn(
-        "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
-        smartFrameOptions.fit_mode === "contain"
-          ? "border-blue-500 bg-blue-50 text-blue-700"
-          : "border-slate-200 text-slate-600 hover:border-slate-300"
-      )}
-    >
-      <div className="flex items-center gap-1 justify-center">
-        <span>Zoom Out</span>
-      </div>
-      <div className="text-[8px] text-slate-400 font-normal mt-1 text-center">
-        Show full image with padding
-      </div>
-    </button>
-    <button
-      onClick={() => setSmartFrameOptions(prev => ({ ...prev, fit_mode: "cover" }))}
-      className={cn(
-        "px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all",
-        smartFrameOptions.fit_mode === "cover"
-          ? "border-blue-500 bg-blue-50 text-blue-700"
-          : "border-slate-200 text-slate-600 hover:border-slate-300"
-      )}
-    >
-      <div className="flex items-center gap-2 justify-center">
-        <span>Zoom In</span>
-      </div>
-      <div className="text-[8px] text-slate-400 font-normal mt-1 text-center">
-        Fill frame, may crop edges
-      </div>
-    </button>
-  </div>
-</div>
+                              {/* Padding Slider */}
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                  Frame Padding
+                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="200"
+                                    value={smartFrameOptions.inset}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value);
+                                      setSmartFrameOptions((prev) => ({
+                                        ...prev,
+                                        inset: val,
+                                      }));
+                                    }}
+                                    className="flex-1 accent-blue-600"
+                                  />
+                                  <span className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right">
+                                    {smartFrameOptions.inset}px
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                  <span>0px (tight)</span>
+                                  <span>200px (spacious)</span>
+                                </div>
+                              </div>
 
-      {/* Padding Slider */}
-      <div>
-        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-          Frame Padding
-        </label>
-        <div className="flex items-center justify-between mb-1">
-          <input
-            type="range"
-            min="0"
-            max="200"
-            value={smartFrameOptions.inset}
-            onChange={(e) => {
-              const val = parseInt(e.target.value);
-              setSmartFrameOptions(prev => ({ ...prev, inset: val }));
-            }}
-            className="flex-1 accent-blue-600"
-          />
-          <span className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right">
-            {smartFrameOptions.inset}px
-          </span>
-        </div>
-        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-          <span>0px (tight)</span>
-          <span>200px (spacious)</span>
-        </div>
-      </div>
-
-      {/* Zoom Level Slider */}
-      <div>
-        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-          Zoom Level: {smartFrameOptions.zoom_factor.toFixed(1)}x
-        </label>
-        <div className="flex items-center justify-between mb-1">
-          <input
-            type="range"
-            min="0.5"
-            max="2.0"
-            step="0.1"
-            value={smartFrameOptions.zoom_factor}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              setSmartFrameOptions(prev => ({ ...prev, zoom_factor: val }));
-            }}
-            className="flex-1 accent-blue-600"
-          />
-          <span className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right">
-            {smartFrameOptions.zoom_factor.toFixed(1)}x
-          </span>
-        </div>
-        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-          <span>0.5x (50%)</span>
-          <span>1.0x (100%)</span>
-          <span>2.0x (200%)</span>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+                              {/* Zoom Level Slider */}
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                  Zoom Level:{" "}
+                                  {smartFrameOptions.zoom_factor.toFixed(1)}x
+                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <input
+                                    type="range"
+                                    min="0.5"
+                                    max="1.0"
+                                    step="0.1"
+                                    value={smartFrameOptions.zoom_factor}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      setSmartFrameOptions((prev) => ({
+                                        ...prev,
+                                        zoom_factor: val,
+                                      }));
+                                    }}
+                                    className="flex-1 accent-blue-600"
+                                  />
+                                  <span className="text-xs font-bold text-blue-600 ml-3 min-w-[45px] text-right">
+                                    {smartFrameOptions.zoom_factor.toFixed(1)}x
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                                  <span>0.5x (50%)</span>
+                                  <span>0.8x (80%)</span>
+                                  <span>1.0x (100%)</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         {active && op.id === "compress" && (
                           <div className="px-6 pb-6 pt-2 border-t border-blue-100/50 bg-white/50">
                             <div className="flex justify-between mb-2 text-xs font-bold text-slate-600">

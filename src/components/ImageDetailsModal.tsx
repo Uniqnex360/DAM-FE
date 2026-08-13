@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { ProcessedImage } from "../lib/database.types";
 
 interface ImageDetailsModalProps {
@@ -9,6 +10,16 @@ export function ImageDetailsModal({
   selectedImage,
   onClose,
 }: ImageDetailsModalProps) {
+  const [outputDimensions, setOutputDimensions] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOutputDimensions(
+      (selectedImage as any)?.output_dimensions ||
+        (selectedImage as any)?.processed_dimensions ||
+        null
+    );
+  }, [selectedImage]);
+
   if (!selectedImage) return null;
 
   const formatFileSize = (bytes: number) => {
@@ -20,9 +31,13 @@ export function ImageDetailsModal({
 
   const originalUrl = selectedImage.original_url;
   const processedUrl = selectedImage.processed_url;
-  
-  
-  const hasProcessedOutput = Boolean(processedUrl && processedUrl !== originalUrl);
+
+  const hasProcessedOutput = Boolean(
+  processedUrl &&
+    (processedUrl !== originalUrl ||
+      selectedImage.status === "done" ||
+      selectedImage.outputs_ready > 0)
+);
 
   const destinations = selectedImage.destinations ?? [];
   const operations = selectedImage.operations ?? [];
@@ -87,28 +102,36 @@ export function ImageDetailsModal({
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             <div className="rounded-lg bg-slate-50 p-4 text-center border border-slate-100">
               <p className="text-2xl font-bold text-slate-900">1</p>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Input Image</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">
+                Input Image
+              </p>
             </div>
 
             <div className="rounded-lg bg-slate-50 p-4 text-center border border-slate-100">
               <p className="text-2xl font-bold text-slate-900">
                 {hasProcessedOutput ? 1 : 0}
               </p>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Output Images</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">
+                Output Images
+              </p>
             </div>
 
             <div className="rounded-lg bg-slate-50 p-4 text-center border border-slate-100">
               <p className="text-2xl font-bold text-slate-900">
                 {destinations.length}
               </p>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Destinations</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">
+                Destinations
+              </p>
             </div>
 
             <div className="rounded-lg bg-slate-50 p-4 text-center border border-slate-100">
               <p className="text-2xl font-bold text-slate-900">
                 {operations.length}
               </p>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">Operations</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">
+                Operations
+              </p>
             </div>
           </div>
 
@@ -118,12 +141,13 @@ export function ImageDetailsModal({
             </h3>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* INPUT CARD */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
                     INPUT (ORIGINAL)
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-500 font-medium">
                     {selectedImage.dimensions}
                   </span>
                 </div>
@@ -137,15 +161,29 @@ export function ImageDetailsModal({
                 </div>
               </div>
 
+              {/* OUTPUT CARD */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className={`rounded px-2.5 py-1 text-xs font-bold ${
-                    hasProcessedOutput ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-600"
-                  }`}>
+                  <span
+                    className={`rounded px-2.5 py-1 text-xs font-bold ${
+                      hasProcessedOutput
+                        ? "bg-green-100 text-green-700"
+                        : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
                     OUTPUT (PROCESSED)
                   </span>
                   {hasProcessedOutput && (
-                    <span className="text-xs text-green-600 font-medium">Ready</span>
+                    <div className="flex items-center gap-2">
+                      {outputDimensions && (
+                       <span className="text-xs text-slate-500 font-medium">
+                          {outputDimensions}
+                        </span>
+                      )}
+                      <span className="text-xs text-green-600 font-medium">
+                        Ready
+                      </span>
+                    </div>
                   )}
                 </div>
 
@@ -155,12 +193,23 @@ export function ImageDetailsModal({
                       src={processedUrl!}
                       alt="Processed Output"
                       className="h-full w-full object-contain"
+                      onLoad={(e) => {
+                        const img = e.currentTarget;
+                        if (img.naturalWidth && img.naturalHeight) {
+                          setOutputDimensions(
+                            `${img.naturalWidth}×${img.naturalHeight}`
+                          );
+                        }
+                      }}
                     />
                   ) : (
                     <div className="p-6 text-center">
-                      <p className="text-sm font-medium text-slate-500">No AI processing output yet</p>
+                      <p className="text-sm font-medium text-slate-500">
+                        No AI processing output yet
+                      </p>
                       <p className="text-xs text-slate-400 mt-1">
-                        Apply operations like Background Removal or Crop to generate an output.
+                        Apply operations like Background Removal or Crop to
+                        generate an output.
                       </p>
                     </div>
                   )}

@@ -527,6 +527,7 @@ export interface ProcessedImage {
   destinations: string[];
   outputs_count: number;
   outputs_ready: number;
+  project_name?:string
   original_url: string;
   processed_url?: string;
   operations: string[];
