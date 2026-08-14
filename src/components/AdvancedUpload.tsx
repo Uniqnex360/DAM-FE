@@ -1958,8 +1958,7 @@ export function AdvancedUpload() {
                                 </div>
                               </div>
 
-                              {/* Zoom Level Slider */}
-                              <div>
+                              {/* <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
                                   Zoom Level:{" "}
                                   {smartFrameOptions.zoom_factor.toFixed(1)}x
@@ -1989,7 +1988,7 @@ export function AdvancedUpload() {
                                   <span>0.8x (80%)</span>
                                   <span>1.0x (100%)</span>
                                 </div>
-                              </div>
+                              </div> */}
                             </div>
                           </div>
                         )}
