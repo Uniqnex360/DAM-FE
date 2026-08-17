@@ -49,7 +49,7 @@ export function AdvancedUpload() {
   const [cropMode, setCropMode] = useState<"preset" | "free">("preset");
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState("transparent");
+  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHexColor, setCustomHexColor] = useState("#FFFFFF");
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
@@ -2696,7 +2696,8 @@ export function AdvancedUpload() {
                                 const blobUrl = URL.createObjectURL(blob);
                                 const link = document.createElement("a");
                                 link.href = blobUrl;
-                                link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.jpg`;
+                                const ext = output.url.split('.').pop().split('?')[0]
+                                link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.${ext}`;
                                 document.body.appendChild(link);
                                 link.click();
                                 document.body.removeChild(link);
@@ -2747,7 +2748,8 @@ export function AdvancedUpload() {
                               const blobUrl = URL.createObjectURL(blob);
                               const link = document.createElement("a");
                               link.href = blobUrl;
-                              link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
+                              const ext = res.url.split('.').pop().split('?')[0];
+                              link.download = `${res.originalName.split(".")[0]}_processed.jpg.${ext}`;
                               document.body.appendChild(link);
                               link.click();
                               document.body.removeChild(link);
@@ -2815,7 +2817,8 @@ export function AdvancedUpload() {
                                   const blobUrl = URL.createObjectURL(blob);
                                   const link = document.createElement("a");
                                   link.href = blobUrl;
-                                  link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.jpg`;
+                                  const ext = output.url.split('.').pop().split('?')[0]; 
+                                  link.download = `${res.originalName.split(".")[0]}_${output.marketplace}.${ext}`;
                                   document.body.appendChild(link);
                                   link.click();
                                   document.body.removeChild(link);
@@ -2862,7 +2865,8 @@ export function AdvancedUpload() {
                               const blobUrl = URL.createObjectURL(blob);
                               const link = document.createElement("a");
                               link.href = blobUrl;
-                              link.download = `${res.originalName.split(".")[0]}_processed.jpg`;
+                              const ext = res.url.split('.').pop().split('?')[0];
+                              link.download = `${res.originalName.split(".")[0]}_processed.jpg.${ext}`;
                               document.body.appendChild(link);
                               link.click();
                               document.body.removeChild(link);
