@@ -49,7 +49,7 @@ export function AdvancedUpload() {
   const [cropMode, setCropMode] = useState<"preset" | "free">("preset");
   const [existingProjects, setExistingProjects] = useState<string[]>([]);
   const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [backgroundColor, setBackgroundColor] = useState("transparent");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHexColor, setCustomHexColor] = useState("#FFFFFF");
   const [showMeasurementTool, setShowMeasurementTool] = useState(false);
