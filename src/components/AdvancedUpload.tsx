@@ -882,7 +882,7 @@ export function AdvancedUpload() {
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">
                   Imported Files ({images.length})
                 </h3>
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <div className="flex flex-wrap items-center gap-3 pb-2 max-h-48 overflow-y-auto">
                   {images.map((image: any) => {
                     const previewUrl =
                       image.preview ||
