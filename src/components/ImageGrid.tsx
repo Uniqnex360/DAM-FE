@@ -4,12 +4,12 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
-  ExternalLink,
   Download,
   Wand2,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ImageGridCard } from "./ImageGridCard";
 
 interface ImageGridImage {
   id: string;
@@ -134,18 +134,7 @@ export function ImageGrid({
     });
   };
 
-  const handleDeleteImage = (imageId: string, sessionId: string) => {
-    if (!onDeleteImage) return;
-
-    toast.warning("Delete this image permanently?", {
-      action: {
-        label: "Delete",
-        onClick: () => onDeleteImage(imageId, sessionId),
-      },
-      cancel: { label: "Cancel", onClick: () => toast.dismiss() },
-      duration: Infinity,
-    });
-  };
+  
 
   if (loading) {
     return (
@@ -178,229 +167,151 @@ export function ImageGrid({
       ) : (
         <div className="space-y-4">
           {sessions.map((session) => {
-            const processedCount = session.images.filter(
-              (img) => img.processed_url,
-            ).length;
-            const totalProcessingTime = session.images.reduce(
-              (sum, img) => sum + (img.processing_time_ms || 0),
-              0,
-            );
-            const sessionOperations = Array.from(
-              new Set(
-                session.images.flatMap(
-                  (image) => image.operations || image.applied_steps || [],
-                ),
-              ),
-            );
+  const processedCount = session.images.filter(
+    (img) => img.processed_url,
+  ).length;
+  const totalProcessingTime = session.images.reduce(
+    (sum, img) => sum + (img.processing_time_ms || 0),
+    0,
+  );
+  const sessionOperations = Array.from(
+    new Set(
+      session.images.flatMap(
+        (image) => image.operations || image.applied_steps || [],
+      ),
+    ),
+  );
 
-            return (
-              <div
-                key={session.id}
-                className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors"
-              >
-                <div
-                  className="p-4 bg-slate-50 cursor-pointer"
-                  onClick={() =>
-                    setExpandedSession(
-                      expandedSession === session.id ? null : session.id,
-                    )
-                  }
+  return (
+    <div
+      key={session.id}
+      className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors"
+    >
+      <div
+        className="p-4 bg-slate-50 cursor-pointer"
+        onClick={() =>
+          setExpandedSession(
+            expandedSession === session.id ? null : session.id,
+          )
+        }
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-3 flex-1">
+            <ImageIcon className="w-5 h-5 text-slate-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <h3 className="font-bold text-slate-900">
+                  {session.metadata?.project_name || "Session"}
+                </h3>
+                <span
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(
+                    session.status,
+                  )}`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3 flex-1">
-                      <ImageIcon className="w-5 h-5 text-slate-600 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-bold text-slate-900">
-                            {session.metadata?.project_name || "Session"}
-                          </h3>
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(
-                              session.status,
-                            )}`}
-                          >
-                            {session.status}
-                          </span>
-                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                            {session.images.length}{" "}
-                            {session.images.length === 1 ? "image" : "images"}
-                          </span>
-                          {sessionOperations.map((operation) => (
-                            <span
-                              key={operation}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700"
-                            >
-                              <Wand2 className="w-3 h-3" />
-                              {operation.replace(/_/g, " ")}
-                            </span>
-                          ))}
-                          {showStats && processedCount > 0 && (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                              {processedCount} processed
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center space-x-4 text-sm text-slate-600">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>
-                              {new Date(session.created_at).toLocaleString()}
-                            </span>
-                          </div>
-                          {session.metadata?.source && (
-                            <span className="text-slate-500">
-                              Source: {session.metadata.source}
-                            </span>
-                          )}
-                          {showStats && totalProcessingTime > 0 && (
-                            <span className="text-slate-500">
-                              Processing:{" "}
-                              {(totalProcessingTime / 1000).toFixed(1)}s
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-slate-500 font-mono">
-                        {session.id.slice(0, 8)}
-                      </span>
-                      {onDownloadSessionZip && session.images.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDownloadSessionZip(session);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Download all images as ZIP"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                      )}
-                      {onDeleteSession && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(session.id);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                          title="Delete session"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {expandedSession === session.id && (
-                  <div className="border-t border-slate-200 bg-white">
-                    {session.images.length > 0 ? (
-                      <div className="p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                          {session.images.map((image) => {
-                            const displayUrl = image.processed_url || image.url;
-                            const isProcessed = !!image.processed_url;
-
-                            return (
-                              <div
-                                key={image.id}
-                                className="group relative border border-slate-100 rounded-lg p-2 hover:shadow-md transition-shadow cursor-pointer"
-                                onClick={() => onImageClick?.(image, session)}
-                              >
-                                <div className="aspect-square bg-slate-100 rounded-md overflow-hidden relative mb-2">
-                                  <img
-                                    src={displayUrl}
-                                    alt={image.name || "Image"}
-                                    className="w-full h-full object-contain"
-                                  />
-                                  {isProcessed && (
-                                    <div
-                                      className="absolute top-2 left-2 bg-green-500/90 text-white p-1 rounded-full shadow-sm"
-                                      title="AI Processed"
-                                    >
-                                      <Wand2 className="w-3 h-3" />
-                                    </div>
-                                  )}
-
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(displayUrl, "_blank");
-                                      }}
-                                      className="p-2 bg-white rounded-full hover:bg-slate-100 transition-colors"
-                                      title="View Full Size"
-                                    >
-                                      <ExternalLink className="w-4 h-4 text-slate-700" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownload(
-                                          displayUrl,
-                                          image.name || "image",
-                                        );
-                                      }}
-                                      className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                                      title="Download Image"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </button>
-                                    {onDeleteImage && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteImage(
-                                            image.id,
-                                            session.id,
-                                          );
-                                        }}
-                                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-700 transition-colors"
-                                        title="Delete Image"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center justify-between px-1">
-                                  <span
-                                    className={`text-xs font-mono truncate max-w-[80px] ${
-                                      isProcessed
-                                        ? "text-green-600 font-bold"
-                                        : "text-slate-500"
-                                    }`}
-                                  >
-                                    {isProcessed ? "Processed" : "Original"}
-                                  </span>
-                                  {image.width && image.height && (
-                                    <span className="text-[10px] text-slate-400">
-                                      {image.width}×{image.height}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center">
-                        <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-600">
-                          No images in this session
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  {session.status}
+                </span>
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                  {session.images.length}{" "}
+                  {session.images.length === 1 ? "image" : "images"}
+                </span>
+                {sessionOperations.map((operation) => (
+                  <span
+                    key={operation}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    {operation.replace(/_/g, " ")}
+                  </span>
+                ))}
+                {showStats && processedCount > 0 && (
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                    {processedCount} processed
+                  </span>
                 )}
               </div>
-            );
-          })}
+
+              <div className="flex items-center space-x-4 text-sm text-slate-600">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {new Date(session.created_at).toLocaleString()}
+                  </span>
+                </div>
+                {session.metadata?.source && (
+                  <span className="text-slate-500">
+                    Source: {session.metadata.source}
+                  </span>
+                )}
+                {showStats && totalProcessingTime > 0 && (
+                  <span className="text-slate-500">
+                    Processing: {(totalProcessingTime / 1000).toFixed(1)}s
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-slate-500 font-mono">
+              {session.id.slice(0, 8)}
+            </span>
+            {onDownloadSessionZip && session.images.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownloadSessionZip(session);
+                }}
+                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Download all images as ZIP"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
+            {onDeleteSession && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteSession(session.id);
+                }}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                title="Delete session"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {expandedSession === session.id && (
+        <div className="border-t border-slate-200 bg-white">
+          {session.images.length > 0 ? (
+            <div className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {session.images.map((image) => (
+                  <ImageGridCard
+                    key={image.id}
+                    image={image}
+                    session={session}
+                    sessionId={session.id}
+                    onImageClick={onImageClick}
+                    onDownload={handleDownload}
+                    onDeleteImage={onDeleteImage}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-600">No images in this session</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+})}
         </div>
       )}
 

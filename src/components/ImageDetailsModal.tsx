@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { ProcessedImage } from "../lib/database.types";
+import { useOutputDimensions } from "../utils/outputDimensions";
 
 interface ImageDetailsModalProps {
   selectedImage: ProcessedImage | null;
@@ -10,15 +10,9 @@ export function ImageDetailsModal({
   selectedImage,
   onClose,
 }: ImageDetailsModalProps) {
-  const [outputDimensions, setOutputDimensions] = useState<string | null>(null);
+    const processedUrl = selectedImage?.processed_url ?? null;
 
-  useEffect(() => {
-    setOutputDimensions(
-      (selectedImage as any)?.output_dimensions ||
-        (selectedImage as any)?.processed_dimensions ||
-        null
-    );
-  }, [selectedImage]);
+const { dimensions: outputDimensions, handleImageLoad } = useOutputDimensions(processedUrl);
 
   if (!selectedImage) return null;
 
@@ -30,7 +24,6 @@ export function ImageDetailsModal({
   };
 
   const originalUrl = selectedImage.original_url;
-  const processedUrl = selectedImage.processed_url;
 
   const hasProcessedOutput = Boolean(
   processedUrl &&
@@ -141,7 +134,6 @@ export function ImageDetailsModal({
             </h3>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* INPUT CARD */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="rounded bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -161,7 +153,6 @@ export function ImageDetailsModal({
                 </div>
               </div>
 
-              {/* OUTPUT CARD */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span
@@ -190,18 +181,11 @@ export function ImageDetailsModal({
                 <div className="aspect-square w-full overflow-hidden rounded-lg bg-white border border-slate-200 flex items-center justify-center">
                   {hasProcessedOutput ? (
                     <img
-                      src={processedUrl!}
-                      alt="Processed Output"
-                      className="h-full w-full object-contain"
-                      onLoad={(e) => {
-                        const img = e.currentTarget;
-                        if (img.naturalWidth && img.naturalHeight) {
-                          setOutputDimensions(
-                            `${img.naturalWidth}×${img.naturalHeight}`
-                          );
-                        }
-                      }}
-                    />
+  src={processedUrl!}
+  alt="Processed Output"
+  className="h-full w-full object-contain"
+  onLoad={handleImageLoad}
+/>
                   ) : (
                     <div className="p-6 text-center">
                       <p className="text-sm font-medium text-slate-500">

@@ -6,7 +6,6 @@ import { Dashboard } from './components/Dashboard';
 import { Viewer3D } from './components/Viewer3D';
 import { Configurator } from './components/Configurator';
 import { ProductCatalog } from './components/ProductCatalog';
-import { JobTracker } from './components/JobTracker';
 import { UploadGallery } from './components/UploadGallery';
 import { SearchImages } from './components/SearchImages';
 import { MarketplaceSyndication } from './components/MarketplaceSyndication';
@@ -56,7 +55,6 @@ function AppContent() {
               userId={userId} 
               allUsers={selectedUserId === null}
             />
-            <JobTracker />
           </>
         )}
        {currentView === "DAM" && (
@@ -94,7 +92,6 @@ function AppContent() {
               <Viewer3D />
             </div>
             <div>
-              <JobTracker />
             </div>
           </div>
         )}
