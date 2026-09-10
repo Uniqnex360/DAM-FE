@@ -19,15 +19,20 @@ import { Toaster } from 'sonner';
 import { BrowserRouter, Routes,Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdvancedUpload } from './components/AdvancedUpload';
-import { CombinedDashboard, ReportsDashboard } from './components/DAM';
+import { CombinedDashboard } from './components/DAM';
 import { UserSelectionProvider, useUserSelection } from './contexts/UserSelectionContext';
 import { ThreeDGeneratorPage } from './components/ThreeDGeneratorPage';
 import { Projects } from './components/Projects';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [navTick,setNavTick]=useState(0)
   const {loading}=useAuth()
   const { selectedUserId } = useUserSelection();
+  const onNavigate=(view:string)=>{
+    if(view===currentView)setNavTick(t=>t+1)
+      setCurrentView(view)
+  }
   const userId = selectedUserId === null ? undefined : selectedUserId;
   if (loading) {
     return (
@@ -38,22 +43,10 @@ function AppContent() {
   }
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
-      {/* <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        transition={Bounce}
-      /> */}
+    <Layout currentView={currentView} onNavigate={onNavigate}>
+    
       <Toaster position="bottom-right" richColors />
-      <div className="space-y-6">
+     <div className="space-y-6" key={`${currentView}-${navTick}`}>
         {currentView === 'dashboard' && <Dashboard />}
         {currentView==='project' && <Projects/>}
         {currentView === 'upload' && (
